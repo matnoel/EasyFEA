@@ -145,9 +145,9 @@ The parallel execution proceeds as follows for each solve:
    matrices (K, C, M) and load vector (F).
 2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ with the solver set per
    problem (see {ref}`mpi-tune-solver`).
-3. An `Allgatherv` of each rank's owned DOFs reconstructs the full solution vector on
-   **every** rank. Consequently, all ranks hold the same, complete DOF result after each
-   solve.
+3. Each rank's owned DOFs are right; its ghost DOFs are copied from their owners by one
+   exchange with the neighbouring ranks only (`_FunctionSpace.Scatter_forward`). A rank
+   holds the values of its own nodes, owned and ghost, and no others.
 
 Each element group ({py:class}`~EasyFEA.FEM._GroupElem`) stores its partition: the
 global id and owner rank of each element (`_globalElements`, `_elementOwners`) and the
@@ -275,11 +275,15 @@ the complete global mesh, call {py:meth}`~EasyFEA.Simulations._Simu._Gather` aft
 solve loop:
 
 ```python
-simu._Gather()  # assembles the full mesh on rank 0; no-op on other ranks
+simu._Gather()  # the full mesh and current state on rank 0; other ranks untouched
 
 if MPI_RANK == 0:
     Matplotlib.Plot(simu, "uy")
 ```
+
+Rank 0 receives the current state placed by global id: u, v, a of each problem, the
+internal and nodal external variables, and the heterogeneous parameters (one value per
+element); it then runs as a serial simulation.
 
 Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for
 in-memory post-processing within the script, and to avoid spawning multiple figures or

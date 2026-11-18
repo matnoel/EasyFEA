@@ -533,11 +533,15 @@ class Mesh(Observable):
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
 
+    def _Get_FunctionSpace(
+        self, problemType: "ProblemType | None" = None
+    ) -> _FunctionSpace:
+        """Function space of ``problemType``: the one `_With_FunctionSpace` chose, else the isoparametric one on the mesh nodes, shared by every problem type and the fields at the mesh nodes (``None``)."""
+        space = self.__dict_functionSpace.get(problemType)  # type: ignore[arg-type]
+        return self.__Get_isoparametric_space() if space is None else space
+
     @cache_computed_values
-    def _Get_FunctionSpace(self, problemType: "ProblemType") -> _FunctionSpace:
-        """Function space of ``problemType``: the one `_With_FunctionSpace` chose, else isoparametric, built on first request."""
-        if problemType in self.__dict_functionSpace:
-            return self.__dict_functionSpace[problemType]
+    def __Get_isoparametric_space(self) -> _FunctionSpace:
         nodes = self.nodes
         owned = self._Get_mpi_owned_nodes()
         groups = {groupElem: groupElem for groupElem in self.dict_groupElem.values()}
@@ -970,7 +974,7 @@ class Mesh(Observable):
 
     def Get_Node_Values(self, result_e: _types.FloatArray) -> _types.FloatArray:
         """Get node values from element values.\n
-        The value of a node is calculated by averaging the values of the surrounding elements.
+        The value of a node is calculated by averaging the values of the surrounding elements; under MPI exact on the owned nodes only, a ghost node missing the elements of other ranks.
 
         Parameters
         ----------

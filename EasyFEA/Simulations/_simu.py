@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
+import inspect
 import pickle
 from contextlib import contextmanager
 from dataclasses import replace
@@ -23,6 +24,8 @@ from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import (
     MPI_SIZE,
     MPI_RANK,
+    Allgather,
+    Gather_rows,
     Reduce_sum,
 )
 
@@ -885,16 +888,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return not self.mesh.isPartitioned
 
     def _Gather(self):
-        """Gathers mesh partitions from all MPI ranks onto `root` rank.
-
-        Each mesh in the simulation's mesh history is gathered so that rank
-        `root` holds the complete global mesh.  Simulation results are
-        *already* fully available on every rank (allgathered by the solver),
-        so they are left untouched.
-        """
+        """Gives rank 0 the whole mesh and the current state placed by global id: u, v, a of each problem type, the internal and nodal external variables, the heterogeneous parameters; rank 0 becomes a serial simulation, the other ranks keep their partition. Collective."""
         if MPI_SIZE == 1:
             return
 
+        partition = self.mesh
         list_mesh: list[Mesh] = []
         for mesh in self.__listMesh:
             if isinstance(mesh, str):
@@ -911,6 +909,85 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # partition and no longer apply.
             clear_cached_computed_values(self)
             self.Need_Update()
+
+        comm = partition.comm
+        if comm is None:
+            return
+
+        # `self.mesh` is now the gathered mesh on rank 0, `partition` elsewhere: the same groups in the same order
+        def gather_e(source: _GroupElem, values: np.ndarray, size: int):
+            owned = source._ownedElements
+            return Gather_rows(source._globalElements[owned], values[owned], size, comm)
+
+        for problemType in self.problemTypes:
+            space = partition._Get_FunctionSpace(problemType)
+            dofs = space.Get_dofs(space.ownedNodes, self.Get_dof_n(problemType))
+            u, v, a = (
+                Gather_rows(
+                    dofs, vector[problemType][dofs], vector[problemType].size, comm
+                )
+                for vector in (self.__dict_u_n, self.__dict_v_n, self.__dict_a_n)
+            )
+            if u is not None:
+                self._Set_solutions(problemType, u, v, a)
+
+        groups = {
+            groupElem.elemType.value: groupElem
+            for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.dim)
+        }
+        internals = {}
+        for source, fields in self.__variables.internals.items():
+            target = groups[source.elemType.value]
+            internals[target] = {
+                name: gather_e(source, values, target.Ne)
+                for name, values in fields.items()
+            }
+        nodes = partition._Get_mpi_owned_nodes()
+        externals, nextExternals = (
+            {
+                name: Gather_rows(nodes, values[nodes], partition.Nn, comm)
+                for name, values in fields.items()
+            }
+            for fields in (self.__variables.externals, self.__variables.nextExternals)
+        )
+        if MPI_RANK == 0:
+            self.__variables = replace(
+                self.__variables,
+                internals=internals,
+                externals=externals,
+                nextExternals=nextExternals,
+            )
+
+        sources = partition.Get_list_groupElem()
+        splits = np.cumsum([groupElem.Ne for groupElem in sources])[:-1]
+        for owner, name in self.__Parameters():
+            value = vars(owner)[name]
+            # placed only when one value per element on every rank
+            if all(Allgather(np.ndim(value) > 0 and len(value) == partition.Ne, comm)):
+                value_e = [
+                    gather_e(source, part, target.Ne)
+                    for source, target, part in zip(
+                        sources, self.mesh.Get_list_groupElem(), np.split(value, splits)
+                    )
+                ]
+                if MPI_RANK == 0:
+                    setattr(owner, name, np.concatenate(value_e))
+
+    def __Parameters(self) -> list[tuple[object, str]]:
+        """The parameters of the simulation and of every model it reaches through attributes, as (owner, name)."""
+        owners: list[object] = [self]
+        for owner in owners:
+            for value in vars(owner).values():
+                if isinstance(value, _IModel) and all(value is not o for o in owners):
+                    owners.append(value)
+        return [
+            (owner, name)
+            for owner in owners
+            for name in vars(owner)
+            if isinstance(
+                inspect.getattr_static(type(owner), name, None), _params._Parameter
+            )
+        ]
 
     @property
     def dim(self) -> int:
@@ -1601,6 +1678,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._Trial_internals(), self._externalNames
         )
 
+    def _Scatter_forward(
+        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    ) -> None:
+        """Copies onto the ghost rows of the problem's vector `x` (its fields end to end) their owners' values, in place; nothing unless partitioned, collective otherwise."""
+        fields = self.__Fields(problem)
+        for field, start in zip(fields, self.__Get_offsets(fields)):
+            end = start + self.__Get_size(field)
+            space = self._Get_FunctionSpace(field)
+            space.Scatter_forward(x[start:end], self.Get_dof_n(field))
+
     def _Set_solutions(
         self,
         problemType: ProblemType | tuple[ProblemType, ...],
@@ -1877,8 +1964,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     f"At Newton iteration {newtonIter} relative norm is {relNorm:14.12e}"
                 )
 
-            # compute ||delta_u||
-            norm_delta_u = np.linalg.norm(delta_u)
+            # ||delta_u|| over the owned rows, so that every rank takes the same branch
+            owned = delta_u[self.Get_dofs(problem)]
+            norm_delta_u = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
             # update the newton raphson solution
             u += delta_u
 
@@ -3455,8 +3543,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             elif values.size % Ne == 0:
                 # values stored at elements
                 values_e = values.reshape(Ne, -1)
-                # get node values from element values
+                # get node values from element values, exact on the owned rows only
                 values_n = self.mesh.Get_Node_Values(values_e)
+                space = self.mesh._Get_FunctionSpace()
+                space.Scatter_forward(values_n, values_e.shape[1])
                 return values_n.reshape(shape)
         else:
             shape = -1 if is1d else (Ne, -1)

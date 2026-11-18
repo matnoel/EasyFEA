@@ -11,6 +11,7 @@ from ._mpi import (
     Reduce_min,
     Reduce_max,
     Allgather,
+    Gather,
 )
 from ._observers import Observable, _IObserver
 from ._params import (

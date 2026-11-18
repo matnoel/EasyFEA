@@ -9,7 +9,7 @@ from scipy import sparse
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import MPI_SIZE, Reduce_sum
+from ..Utilities._mpi import MPI_SIZE, Reduce_max, Reduce_sum
 
 # fem
 from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
@@ -319,8 +319,15 @@ class PhaseField(_Simu):
             # new displacement -> new damage matrices
             self.__updatedDamage = False
 
+            # over the owned rows, so that every rank takes the same branch
+            comm = self.mesh.comm
+            ownedU = self.Get_dofs(self.U)
+            ownedD = self.Get_dofs(self.D)
+
             if convOption == 0:
-                convIter = np.max(np.abs(d_np1 - d_n))
+                convIter = Reduce_max(
+                    np.abs(d_np1 - d_n)[ownedD].max(initial=0.0), comm
+                )
 
             elif convOption in [1, 2]:
                 E_np1 = self._Calc_Psi_Crack()
@@ -338,12 +345,15 @@ class PhaseField(_Simu):
                 diffU[u_np1 != 0] *= 1 / np.abs(u_np1[u_np1 != 0])
                 diffD = np.abs(d_np1 - d_n)
                 diffD[d_np1 != 0] *= 1 / np.abs(d_np1[d_np1 != 0])
-                convU = np.sum(diffU)
-                convD = np.sum(diffD)
+                convU = Reduce_sum(np.sum(diffU[ownedU]), comm)
+                convD = Reduce_sum(np.sum(diffD[ownedD]), comm)
                 convIter = np.max([convD, convU])
 
             # check convergence
-            if tolConv == 1 or d_np1.max() == 0:
+            if (
+                tolConv == 1
+                or Reduce_max(float(d_np1[ownedD].max(initial=-np.inf)), comm) == 0
+            ):
                 converged = True
             elif convOption == 3:
                 converged = (convD <= tolConv) and (convU <= tolConv * 0.999)

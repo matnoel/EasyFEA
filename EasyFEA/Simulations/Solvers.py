@@ -25,7 +25,6 @@ from ..Utilities._mpi import (
     MPI_COMM,
     MPI_SIZE,
     Concatenate_array,
-    Sync_dofsValues,
     Reduce_sum,
 )
 
@@ -462,19 +461,8 @@ def Solve_simu(
     else:
         raise NotImplementedError
 
-    if MPI_SIZE > 1:
-        # Assemble the full solution from distributed PETSc partial results.
-        # x has correct values at owned DOFs but stale/repeated values at
-        # non-owned DOFs (e.g. Dirichlet values set identically on every rank).
-        # Sync_dofsValues gathers each rank's owned slice via Allgatherv and
-        # scatters back to EasyFEA-global positions; `ordering` is shared
-        # between the x and lagrange syncs to avoid a duplicate collective.
-        dofs = simu.Get_dofs(problemType)
-        ordering = __Get_global_dof_ordering(simu, problemType)
-        x = Sync_dofsValues(x, dofs, ordering=ordering)
-
-        if resolution == ResolType.r2:
-            lagrange = Sync_dofsValues(lagrange, dofs, ordering=ordering)
+    # x is right at the owned dofs only
+    simu._Scatter_forward(problemType, x)
 
     if resolution in [ResolType.r1, ResolType.r3]:
         return x, rhsNorm
@@ -904,8 +892,7 @@ def _PETSc_MPI(
 
     ksp.solve(rhs, x)
 
-    # Build partial solution vector: owned DOFs filled, non-owned stay 0.
-    # Solve_simu gathers the owned slices of every rank (Sync_dofsValues, Allgatherv).
+    # owned DOFs filled, the others 0 until Solve_simu scatters the ghosts
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[ownedDofs] = x.array
 

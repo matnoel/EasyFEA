@@ -112,6 +112,28 @@ def Allgather(value, comm) -> list:
     return comm.allgather(value)
 
 
+def Gather(value, comm) -> list | None:
+    """Every rank's `value` in rank order on rank 0 of `comm`, None on the others; `[value]` when `comm` is None."""
+
+    if comm is None:
+        return [value]
+
+    return comm.gather(value, root=0)
+
+
+def Gather_rows(
+    ids: np.ndarray, values: np.ndarray, size: int, comm
+) -> np.ndarray | None:
+    """On rank 0 of `comm`, every rank's `values` at their rows `ids` of an array like them of `size` rows (rank 0's `size` counts); None on the others."""
+    parts = Gather((ids, values), comm)
+    if parts is None:
+        return None
+    placed = np.zeros_like(values, shape=(size, *values.shape[1:]))
+    for ids_r, values_r in parts:
+        placed[ids_r] = values_r
+    return placed
+
+
 @requires_mpi
 def Concatenate_array(array: np.ndarray) -> np.ndarray:
     """Returns the rank-ordered concatenation of every rank's ``array``.
@@ -137,59 +159,3 @@ def Concatenate_array(array: np.ndarray) -> np.ndarray:
         recvbuf=[buf, counts, displs, mpi_type],
     )
     return buf
-
-
-@requires_mpi
-def Sync_dofsValues(
-    dofsValues: np.ndarray,
-    dofs: np.ndarray,
-    ordering: np.ndarray = None,  # type: ignore[assignment]
-) -> np.ndarray:
-    """Reconstruct the full DOF solution vector from distributed partial contributions.
-
-    Each rank holds correct values only at its owned ``dofs``.
-    This function gathers each rank's owned slice into a single global buffer via ``Allgatherv`` and scatters the values back to their EasyFEA-global positions.
-    ``Allgatherv`` moves ``N`` doubles total across the communicator (vs ``N × MPI_SIZE`` for the previous ``Allreduce(SUM)``
-    implementation), so the per-call communication volume drops by a factor ``MPI_SIZE`` for the same correctness contract.
-
-    Parameters
-    ----------
-    dofsValues : np.ndarray
-        DOF vector of shape ``(N,)``. Values at ``dofs`` are authoritative;
-        values at all other indices are ignored.
-    dofs : np.ndarray
-        Indices of the DOFs owned by this rank. Must be disjoint from the
-        owned sets of all other ranks and their union must cover ``[0, N)``.
-    ordering : np.ndarray, optional
-        Concatenation of every rank's ``dofs`` array in rank order (``[rank0.dofs, rank1.dofs, ...]``).
-        Pass when the caller already has it — e.g. computed once for paired calls on ``x`` and ``lagrange`` — to avoid a second ``allgather`` collective.
-        Falls back to an internal ``Concatenate_array(dofs)``.
-
-    Returns
-    -------
-    np.ndarray
-        Full DOF vector of shape ``(N,)`` with correct values on every rank.
-        Positions not covered by any rank's ``dofs`` remain ``0`` (same as the previous Allreduce-SUM semantic).
-    """
-    # Owned slice in this rank's local order
-    local = np.ascontiguousarray(dofsValues[dofs])
-
-    # Per-rank slice sizes — small-int allgather, negligible cost
-    counts = np.array(MPI_COMM.allgather(local.size), dtype=int)
-    displs = np.zeros_like(counts)
-    displs[1:] = counts.cumsum()[:-1]
-
-    # Buffer covering the concatenated owned slices, in rank order
-    buf = np.empty(int(counts.sum()), dtype=dofsValues.dtype)
-    MPI_COMM.Allgatherv(
-        sendbuf=[local, MPI.DOUBLE], recvbuf=[buf, counts, displs, MPI.DOUBLE]
-    )
-
-    if ordering is None:
-        ordering = Concatenate_array(dofs)
-
-    # Non-owned positions stay 0 (matches the previous Allreduce-SUM result
-    # for positions not in any rank's `dofs`).
-    full = np.zeros_like(dofsValues)
-    full[ordering] = buf
-    return full

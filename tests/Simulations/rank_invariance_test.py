@@ -14,6 +14,9 @@ import pytest
 
 from EasyFEA import ElemType, Models, Simulations
 from EasyFEA.Geoms import Circle, Domain
+from EasyFEA.Models.InElastic import Plasticity
+from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardening
+from EasyFEA.Models.InElastic.Yield import VonMises
 from EasyFEA.Utilities import Allgather
 
 
@@ -38,9 +41,11 @@ def _pulled_dofs(simu, unknown: str):
 
 
 def _elastic() -> Simulations.Elastic:
-    simu = Simulations.Elastic(
-        _plate_with_hole(ElemType.TRI6), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
-    )
+    """E heterogeneous: softer left of the hole."""
+    mesh = _plate_with_hole(ElemType.TRI6)
+    group = mesh.groupElem
+    E_e = np.where(mesh.coord[group.connect].mean(1)[:, 0] < 0.7, 70e3, 210e3)
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2, E=E_e, v=0.3))
     _clamped_and_pulled(simu, [1e-3, -2e-3], ["x", "y"])
     simu.Solve()
     return simu
@@ -68,7 +73,32 @@ def _newton() -> Simulations.HyperElastic:
     return simu
 
 
-_CASES = {"elastic": _elastic, "newmark": _newmark, "newton": _newton}
+def _inelastic() -> Simulations.InElastic:
+    """Yields around the hole, so that the plastic strain is an internal variable that varies."""
+    elastic = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+    behavior = Plasticity(elastic, VonMises(250.0), LinearHardening(2000.0))
+    simu = Simulations.InElastic(_plate_with_hole(ElemType.TRI3), behavior)
+    for step in range(1, 3):
+        simu.Bc_Init()
+        _clamped_and_pulled(simu, [1e-3 * step], ["x"])
+        simu.Solve()
+    return simu
+
+
+_CASES = {
+    "elastic": _elastic,
+    "newmark": _newmark,
+    "newton": _newton,
+    "inelastic": _inelastic,
+}
+
+# the results a gathered simulation gives, at nodes and on elements
+_RESULTS = {
+    "elastic": ["displacement", "Svm"],
+    "newmark": ["displacement", "speed", "accel", "Svm"],
+    "newton": ["displacement", "Svm"],
+    "inelastic": ["displacement", "Svm", "p"],
+}
 
 
 def _space_coord(order: int) -> np.ndarray:
@@ -80,6 +110,8 @@ def _space_coord(order: int) -> np.ndarray:
 
 def _scalars(simu) -> np.ndarray:
     """Every scalar a script reads, the same on every rank."""
+    if isinstance(simu, Simulations.InElastic):
+        return np.empty(0)
     scalars = list(simu.Results_dict_Energy().values())
     if isinstance(simu, Simulations.HyperElastic):
         return np.array([*scalars, simu.Result("W")])
@@ -89,6 +121,15 @@ def _scalars(simu) -> np.ndarray:
     scalars.append(simu.Calc_Energy(K, u, simu.Get_dofs(simu.problemType)))
     scalars.append(simu.Result("Wdef"))
     return np.array(scalars, dtype=float)
+
+
+def _results(simu, case: str) -> dict[str, np.ndarray]:
+    """The case's results at nodes, then on elements (`_e`)."""
+    results = {}
+    for name in _RESULTS[case]:
+        results[name] = simu.Result(name)
+        results[f"{name}_e"] = simu.Result(name, nodeValues=False)
+    return results
 
 
 def _serial(case: str) -> dict[str, np.ndarray]:
@@ -142,6 +183,27 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=1e-12)
 
 
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", _CASES)
+def test_Gather_gives_rank_0_the_serial_results(case):
+    pytest.importorskip("petsc4py")
+    simu = _CASES[case]()
+    comm = simu.mesh.comm
+    serial = _serial(case)
+
+    simu._Gather()
+
+    if comm.Get_rank() != 0:
+        assert simu.mesh.isPartitioned
+        return
+    assert not simu.mesh.isPartitioned
+    for name, values in _results(simu, case).items():
+        expected = serial[f"result/{name}"]
+        assert values.shape == expected.shape, name
+        scale = max(np.abs(expected).max(), 1e-300)
+        assert np.abs(values - expected).max() < 1e-6 * scale, name
+
+
 if __name__ == "__main__":
     case, path = sys.argv[1:]
     if case.startswith("space"):
@@ -149,4 +211,5 @@ if __name__ == "__main__":
         sys.exit()
     simu = _CASES[case]()
     nodes = np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)])
-    np.savez(path, nodes=nodes, scalars=_scalars(simu))
+    results = {f"result/{k}": v for k, v in _results(simu, case).items()}
+    np.savez(path, nodes=nodes, scalars=_scalars(simu), **results)

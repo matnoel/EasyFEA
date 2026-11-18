@@ -16,6 +16,7 @@ from ..Utilities._mpi import (
     Reduce_max,
     Concatenate_array,
 )
+from ._index_map import _IndexMap
 from ._utils import ElemType, MatrixType, _Order
 
 if TYPE_CHECKING:
@@ -39,12 +40,17 @@ class _FunctionSpace:
         self.__ownedNodes = ownedNodes
         self.__localNodes = localNodes
         self.__rows: _types.IntArray | None = None
+        self.__indexMap: _IndexMap | None = None
         # super-parametric: the nodes no group reaches carry no DOF
         if nodes.size > 0 and nodes[-1] >= nodes.size:
             rows = np.full(nodes[-1] + 1, -1, dtype=int)
             rows[nodes] = np.arange(nodes.size)
             rows.flags.writeable = False
             self.__rows = rows
+
+    def __getstate__(self) -> dict:
+        # the map's communicator does not pickle, and a copy rebuilds it on its first scatter
+        return {**self.__dict__, "_FunctionSpace__indexMap": None}
 
     @property
     def Nn(self) -> int:
@@ -194,6 +200,28 @@ class _FunctionSpace:
     def __Is_partitioned(groups: Iterable["_GroupElem"]) -> bool:
         """Whether the ranks share the mesh of these groups."""
         return all(groupElem.isPartitioned for groupElem in groups)
+
+    def Scatter_forward(self, array: np.ndarray, dof_n: int) -> None:
+        """Copies onto the ghost rows of ``array`` (node-major, ``dof_n`` per node) their owners' values, in place; nothing unless partitioned. Collective on a partitioned mesh: its map is built on the first call."""
+        groups = self.__dict_groupElem
+        if not _FunctionSpace.__Is_partitioned(groups):
+            return
+        if self.__indexMap is None:
+            # the held nodes and their owners: those of a partner, else the geometry's (iso)
+            group = next(
+                (partner for g, partner in groups.items() if partner is not g),
+                next(iter(groups)),
+            )
+            nodes, owners = group._globalNodes, group._nodeOwners
+            assert nodes is not None and owners is not None
+            self.__indexMap = _IndexMap(
+                nodes,
+                self.__Get_rows(nodes),
+                owners,
+                group.rank,
+                MPI_COMM,
+            )
+        self.__indexMap.Scatter_forward(array, dof_n)
 
     def Get_meshValues(
         self, dofsValues: _types.FloatArray, dof_n: int

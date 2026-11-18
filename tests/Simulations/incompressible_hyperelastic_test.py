@@ -906,4 +906,28 @@ def test_IncompressibleHyperElastic_Solve_under_mpi_is_the_exact_stretch():
     u = simu.displacement.reshape(-1, 2)[points]
     assert np.abs(u[:, 0] - (STRETCH - 1) * coord[:, 0]).max() < 1e-10
     assert np.abs(u[:, 1] - (t - 1) * coord[:, 1]).max() < 1e-10
+    pressure = simu.pressure[simu.Get_dofs(simu.P)]
+    assert np.abs(pressure - p).max() < 1e-10
+
+
+@pytest.mark.mpi
+def test_IncompressibleHyperElastic_Gather_gives_rank_0_the_exact_stretch():
+    pytest.importorskip("petsc4py")
+    simu = incompressible(_square(ElemType.QUAD9), K_LAW)
+    mesh = simu.mesh
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesBottom = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodesLeft, [0], ["x"])
+    simu.add_dirichlet(nodesBottom, [0], ["y"])
+    simu.add_dirichlet(nodesRight, [STRETCH - 1], ["x"])
+    simu.Solve()
+    isRoot = simu.mesh.comm.Get_rank() == 0
+
+    simu._Gather()
+
+    if not isRoot:
+        return
+    _, p, _ = _exact_stretch(simu.dim)
+    assert np.abs(simu.displacement - _exact_stretch_u(simu)).max() < 1e-10
     assert np.abs(simu.pressure - p).max() < 1e-10
