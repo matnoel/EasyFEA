@@ -20,6 +20,14 @@ This document describes the changes made to the project.
 - `_GroupElem.Ncoords` renamed `Nn`, the size of the node numbering; the group's own
   node count is `nodes.size`.
 - `_GroupElem._global_to_local_nodes` renamed `_nodesIdx`, a read-only property.
+- PETSc, serial and MPI, keeps its matrix and solver between solves: refilled when `A`
+  changes, rebuilt when the known dofs or the mesh do. LU factors are kept, so a Newmark
+  step with a constant `A` takes ~15 ms instead of ~1 s (47k dofs). GAMG reuses its
+  interpolation on a refill (PETSc's default): iterative solutions move within the
+  solver tolerance. PETSc options set elsewhere after the first solve are read only when
+  `_Solver_Set_PETSc4Py_Options` is called again.
+- Assembled `K`, `C`, `M` are read-only; `Assembly` returns the previous matrix while
+  its `constant=True` terms are unchanged.
 
 ## 7.3.0 (November 13, 2026):
 

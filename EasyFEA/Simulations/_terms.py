@@ -35,6 +35,22 @@ _LocalSystem = dict[str, dict["_Block | ProblemType", dict["_GroupElem", np.ndar
 """What :func:`Fold_terms` returns, by slot then block then group: a matrix's block is ``(rows, cols)``, a vector's its ``rows``."""
 
 
+class _Folded(_LocalSystem):
+    """A :data:`_LocalSystem` with what fed each ``K``, ``C`` and ``M`` slot, in fold order: a cached array with its coefficient, block and group, or None for a non-constant term."""
+
+    def __init__(self) -> None:
+        super().__init__(K={}, C={}, M={}, F={})
+        self.provenance: dict[str, list] = {"K": [], "C": [], "M": []}
+
+
+def Same_provenance(a: list, b: list) -> bool:
+    """Whether two slots were folded from the same cached arrays, coefficients, blocks and groups, and from no non-constant term."""
+    return len(a) == len(b) and all(
+        x is not None and y is not None and x[0] is y[0] and x[1:] == y[1:]
+        for x, y in zip(a, b)
+    )
+
+
 _SLOTS = "KCMFR"
 """Slot letters, one per array the operator returns. ``K``/``C``/``M`` are the stiffness, damping and mass matrices; ``F`` is an external load, added to the right-hand side as-is; ``R`` is an **internal** force, so it reaches ``F`` negated. Every nonlinear operator returns an ``R`` — it is the residual of ``A·Δu = -R(u)`` — and ``F`` is reserved for genuine loads such as a phase-field source."""
 
@@ -358,7 +374,7 @@ def Fold_terms(
         simu.Get_dof_n(problemType),
     )
 
-    out: _LocalSystem = {"K": {}, "C": {}, "M": {}, "F": {}}
+    out = _Folded()
 
     def Add(
         slot: str,
@@ -407,8 +423,15 @@ def Fold_terms(
                     groupElem,
                     simu,
                 )
+                coef = thickness * term.scale
+                if slot in out.provenance:
+                    out.provenance[slot].append(
+                        (contribution, coef, block, groupElem)
+                        if term.constant
+                        else None
+                    )
                 # always allocates, so a cached `constant=True` array is never written into
-                contribution = thickness * term.scale * contribution
+                contribution = coef * contribution
                 if slot == "R":  # an internal force opposes the right-hand side
                     Add("F", block[0], groupElem, -contribution)
                 elif slot == "F":

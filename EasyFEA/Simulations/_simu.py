@@ -5,6 +5,7 @@
 
 from abc import ABC, abstractmethod
 import inspect
+import operator
 import pickle
 from contextlib import contextmanager
 from dataclasses import replace
@@ -53,7 +54,7 @@ from ..Models import _IModel
 # simu
 from ._problem_type import ProblemType
 from . import _iterations
-from ._terms import Term, Fold_terms, _LocalSystem
+from ._terms import Term, Fold_terms, Same_provenance, _Folded, _LocalSystem
 from .Solvers import (
     Solve_simu,
     SolverType,
@@ -61,6 +62,7 @@ from .Solvers import (
     AlgoType,
     CAN_USE_PYPARDISO,
     _Get_PETSc,
+    _PETSc_Free,
     _Numbering,
 )
 
@@ -690,6 +692,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__pinnedFields: set[ProblemType] = set()
         """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
+        self._petscSolvers: dict[ProblemType | tuple[ProblemType, ...], tuple] = {}
+        """`(ksp, matrix, numbering, A)` per problem, A the last one filled, kept between solves; not pickled."""
+
         # Solver used
         if MPI_SIZE > 1:
             if _Get_PETSc() is None:
@@ -897,6 +902,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Gives rank 0 the whole mesh and the current state placed by global id: u, v, a of each problem type, the internal and nodal external variables, the heterogeneous parameters; rank 0 becomes a serial simulation, the other ranks keep their partition. Collective."""
         if MPI_SIZE == 1:
             return
+
+        # rank 0 turns serial: its solvers on the world comm are freed while every rank is here
+        _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
 
         partition = self.mesh
         list_mesh: list[Mesh] = []
@@ -1106,6 +1114,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         matrix = sparse.csr_matrix((csr_data, indices, indptr), shape=shape)
         # Canonical by construction (scipy sorted the pattern): lets Solvers skip its canonical fixup.
         matrix.has_canonical_format = True
+        # a solver keeps what it built from this matrix while it is the same object
+        matrix.data.flags.writeable = False
         return matrix
 
     @cache_computed_values
@@ -1205,11 +1215,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         local: _LocalSystem = {"K": {}, "C": {}, "M": {}, "F": {}}
+        provenance: dict[str, list] = {"K": [], "C": [], "M": [], "F": [None]}
         for problemType in problemTypes:
-            for slot, blocks in self._Construct_local_matrix_system(
-                problemType
-            ).items():
+            folded = self._Construct_local_matrix_system(problemType)
+            for slot, blocks in folded.items():
                 local[slot].update(blocks)
+            for slot in "KCM":
+                # an overridden fold says nothing of its provenance
+                provenance[slot] += (
+                    folded.provenance[slot] if isinstance(folded, _Folded) else [None]
+                )
 
         for slot in "KCM":
             for rows, cols in local[slot]:
@@ -1229,17 +1244,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._verbosity,
         )
 
+        # a matrix folded from the same cached arrays is the previous one, kept until the mesh changes
+        kept = cached_computed_values(self).setdefault("Assembly", {})
+        key = (tuple(layout), Ndof)
         assembled = []
-        for slot, name in (
-            ("K", "K matrix"),
-            ("C", "C matrix"),
-            ("M", "M matrix"),
-            ("F", "F vector"),
-        ):
-            assembled.append(
-                self.__Assemble_csr(local[slot], tuple(layout), Ndof, slot != "F")
-            )
-            tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
+        for slot, name in zip("KCMF", ("K matrix", "C matrix", "M matrix", "F vector")):
+            oldKey, oldStamp, matrix = kept.pop((problemTypes, slot), (None, [], None))
+            if oldKey != key or not Same_provenance(oldStamp, provenance[slot]):
+                matrix = self.__Assemble_csr(local[slot], key[0], Ndof, slot != "F")
+                tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
+            if None not in provenance[slot]:
+                kept[(problemTypes, slot)] = (key, provenance[slot], matrix)
+            assembled.append(matrix)
         K, C, M, F = assembled
 
         return K, C, M, F
@@ -1261,7 +1277,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 f"Only petsc solves a system distributed over the ranks, not {value}."
             )
         else:
+            if value != SolverType.petsc:
+                _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
             self.__solver = value
+
+    def __getstate__(self) -> dict:
+        # PETSc objects do not pickle: a copy builds its own
+        return {**self.__dict__, "_petscSolvers": {}}
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         r"""Sets the algorithm's resolution properties for an elliptic problem.
@@ -2148,18 +2170,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        if self.algo is AlgoType.elliptic:
-            A = K
-        else:
-            coefK, coefC, coefM = self._Solver_Get_K_C_M_coefs_for_time_scheme()
-            if all(X.nnz == 0 or X.indptr is K.indptr for X in (C, M)):
-                # one assembly pattern: summed on the values
-                A = coefK * K
-                for coef, X in ((coefC, C), (coefM, M)):
-                    if X.nnz:
-                        A.data += coef * X.data
-            else:
-                A = coefK * K + coefC * C + coefM * M
+        A = self.__Get_A(problemType, K, C, M)
 
         tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
 
@@ -2180,6 +2191,85 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic.Tac("Solver", f"Construct {val} ({problemType}, {algo})", self._verbosity)
 
         return A, x
+
+    def __Get_A(
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        K: sparse.csr_matrix,
+        C: sparse.csr_matrix,
+        M: sparse.csr_matrix,
+    ) -> sparse.csr_matrix:
+        """`coefK·K + coefC·C + coefM·M` of the time scheme (K when elliptic), a unit diagonal at the orphan dofs; the same read-only object while K, C, M are and the coefficients are unchanged."""
+        if self.algo is AlgoType.elliptic:
+            summed = [(1.0, K)]
+        else:
+            coefs = self._Solver_Get_K_C_M_coefs_for_time_scheme()
+            # an empty C or M adds nothing but its own indptr
+            summed = [(c, X) for c, X in zip(coefs, (K, C, M)) if X is K or X.nnz]
+        coefs, matrices = zip(*summed)
+
+        kept = cached_computed_values(self).setdefault("__Get_A", {})
+        old = kept.get(problemType, ((), (), None))
+        if old[1] == coefs and all(map(operator.is_, old[0], matrices)):
+            return old[2]
+
+        indices, indptr, slots, diagonal = self.__Get_A_pattern(problemType, matrices)
+        if coefs == (1.0,) and diagonal.size == 0:
+            A = K
+        else:
+            data = np.zeros(indices.size)
+            for coef, X, slot in zip(coefs, matrices, slots):
+                data[slot] += coef * X.data
+            data[diagonal] += 1.0
+            A = sparse.csr_matrix((data, indices, indptr), shape=K.shape)
+        A.has_canonical_format = True
+        A.data.flags.writeable = False
+
+        kept[problemType] = (matrices, coefs, A)
+        return A
+
+    def __Get_A_pattern(
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        matrices: tuple[sparse.csr_matrix, ...],
+    ) -> tuple[
+        _types.IntArray, _types.IntArray, list[_types.IntArray | slice], _types.IntArray
+    ]:
+        """Union of the patterns of `matrices` and of the orphan diagonal, kept while their patterns are: `(indices, indptr)`, each matrix's slots in it, the diagonal's; exact zeros stay, so A's pattern never follows its values."""
+        nodes = np.asarray(self.mesh.orphanNodes, dtype=int)
+        # only the orphans carrying a dof (TETRA10 mid nodes under P1 skipped)
+        orphanDofs = self.__Compose(
+            problemType,
+            lambda field: self.Bc_dofs_nodes(
+                self._Get_FunctionSpace(field).Get_dof_nodes(nodes),
+                self.Get_unknowns(field),
+                field,
+            ),
+            isDofs=True,
+        )
+        K = matrices[0]
+        if orphanDofs.size == 0 and all(X.indptr is K.indptr for X in matrices):
+            return K.indices, K.indptr, [slice(None)] * len(matrices), orphanDofs
+
+        kept = cached_computed_values(self).setdefault("__Get_A_pattern", {})
+        indptrs = [X.indptr for X in matrices]
+        old = kept.get(problemType, ((), None))
+        if len(old[0]) == len(indptrs) and all(map(operator.is_, old[0], indptrs)):
+            return old[1]
+
+        # entries as row·n + col, sorted: the canonical CSR order
+        n = K.shape[0]
+        keys = [
+            np.repeat(np.arange(n, dtype=np.int64), np.diff(X.indptr)) * n + X.indices
+            for X in matrices
+        ]
+        keys.append(orphanDofs.astype(np.int64) * (n + 1))
+        canon = np.unique(np.concatenate(keys))
+        union = sparse.csr_matrix((np.ones(canon.size), divmod(canon, n)), shape=(n, n))
+        slots = [np.searchsorted(canon, key) for key in keys]
+        pattern = (union.indices, union.indptr, slots[:-1], slots[-1])
+        kept[problemType] = (indptrs, pattern)
+        return pattern
 
     def __Solver_Get_Dirichlet_A_x(
         self,
@@ -2213,24 +2303,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         size = self.__Get_size(problemType)
-
-        if len(self.mesh.orphanNodes) > 0:
-            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (TETRA10 mid nodes under P1 skipped)
-            orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
-            orphanDofs = self.__Compose(
-                problemType,
-                lambda field: self.Bc_dofs_nodes(
-                    self._Get_FunctionSpace(field).Get_dof_nodes(orphans),
-                    self.Get_unknowns(field),
-                    field,
-                ),
-                isDofs=True,
-            )
-            diag = np.zeros(A.shape[0])
-            diag[orphanDofs] = 1.0
-            A = A + sparse.diags(diag, format="csr")
-            # Matplotlib.Init_Axes().spy(A)
-            # Matplotlib.plt.show()
 
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls
@@ -2266,6 +2338,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         The constructor auto-selects defaults based on problem type and mesh dimension
         (see ``__init__``). Call this method to override those defaults.
+
+        Rebuilds the kept PETSc solver, so ``PETSc.Options()`` set since are read again.
 
         Parameters
         ----------
@@ -2433,6 +2507,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if problemType is None
             else [problemType]
         )
+        _PETSc_Free(self._petscSolvers, list_problemTypes)
         for problemType in list_problemTypes:
             self.__dict_solver_petsc4py_options[problemType] = (
                 kspType,

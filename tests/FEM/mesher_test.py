@@ -982,6 +982,12 @@ def test_Mesher__Mesh_Get_Meshes_owned_nodes_partition_the_mesh(partitions, subt
             assert set().union(*owned) == set(range(whole.Nn))
 
 
+def test_Mesher__Mesh_Get_Meshes_pieces_have_no_orphan_nodes(partitions, subtests):
+    for elemType, (_, pieces) in partitions.items():
+        with subtests.test(elemType=str(elemType)):
+            assert [piece.orphanNodes for piece in pieces] == [[]] * NPROC
+
+
 def test_Mesher__Mesh_Get_Meshes_ghost_elements_are_owned_elsewhere(
     partitions, subtests
 ):

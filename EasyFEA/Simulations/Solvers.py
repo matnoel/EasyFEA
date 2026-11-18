@@ -299,6 +299,8 @@ def _Solve_Axb(
 
     b = np.asarray(b).ravel()
 
+    # a numbering made here is new at each solve: its PETSc solver is not kept
+    oneOff = numbering is None
     if numbering is None:
         numbering = _Numbering.Identity(A.shape[0])
 
@@ -349,6 +351,8 @@ def _Solve_Axb(
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
         x, converged = _PETSc(
+            simu._petscSolvers,
+            problemType,
             A,
             b,
             x0,
@@ -357,6 +361,8 @@ def _Solve_Axb(
             pcType,
             solverType,
         )
+        if oneOff:
+            _PETSc_Free(simu._petscSolvers, [problemType])
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -678,6 +684,8 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
 
 
 def _PETSc(
+    kept: dict,
+    problemType: "ProblemType | tuple[ProblemType, ...]",
     A: sparse.csr_matrix,
     b: _types.FloatArray,
     x0: _types.FloatArray,
@@ -686,13 +694,17 @@ def _PETSc(
     pcType: str,
     solverType: str,
 ) -> tuple[_types.FloatArray, bool]:
-    """PETSc interface to solve `A x = b` on the rows and columns `numbering` keeps, the others dropped (r1); in serial on one process.\n
+    """PETSc interface to solve `A x = b` on the rows and columns `numbering` keeps, the others dropped (r1); in serial on one process. KSP and Mat kept in `kept[problemType]`: rebuilt on a new numbering or pattern, refilled on a new A. Collective.\n
     KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
 
     Parameters
     ----------
+    kept : dict
+        `(ksp, matrix, numbering, A)` per problem, A the last one filled
+    problemType : ProblemType | tuple[ProblemType, ...]
+        key in `kept`
     A : sparse.csr_matrix
-        sparse matrix (N, N), complete on the owned rows
+        sparse matrix (N, N), canonical, complete on the owned rows
     b : _types.FloatArray
         vector (N,)
     x0 : _types.FloatArray
@@ -709,7 +721,7 @@ def _PETSc(
         https://petsc.org/release/manualpages/PC/PCType/#pctype\n
     solverType : str
         PETSc Linear Solver
-        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
+        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholmod' ...\n
         https://petsc.org/release/manual/ksp/#using-external-linear-solvers
 
     Returns
@@ -725,55 +737,83 @@ def _PETSc(
     PETSc = _Get_PETSc()
     assert PETSc is not None, "petsc4py is not available"
 
-    comm = PETSc.COMM_SELF if numbering.comm is None else numbering.comm
+    comm = numbering.comm or PETSc.COMM_SELF
     rows = numbering.rows
 
-    # -1 rows and columns are dropped: ghost rows, known dofs
-    rowMap = PETSc.LGMap().create(numbering.rowIds.astype(PETSc.IntType), comm=comm)
-    columnMap = PETSc.LGMap().create(numbering.ids.astype(PETSc.IntType), comm=comm)
-    matrix = PETSc.Mat().create(comm=comm)
-    matrix.setType("aij")
-    matrix.setSizes(((rows.size, None), (rows.size, None)))
-    matrix.setLGMap(rowMap, columnMap)
-    # copies: PETSc overwrites them
-    rowsCoo = np.repeat(np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr))
-    matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
-    matrix.setValuesCOO(A.data)
+    ksp, matrix, keptNumbering, keptA = kept.get(problemType, (None,) * 4)
+    relayout = (
+        ksp is None or numbering is not keptNumbering or A.indptr is not keptA.indptr
+    )
+    stale = relayout or A is not keptA
+    relayout, stale = (
+        Reduce_sum(np.array([relayout, stale], dtype=int), numbering.comm) > 0
+    )
 
-    rhs = matrix.createVecLeft()
+    if relayout:
+        # two factorisations never held at once
+        _PETSc_Free(kept, [problemType])
+
+        # -1 rows and columns are dropped: ghost rows, known dofs
+        rowMap = PETSc.LGMap().create(numbering.rowIds.astype(PETSc.IntType), comm=comm)
+        columnMap = PETSc.LGMap().create(numbering.ids.astype(PETSc.IntType), comm=comm)
+        matrix = PETSc.Mat().create(comm=comm)
+        matrix.setType("aij")
+        matrix.setSizes(((rows.size, None), (rows.size, None)))
+        matrix.setLGMap(rowMap, columnMap)
+        rowMap.destroy()
+        columnMap.destroy()
+        # copies: PETSc overwrites them
+        rowsCoo = np.repeat(
+            np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr)
+        )
+        matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
+
+        ksp = PETSc.KSP().create(comm=comm)
+        ksp.setOperators(matrix)
+        ksp.setType(kspType)
+        pc = ksp.getPC()
+        pc.setType(pcType)
+        pc.setFactorSolverType(solverType)
+        options = PETSc.Options()
+        if solverType == "mumps":
+            if not options.hasName("mat_mumps_icntl_20"):
+                # centralised right-hand side, see the warning; a no-op on one process
+                options.setValue("mat_mumps_icntl_20", 0)
+            elif comm.Get_size() > 1 and options.getInt("mat_mumps_icntl_20") == 10:
+                warnings.warn(
+                    "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
+                    RuntimeWarning,
+                )
+        ksp.setFromOptions()
+
+    if stale:
+        matrix.setValuesCOO(A.data)
+    kept[problemType] = (ksp, matrix, numbering, A)
+
+    x, rhs = matrix.createVecs()
     rhs.array[:] = b[rows]
-
-    x = matrix.createVecRight()
     if len(x0) > 0:
         x.array[:] = x0[rows]
-
-    ksp = PETSc.KSP().create(comm=comm)
-    ksp.setOperators(matrix)
-    ksp.setType(kspType)
-    pc = ksp.getPC()
-    pc.setType(pcType)
-    pc.setFactorSolverType(solverType)
-    options = PETSc.Options()
-    if solverType == "mumps":
-        if not options.hasName("mat_mumps_icntl_20"):
-            # centralised right-hand side, see the warning; a no-op on one process
-            options.setValue("mat_mumps_icntl_20", 0)
-        elif comm.Get_size() > 1 and options.getInt("mat_mumps_icntl_20") == 10:
-            warnings.warn(
-                "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
-                RuntimeWarning,
-            )
-    ksp.setFromOptions()
 
     ksp.solve(rhs, x)
 
     values = x.array.copy()
-    converged = ksp.is_converged
-    for obj in (ksp, x, rhs, matrix, columnMap, rowMap):
-        obj.destroy()
+    x.destroy()
+    rhs.destroy()
 
-    # flush any remaining petsc4py reference cycles as suggested here:
-    # https://gitlab.com/petsc/petsc/-/work_items/1309
-    PETSc.garbage_cleanup(comm)
+    return values, ksp.is_converged
 
-    return values, converged
+
+def _PETSc_Free(kept: dict, problemTypes: list) -> None:
+    """Destroys the KSP and Mat kept for `problemTypes`. Collective."""
+    PETSc = _Get_PETSc()
+    for problemType in problemTypes:
+        entry = kept.pop(problemType, None)
+        if entry is None:
+            continue
+        ksp, matrix, numbering, *_ = entry
+        ksp.destroy()
+        matrix.destroy()
+        # flush any remaining petsc4py reference cycles as suggested here:
+        # https://gitlab.com/petsc/petsc/-/work_items/1309
+        PETSc.garbage_cleanup(numbering.comm or PETSc.COMM_SELF)

@@ -83,12 +83,11 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
 
-        # check orphan nodes (a node is used if any group references it)
-        Nn = self.Nn
+        # check orphan nodes (a node is used if any group references it), among the rank's own
         usedNodes: set[int] = set()
         for groupElem in self.dict_groupElem.values():
             usedNodes.update(groupElem.connect.ravel().astype(int).tolist())
-        nodes = set(range(Nn))
+        nodes = set(self.globalNodes.tolist())
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:
@@ -141,7 +140,7 @@ class Mesh(Observable):
 
     @property
     def orphanNodes(self) -> list[int]:
-        """nodes not connected to any mesh elements"""
+        """nodes of this rank no mesh element uses"""
         return self.__orphanNodes
 
     @property

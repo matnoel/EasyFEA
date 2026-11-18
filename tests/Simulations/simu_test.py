@@ -1986,6 +1986,31 @@ def test_Simu_Solve_with_petsc_follows_a_changed_set_of_known_dofs():
     np.testing.assert_array_equal(simu.thermal, fresh.thermal)
 
 
+def test_Simu_Solve_with_petsc_follows_a_changed_stiffness():
+    pytest.importorskip("petsc4py")
+
+    def heated(k: float) -> Simulations.Thermal:
+        mesh = _bar()
+        simu = Simulations.Thermal(mesh, Models.Thermal(k, 1))
+        simu.solver = SolverType.petsc
+        simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "petsc")
+        nodesCold = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nodesHeated = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+        simu.add_dirichlet(nodesCold, [0], ["t"])
+        simu.add_neumann(nodesHeated, [1], ["t"])
+        return simu
+
+    simu = heated(1.0)
+    simu.Solve()
+    fresh = heated(2.0)
+    fresh.Solve()
+
+    simu.thermalModel.k = 2.0
+    simu.Solve()
+
+    np.testing.assert_array_equal(simu.thermal, fresh.thermal)
+
+
 def test_Simu_Bc_Init_clears_every_condition():
     simu = _beam(2)
     nodesTip = simu.mesh.Nodes_Point((10, 0))
