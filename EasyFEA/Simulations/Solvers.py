@@ -6,9 +6,11 @@
 """Interface module to various solvers available in Python for solving linear systems (A x = b)."""
 
 import sys
+import warnings
 from enum import Enum
 from functools import cache
 from types import ModuleType
+from typing import Callable
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -20,16 +22,7 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
-from ..Utilities._mpi import (
-    CAN_USE_MPI,
-    MPI_COMM,
-    MPI_SIZE,
-    Concatenate_array,
-    Reduce_sum,
-)
-
-if CAN_USE_MPI:
-    from mpi4py import MPI
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Exscan_sum, Reduce_sum
 
 # fem
 from ..FEM import LagrangeCondition
@@ -229,6 +222,41 @@ class SolverType(str, Enum):
         return self.name
 
 
+class _Numbering:
+    """Reduced PETSc id of each dof of a problem: owned unknowns numbered rank after rank, a ghost its owner's id, a known dof -1 (dropped by PETSc)."""
+
+    def __init__(
+        self,
+        known: _types.BoolArray,
+        owned: _types.BoolArray,
+        comm,
+        scatter: Callable[[_types.IntArray], None],
+    ):
+        """Only the owned rows of `known` count; `scatter` copies owned rows onto ghosts. Collective on `comm`."""
+        self.known = known
+        """the known dofs it was built for"""
+        self.comm = comm
+        self.rows = np.flatnonzero(owned & ~known)
+        """the owned unknowns, in PETSc order"""
+        ids = np.full(known.size, -1, dtype=np.int64)
+        ids[self.rows] = Exscan_sum(self.rows.size, comm) + np.arange(self.rows.size)
+        scatter(ids)
+        self.ids = ids
+        """PETSc id of each dof, -1 for a known one"""
+        self.rowIds = np.where(owned, ids, -1)
+        """`ids` with the ghost rows dropped"""
+
+    @staticmethod
+    def Identity(size: int) -> "_Numbering":
+        """Every dof unknown, in place, on one process."""
+        return _Numbering(
+            np.zeros(size, dtype=bool),
+            np.ones(size, dtype=bool),
+            None,
+            lambda ids: None,
+        )
+
+
 def _Solve_Axb(
     simu: "_Simu",
     problemType: "ProblemType | tuple[ProblemType, ...]",
@@ -237,9 +265,7 @@ def _Solve_Axb(
     x0: _types.FloatArray,
     lb: _types.AnyArray | _types.Numbers,
     ub: _types.AnyArray | _types.Numbers,
-    resol: ResolType = ResolType.r1,
-    ownedDofs: _types.IntArray | None = None,
-    mapping: _types.IntArray | None = None,
+    numbering: _Numbering | None = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -259,21 +285,22 @@ def _Solve_Axb(
         lowerBoundary of the solution
     ub : _types.AnyArra | _types.Numbers
         upperBoundary of the solution
-    ownedDofs : _types.IntArray, optional
-        Indices (into A/b) owned by this rank, by defaut None.Must be disjoint across ranks and together cover all N rows
-    mapping : _types.IntArray, optional
-        index in A/b -> PETSc global column index, by default None. When None under MPI, built here from the global DOF ordering (one Allgatherv per solve, not cached).
+    numbering : _Numbering, optional
+        For PETSc, the rows and columns kept, the others dropped, by default every one (serial).
 
     Returns
     -------
     _types.FloatArray
-        comuted x solution of A x = b
+        comuted x solution of A x = b, through PETSc only at `numbering.rows`
     """
 
     if not isinstance(A, sparse.csr_matrix):
         A = sparse.csr_matrix(A)
 
     b = np.asarray(b).ravel()
+
+    if numbering is None:
+        numbering = _Numbering.Identity(A.shape[0])
 
     if len(simu.Bc_Lagrange) > 0:
         if MPI_SIZE > 1:
@@ -298,9 +325,7 @@ def _Solve_Axb(
                 solver = SolverType.petsc
     else:
         solver = simu.solver
-        if isinstance(problemType, tuple) and __Has_zero_diagonal(
-            A, ownedDofs, simu.mesh.comm
-        ):
+        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, numbering):
             __Check_saddle_point_solver(simu, problemType)
 
     # import matplotlib.pyplot as plt
@@ -323,40 +348,15 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        # from ..Viz import Matplotlib
-        # # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
-        # ax = Matplotlib.Init_Axes(2)
-        # ax.grid()
-        # # A = A[dofs, :]
-        # ax.spy(A)
-        # ax.set_title(f"rank {MPI_RANK}")
-        # print(f"rank {MPI_RANK}: b = \n{b.toarray()}")
-        # Matplotlib.plt.show()
-
-        if MPI_SIZE > 1:
-            if ownedDofs is None:
-                dofs = simu.Get_dofs(problemType)
-                if resol == ResolType.r1:
-                    _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
-                    dofsUnknown = __Get_unique_dofs(dofsUnknown)
-                    ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
-                elif resol == ResolType.r3:
-                    # Full penalized system: owned DOFs in PETSc order + the
-                    # DOF->PETSc mapping, both from the global DOF ordering
-                    # (one Allgatherv, rebuilt every solve).
-                    fullOrdering = __Get_global_dof_ordering(simu, problemType)
-                    isOwned = np.zeros(fullOrdering.size, dtype=bool)
-                    isOwned[dofs] = True
-                    ownedDofs = fullOrdering[isOwned[fullOrdering]]
-                    mapping = np.empty(fullOrdering.size, dtype=int)
-                    mapping[fullOrdering] = np.arange(fullOrdering.size)
-                else:
-                    raise NotImplementedError
-            x, converged = _PETSc_MPI(
-                A, b, x0, ownedDofs, mapping, kspType, pcType, solverType
-            )
-        else:
-            x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
+        x, converged = _PETSc(
+            A,
+            b,
+            x0,
+            numbering,
+            kspType,
+            pcType,
+            solverType,
+        )
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -408,32 +408,32 @@ def _Solve_Axb(
     return np.array(x)
 
 
-def __Has_zero_diagonal(
-    A: sparse.csr_matrix, ownedDofs: _types.IntArray | None, comm
-) -> bool:
-    """Whether a row of `A` has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
-    diagonal = A.diagonal()
-    if ownedDofs is not None:
-        diagonal = diagonal[ownedDofs]
-    return Reduce_sum(int(np.count_nonzero(diagonal == 0)), comm) > 0
+def __Has_zero_diagonal(A: sparse.csr_matrix, numbering: _Numbering) -> bool:
+    """Whether a row `numbering` keeps has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
+    diagonal = A.diagonal()[numbering.rows]
+    return Reduce_sum(int(np.count_nonzero(diagonal == 0)), numbering.comm) > 0
 
 
 def __Check_saddle_point_solver(
     simu: "_Simu", problem: "tuple[ProblemType, ...]"
 ) -> None:
-    """Rejects a solver that cannot factor a saddle point: a direct one only, PETSc's LU through an external package (Mumps under MPI)."""
+    """Rejects a solver that cannot factor a saddle point: a direct one only, PETSc's LU through an external package (Mumps or SuperLU_dist under MPI)."""
     solver = simu.solver
     if solver in (SolverType.pypardiso, SolverType.scipy) and MPI_SIZE == 1:
         return
     if solver == SolverType.petsc:
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problem)
-        external = solverType == "mumps" if MPI_SIZE > 1 else solverType != "petsc"
+        external = (
+            solverType in ("mumps", "superlu_dist")
+            if MPI_SIZE > 1
+            else solverType != "petsc"
+        )
         if kspType == "preonly" and pcType == "lu" and external:
             return
         solver = f"petsc ({kspType}, {pcType}, {solverType})"
     names = ", ".join(problem)
     accepted = (
-        "petsc with preonly, lu, mumps"
+        "petsc with preonly, lu and mumps or superlu_dist"
         if MPI_SIZE > 1
         else "pypardiso, scipy or petsc with preonly, lu and an external package (mumps)"
     )
@@ -472,72 +472,6 @@ def Solve_simu(
         raise NotImplementedError
 
 
-def __Get_unique_dofs(dofs: _types.IntArray, Ndof: int = None) -> _types.IntArray:
-    assert MPI_SIZE > 1
-    dofs = np.asarray(dofs, dtype=np.int64)
-    # Total DOF count. Callers that already know it (= mesh.Nn * dof_n) pass it
-    # in to skip this MAX-Allreduce; otherwise discover it via a collective.
-    if Ndof is None:
-        local_max = dofs.max() if dofs.size > 0 else -1
-        Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
-    # Find DOFs present in every rank's `dofs` set (the global intersection).
-    # uint8 + Allreduce(MIN): each rank's marker is 1 where the DOF is in
-    # its `dofs`, 0 elsewhere; MIN across ranks yields 1 iff every rank had
-    # a 1 there. This is bit-for-bit equivalent to the previous
-    # (int32 marker + SUM, check == MPI_SIZE) approach but moves only one
-    # byte per DOF — a 4× bandwidth reduction on the Allreduce, which is
-    # the dominant communication cost at scale (~Ndof bytes per Solve).
-    # Allreduce in-place: reuse marker as both send and receive buffer.
-    marker = np.zeros(Ndof, dtype=np.uint8)
-    marker[dofs] = 1
-    MPI_COMM.Allreduce(MPI.IN_PLACE, marker, MPI.MIN)
-    result = np.flatnonzero(marker).astype(np.int64)
-    return result
-
-
-def __Get_global_dof_ordering(
-    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
-) -> _types.IntArray:
-    """Rank-contiguous global DOF ordering induced by the MPI partition: ``ordering[i]`` is the DOF at global position ``i``, with rank 0's owned DOFs first, then rank 1's, etc.
-
-    The nodes the function space gives each rank are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical node->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space). A monolithic problem's fields are composed per rank: rank 0's u then p, then rank 1's, etc.
-    """
-    if isinstance(problemType, tuple):
-        return Concatenate_array(simu.Get_dofs(problemType))
-    ownedNodes = simu._Get_FunctionSpace(problemType).ownedNodes
-    nodeOrdering = Concatenate_array(ownedNodes)
-    return simu.Bc_dofs_nodes(nodeOrdering, simu.Get_unknowns(problemType), problemType)
-
-
-def __Solver_1_mpi_indices(
-    simu: "_Simu",
-    problemType: "ProblemType | tuple[ProblemType, ...]",
-    dofsUnknown: _types.IntArray,
-) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
-    """Builds (global unique unknown DOFs, ownedDofs, mapping) for the r1 reduced system.
-
-    `mapping` (reduced index -> PETSc global column index) and `ownedDofs` are built locally with no sorting: `fullOrdering` already lists the DOFs in PETSc global order, so filtering it by the unknown set yields the unknowns in PETSc order directly — the compression to [0, Nu) is then a single scatter.
-    """
-    fullOrdering = __Get_global_dof_ordering(simu, problemType)
-    uniqueUnknown = __Get_unique_dofs(dofsUnknown, fullOrdering.size)
-    dofs = simu.Get_dofs(problemType)
-    Nu = uniqueUnknown.size
-    isUnknown = np.zeros(fullOrdering.size, dtype=bool)
-    isUnknown[uniqueUnknown] = True
-    unknownInPetscOrder = fullOrdering[isUnknown[fullOrdering]]
-    redPetsc = np.empty(fullOrdering.size, dtype=int)
-    redPetsc[unknownInPetscOrder] = np.arange(Nu)  # DOF -> reduced PETSc index
-    mapping = redPetsc[uniqueUnknown]  # reduced index -> reduced PETSc index
-    # ownedDofs in ascending PETSc (= local-row) order: the owned unknowns are
-    # already a contiguous run of unknownInPetscOrder; map them back to indices
-    # into the (sorted) uniqueUnknown via searchsorted.
-    isOwned = np.zeros(fullOrdering.size, dtype=bool)
-    isOwned[dofs] = True
-    ownedUnknownDofs = unknownInPetscOrder[isOwned[unknownInPetscOrder]]
-    ownedDofs = np.searchsorted(uniqueUnknown, ownedUnknownDofs)
-    return uniqueUnknown, ownedDofs, mapping
-
-
 def __Residual_norm(b_owned: _types.FloatArray, comm) -> float:
     """Residual 2-norm over the ranks of `comm`, the root of the summed squares; raises on NaN/Inf"""
     rhsNorm = float(np.sqrt(Reduce_sum(np.linalg.norm(b_owned) ** 2, comm)))
@@ -562,39 +496,55 @@ def __Solver_1(
     # Recover dofs
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
 
-    ownedDofs = None
-    mapping = None
-    if MPI_SIZE > 1:
-        dofsUnknown, ownedDofs, mapping = __Solver_1_mpi_indices(
-            simu, problemType, dofsUnknown
-        )
-
-    tic = Tic()
-    # split of the matrix system into known and unknown dofs
-    # Solve : Aii * xi = bi - Aic * xc
-    Ai = A[dofsUnknown, :].tocsc()
-    Aii = Ai[:, dofsUnknown]
-    Aic = Ai[:, dofsKnown]
-    bi = b[dofsUnknown]
-    xc = x[dofsKnown]
-
-    tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
-
     x0 = simu._Solver_Get_x0(problemType)
-    x0 = x0[dofsUnknown]
-
     lb, ub = simu._Solver_Get_lb_ub(problemType)
 
-    bi -= Aic @ xc
-    if simu.isNonLinear:
-        rhsNorm = __Residual_norm(bi[ownedDofs] if MPI_SIZE > 1 else bi, simu.mesh.comm)
+    if simu.solver == SolverType.petsc:
+        # PETSc drops the known rows and columns itself, numbered -1
+        known = np.zeros(x.size, dtype=bool)
+        known[dofsKnown] = True
+        numbering = simu._Solver_Get_numbering(problemType, known)
+        # the known values of the ghosts from their owner
+        simu._Scatter_forward(problemType, x)
+        residual = b - A @ x
+        if simu.isNonLinear:
+            rhsNorm = __Residual_norm(residual[numbering.rows], numbering.comm)
+        x[numbering.rows] = _Solve_Axb(
+            simu,
+            problemType,
+            A,
+            residual,
+            x0,
+            lb,
+            ub,
+            numbering,
+        )
 
-    xi = _Solve_Axb(
-        simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs, mapping
-    )
+    else:
+        tic = Tic()
+        # split of the matrix system into known and unknown dofs
+        # Solve : Aii * xi = bi - Aic * xc
+        Ai = A[dofsUnknown, :].tocsc()
+        Aii = Ai[:, dofsUnknown]
+        Aic = Ai[:, dofsKnown]
+        bi = b[dofsUnknown]
+        xc = x[dofsKnown]
 
-    # apply result to global vector
-    x[dofsUnknown] = xi
+        tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
+
+        bi -= Aic @ xc
+        if simu.isNonLinear:
+            rhsNorm = __Residual_norm(bi, simu.mesh.comm)
+
+        x[dofsUnknown] = _Solve_Axb(
+            simu,
+            problemType,
+            Aii,
+            bi,
+            x0[dofsUnknown],
+            lb,
+            ub,
+        )
 
     if simu.isNonLinear:
         return x, rhsNorm
@@ -658,7 +608,15 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
 
     tic.Tac("Solver", f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
-    x = _Solve_Axb(simu, problemType, A.tocsr(), b, x0, [], [], ResolType.r2)
+    x = _Solve_Axb(
+        simu,
+        problemType,
+        A.tocsr(),
+        b,
+        x0,
+        [],
+        [],
+    )
 
     # We don't send back reaction forces
     sol = x[:size]
@@ -679,16 +637,39 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
     b = simu._Solver_Apply_Neumann(problemType)
     A, b = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
-    if simu.isNonLinear:
-        b_owned = b
-        if MPI_SIZE > 1:
-            b_owned = b[simu.Get_dofs(problemType)]
-        rhsNorm = __Residual_norm(b_owned, simu.mesh.comm)
-
     # Solving the penalized matrix system
     x0 = simu._Solver_Get_x0(problemType)
     lb, ub = simu._Solver_Get_lb_ub(problemType)
-    x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub, ResolType.r3)
+    if simu.solver == SolverType.petsc:
+        # every dof unknown, each rank its owned rows
+        numbering = simu._Solver_Get_numbering(
+            problemType, np.zeros(b.size, dtype=bool)
+        )
+        if simu.isNonLinear:
+            rhsNorm = __Residual_norm(b[numbering.rows], numbering.comm)
+        x = np.zeros(b.size, dtype=float)
+        x[numbering.rows] = _Solve_Axb(
+            simu,
+            problemType,
+            A,
+            b,
+            x0,
+            lb,
+            ub,
+            numbering,
+        )
+    else:
+        if simu.isNonLinear:
+            rhsNorm = __Residual_norm(b, simu.mesh.comm)
+        x = _Solve_Axb(
+            simu,
+            problemType,
+            A,
+            b,
+            x0,
+            lb,
+            ub,
+        )
 
     if simu.isNonLinear:
         return x, rhsNorm
@@ -700,204 +681,99 @@ def _PETSc(
     A: sparse.csr_matrix,
     b: _types.FloatArray,
     x0: _types.FloatArray,
-    kspType: str = "cg",
-    pcType: str = "none",
-    solverType: str = "petsc",
+    numbering: _Numbering,
+    kspType: str,
+    pcType: str,
+    solverType: str,
 ) -> tuple[_types.FloatArray, bool]:
-    """PETSc insterface to solve the linear system `A x = b`\n
+    """PETSc interface to solve `A x = b` on the rows and columns `numbering` keeps, the others dropped (r1); in serial on one process.\n
     KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
 
     Parameters
     ----------
     A : sparse.csr_matrix
-        sparse matrix (N, N)
+        sparse matrix (N, N), complete on the owned rows
     b : _types.FloatArray
         vector (N,)
     x0 : _types.FloatArray
-        initial guess (N)
-    kspType : str, optional
-        PETSc Krylov method, by default "cg"
+        initial guess (N,), or empty
+    numbering : _Numbering
+        PETSc id of each row and column, -1 to drop it
+    kspType : str
+        PETSc Krylov method
         e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
         https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
-    pcType : str, optional
-        PETSc preconditioner, by default "none"
+    pcType : str
+        PETSc preconditioner
         e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
         https://petsc.org/release/manualpages/PC/PCType/#pctype\n
-    solverType : str, optional
-        PETSc Linear Solver, by default "petsc"
+    solverType : str
+        PETSc Linear Solver
         e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
         https://petsc.org/release/manual/ksp/#using-external-linear-solvers
 
     Returns
     -------
     _types.FloatArray
-        x solution to A x = b
-    """
-
-    assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
-
-    PETSc = _Get_PETSc()
-    assert PETSc is not None, "petsc4py is not available"
-
-    matrix = PETSc.Mat()
-
-    # set values
-    # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.createAIJ
-    csr = (A.indptr, A.indices, A.data)
-    matrix.createAIJ(A.shape, csr=csr)
-
-    rhs = matrix.createVecLeft()
-    rhs.array[:] = b
-
-    # set x values
-    x = matrix.createVecRight()
-    if len(x0) > 0:
-        x.array = x0
-
-    ksp = PETSc.KSP().create()
-    ksp.setOperators(matrix)
-    ksp.setType(kspType)
-
-    # set pc type
-    pc = ksp.getPC()
-    pc.setType(pcType)
-
-    # set solver type
-    pc.setFactorSolverType(solverType)
-    ksp.setFromOptions()
-
-    # solve x
-    ksp.solve(rhs, x)
-
-    # flush any remaining petsc4py reference cycles as suggested here:
-    # https://gitlab.com/petsc/petsc/-/work_items/1309
-    PETSc.garbage_cleanup()
-
-    return x.array, ksp.is_converged
-
-
-def _PETSc_MPI(
-    A: sparse.csr_matrix,
-    b: _types.FloatArray,
-    x0: _types.FloatArray,
-    ownedDofs: _types.IntArray,
-    mapping: _types.IntArray | None = None,
-    kspType: str = "cg",
-    pcType: str = "bjacobi",
-    solverType: str = "petsc",
-) -> tuple[_types.FloatArray, bool]:
-    """PETSc parallel interface to solve the linear system `A x = b`.\n
-    KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
-
-    Parameters
-    ----------
-    A : sparse.csr_matrix
-        Square sparse matrix (N, N). For r1: reduced system (Aii). For r3: full penalized system.
-    b : _types.FloatArray
-        Right-hand side (N,).
-    x0 : _types.FloatArray
-        Initial guess (N,).
-    ownedDofs : _types.IntArray
-        Indices (into A/b) owned by this rank. Must be disjoint across ranks and
-        together cover all N rows.
-    mapping : _types.IntArray, optional
-        index in A/b -> PETSc global column index, by default None. When None it is rebuilt here via an Allgather; `_Solve_Axb` always passes it, built from the global DOF ordering.
-    kspType : str, optional
-        PETSc Krylov method, by default "cg"
-        e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
-        https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
-    pcType : str, optional
-        PETSc preconditioner, by default "bjacobi"
-        e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
-        https://petsc.org/release/manualpages/PC/PCType/#pctype\n
-    solverType : str, optional
-        PETSc Linear Solver, by default "petsc"
-        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
-        https://petsc.org/release/manual/ksp/#using-external-linear-solvers
-
-    Returns
-    -------
-    _types.FloatArray
-        Solution x of A x = b, size (N,).
+        x at `numbering.rows`
     bool
         Whether the KSP converged.
     """
 
-    assert MPI_SIZE > 1
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
     PETSc = _Get_PETSc()
     assert PETSc is not None, "petsc4py is not available"
 
-    Ndof = A.shape[0]
-    Ndof_r = ownedDofs.size
+    comm = PETSc.COMM_SELF if numbering.comm is None else numbering.comm
+    rows = numbering.rows
 
-    # mapping: index in A/b → PETSc global column index.
-    # Normally supplied by the caller (from the global DOF ordering, one
-    # Allgatherv). When None, rebuilt here via an Allgather (petscOrdering:
-    # rank-0 ownedDofs first, rank-1 next, …).
-    if mapping is None:
-        petscOrdering = Concatenate_array(ownedDofs)
-        mapping = np.empty(Ndof, dtype=int)
-        mapping[petscOrdering] = np.arange(Ndof)
+    # -1 rows and columns are dropped: ghost rows, known dofs
+    rowMap = PETSc.LGMap().create(numbering.rowIds.astype(PETSc.IntType), comm=comm)
+    columnMap = PETSc.LGMap().create(numbering.ids.astype(PETSc.IntType), comm=comm)
+    matrix = PETSc.Mat().create(comm=comm)
+    matrix.setType("aij")
+    matrix.setSizes(((rows.size, None), (rows.size, None)))
+    matrix.setLGMap(rowMap, columnMap)
+    # copies: PETSc overwrites them
+    rowsCoo = np.repeat(np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr))
+    matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
+    matrix.setValuesCOO(A.data)
 
-    # https://petsc.org/release/manual/mat/#matrices
-    matrix = PETSc.Mat()
-    matrix.create(comm=MPI_COMM)
-    matrix.setType("mpiaij")
-    # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
-    matrix.setSizes(((Ndof_r, Ndof), (Ndof_r, Ndof)))
-
-    # extract owned rows; remap column indices to PETSc global space.
-    # Fancy-row CSR slicing already returns a fresh CSR (data / indices /
-    # indptr arrays are newly allocated, not views into A) so the previous
-    # .tocsr().copy() was redundant. We only reassign A_owned.indices below
-    # — the .data array stays read-only and shares nothing with A.
-    A_owned = A[ownedDofs, :]
-    A_owned.indices = mapping[A_owned.indices].astype(np.int32)
-    # Preallocate exactly the sparsity we're about to insert. Without this,
-    # mpiaij dynamically reallocates during setValuesCSR — each over-budget
-    # row triggers a malloc + memcpy. With it, PETSc allocates once for the
-    # whole rank-local block.
-    matrix.setPreallocationCSR((A_owned.indptr, A_owned.indices))
-    matrix.setValuesCSR(
-        A_owned.indptr,
-        A_owned.indices,
-        A_owned.data,
-        PETSc.InsertMode.ADD_VALUES,
-    )
-    matrix.assemble()
-
-    # rhs
     rhs = matrix.createVecLeft()
-    rhs.array[:] = b[ownedDofs]
+    rhs.array[:] = b[rows]
 
-    # initial guess
     x = matrix.createVecRight()
     if len(x0) > 0:
-        x.array[:] = x0[ownedDofs]
+        x.array[:] = x0[rows]
 
-    # KSP
-    ksp = PETSc.KSP().create(comm=MPI_COMM)
+    ksp = PETSc.KSP().create(comm=comm)
     ksp.setOperators(matrix)
     ksp.setType(kspType)
     pc = ksp.getPC()
     pc.setType(pcType)
     pc.setFactorSolverType(solverType)
     options = PETSc.Options()
-    if solverType == "mumps" and not options.hasName("mat_mumps_icntl_20"):
-        # centralised right-hand side: PETSc's default, distributed (10), silently gave wrong solutions with Mumps 5.8.2
-        options.setValue("mat_mumps_icntl_20", 0)
+    if solverType == "mumps":
+        if not options.hasName("mat_mumps_icntl_20"):
+            # centralised right-hand side, see the warning; a no-op on one process
+            options.setValue("mat_mumps_icntl_20", 0)
+        elif comm.Get_size() > 1 and options.getInt("mat_mumps_icntl_20") == 10:
+            warnings.warn(
+                "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
+                RuntimeWarning,
+            )
     ksp.setFromOptions()
 
     ksp.solve(rhs, x)
 
-    # owned DOFs filled, the others 0 until Solve_simu scatters the ghosts
-    dofsValues = np.zeros(Ndof, dtype=float)
-    dofsValues[ownedDofs] = x.array
+    values = x.array.copy()
+    converged = ksp.is_converged
+    for obj in (ksp, x, rhs, matrix, columnMap, rowMap):
+        obj.destroy()
 
     # flush any remaining petsc4py reference cycles as suggested here:
     # https://gitlab.com/petsc/petsc/-/work_items/1309
-    PETSc.garbage_cleanup()
+    PETSc.garbage_cleanup(comm)
 
-    return dofsValues, ksp.is_converged
+    return values, converged

@@ -8,6 +8,8 @@
 import importlib.util
 import os
 import shutil
+import subprocess
+import sys
 from typing import Callable
 
 import numpy as np
@@ -18,6 +20,7 @@ from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, Solve
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
+from EasyFEA.Utilities import MPI_SIZE
 
 from _numerics import rel_error
 from . import _reference
@@ -1133,6 +1136,51 @@ def test_Simu_in_parallel_requires_petsc4py(monkeypatch: pytest.MonkeyPatch):
         _thermal()
 
 
+_SWEEP = """
+import sys
+import numpy as np
+from mpi4py import MPI
+from EasyFEA import ElemType, Models, Simulations, SolverType
+from EasyFEA.Geoms import Domain
+
+rank = MPI.COMM_WORLD.Get_rank()
+domain = Domain((0, 0), (4, 1), 1)
+mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+simu = Simulations.Thermal(mesh, Models.Thermal(1, 1))
+simu.solver = SolverType.petsc
+nodesCold = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+nodesHot = mesh.Nodes_Conditions(lambda x, y, z: x == 4)
+simu.add_dirichlet(nodesCold, [0], ["t"])
+simu.add_dirichlet(nodesHot, [rank + 1], ["t"])
+simu.Solve()
+np.save(f"{sys.argv[1]}/rank{rank}.npy", simu.thermal - (rank + 1) * mesh.coord[:, 0] / 4)
+"""
+
+
+def test_Simu_Solve_with_petsc_runs_one_simulation_per_process_under_EASYFEA_MPI_off(
+    tmp_path,
+):
+    pytest.importorskip("petsc4py")
+    pytest.importorskip("mpi4py")
+    mpirun = shutil.which("mpirun")
+    if mpirun is None or MPI_SIZE > 1:
+        pytest.skip("needs mpirun, outside of it")
+    script = tmp_path / "sweep.py"
+    script.write_text(_SWEEP)
+    env = {**os.environ, "EASYFEA_MPI": "off"}
+
+    subprocess.run(
+        [mpirun, "-n", "2", sys.executable, str(script), str(tmp_path)],
+        env=env,
+        check=True,
+        timeout=120,
+    )
+
+    for rank in range(2):
+        # its own case, linear along x
+        assert np.abs(np.load(tmp_path / f"rank{rank}.npy")).max() < 1e-6
+
+
 def test_Simu_solver_keeps_its_value_on_an_unknown_one():
     simu = _thermal()
 
@@ -1911,6 +1959,31 @@ def test_Simu__Bc_Lagrange_dim_counts_the_multipliers():
     simu._Bc_Add_Lagrange(_tie(simu, _slab_corners(simu), "t"))
 
     assert simu._Bc_Lagrange_dim() == 1 + simu.Bc_dofs_Dirichlet().size
+
+
+def test_Simu_Solve_with_petsc_follows_a_changed_set_of_known_dofs():
+    pytest.importorskip("petsc4py")
+
+    def hot_corner(simu: Simulations.Thermal) -> None:
+        mesh = simu.mesh
+        nodesCold = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nodesHot = mesh.Nodes_Conditions(lambda x, y, z: (x == L) & (y == 0))
+        simu.add_dirichlet(nodesCold, [0], ["t"])
+        simu.add_dirichlet(nodesHot, [1], ["t"])
+
+    simu = _thermal()
+    simu.solver = SolverType.petsc
+    simu.Solve()
+    fresh = Simulations.Thermal(_bar(), Models.Thermal(1, 1))
+    fresh.solver = SolverType.petsc
+    hot_corner(fresh)
+    fresh.Solve()
+
+    simu.Bc_Init()
+    hot_corner(simu)
+    simu.Solve()
+
+    np.testing.assert_array_equal(simu.thermal, fresh.thermal)
 
 
 def test_Simu_Bc_Init_clears_every_condition():

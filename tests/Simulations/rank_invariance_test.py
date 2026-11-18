@@ -85,11 +85,40 @@ def _inelastic() -> Simulations.InElastic:
     return simu
 
 
+def _moving() -> Simulations.Elastic:
+    """The known dofs change between the solves: pulled along x, then x and y, then y."""
+    simu = Simulations.Elastic(
+        _plate_with_hole(ElemType.TRI3), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+    )
+    for pull, unknowns in (
+        ([1e-3], ["x"]),
+        ([1e-3, 1e-3], ["x", "y"]),
+        ([2e-3], ["y"]),
+    ):
+        simu.Bc_Init()
+        _clamped_and_pulled(simu, pull, unknowns)
+        simu.Solve()
+    return simu
+
+
+def _monolithic() -> Simulations.IncompressibleHyperElastic:
+    """u and p side by side, a saddle point."""
+    material = Models.HyperElastic.NeoHookean(2, K=1.0)
+    simu = Simulations.IncompressibleHyperElastic(
+        _plate_with_hole(ElemType.TRI6), material
+    )
+    _clamped_and_pulled(simu, [0.1, 0.05], ["x", "y"])
+    simu.Solve()
+    return simu
+
+
 _CASES = {
     "elastic": _elastic,
     "newmark": _newmark,
     "newton": _newton,
     "inelastic": _inelastic,
+    "moving": _moving,
+    "monolithic": _monolithic,
 }
 
 # the results a gathered simulation gives, at nodes and on elements
@@ -98,6 +127,8 @@ _RESULTS = {
     "newmark": ["displacement", "speed", "accel", "Svm"],
     "newton": ["displacement", "Svm"],
     "inelastic": ["displacement", "Svm", "p"],
+    "moving": ["displacement", "Svm"],
+    "monolithic": ["displacement", "p", "Svm"],
 }
 
 
@@ -113,7 +144,9 @@ def _scalars(simu) -> np.ndarray:
     if isinstance(simu, Simulations.InElastic):
         return np.empty(0)
     scalars = list(simu.Results_dict_Energy().values())
-    if isinstance(simu, Simulations.HyperElastic):
+    if isinstance(
+        simu, (Simulations.HyperElastic, Simulations.IncompressibleHyperElastic)
+    ):
         return np.array([*scalars, simu.Result("W")])
     K = simu.Get_K_C_M_F(simu.problemType)[0]
     u = simu.displacement

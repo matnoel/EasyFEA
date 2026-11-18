@@ -103,6 +103,15 @@ def Reduce_max(value: float, comm) -> float:
     return comm.allreduce(value, op=MPI.MAX)
 
 
+def Exscan_sum(value: int, comm) -> int:
+    """Sum of `value` over the ranks of `comm` before this one, 0 on the first; 0 when `comm` is None."""
+
+    if comm is None:
+        return 0
+
+    return comm.exscan(value, op=MPI.SUM) or 0
+
+
 def Allgather(value, comm) -> list:
     """Every rank's `value` in rank order, `[value]` when `comm` is None; reduce locally first and gather the candidate, never the raw data."""
 

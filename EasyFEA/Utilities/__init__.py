@@ -12,6 +12,7 @@ from ._mpi import (
     Reduce_max,
     Allgather,
     Gather,
+    Exscan_sum,
 )
 from ._observers import Observable, _IObserver
 from ._params import (

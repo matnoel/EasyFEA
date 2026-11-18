@@ -19,7 +19,11 @@ from ..__about__ import __version__
 
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _params, _types
-from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
+from ..Utilities._cache import (
+    cache_computed_values,
+    cached_computed_values,
+    clear_cached_computed_values,
+)
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import (
     MPI_SIZE,
@@ -27,6 +31,7 @@ from ..Utilities._mpi import (
     Allgather,
     Gather_rows,
     Reduce_sum,
+    Reduce_max,
 )
 
 # fem
@@ -56,6 +61,7 @@ from .Solvers import (
     AlgoType,
     CAN_USE_PYPARDISO,
     _Get_PETSc,
+    _Numbering,
 )
 
 
@@ -1679,9 +1685,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
 
     def _Scatter_forward(
-        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+        self, problem: ProblemType | tuple[ProblemType, ...], x: np.ndarray
     ) -> None:
-        """Copies onto the ghost rows of the problem's vector `x` (its fields end to end) their owners' values, in place; nothing unless partitioned, collective otherwise."""
+        """Copies onto the ghost rows of the problem's vector `x` (its fields end to end, any dtype) their owners' values, in place; nothing unless partitioned, collective otherwise."""
         fields = self.__Fields(problem)
         for field, start in zip(fields, self.__Get_offsets(fields)):
             end = start + self.__Get_size(field)
@@ -2208,9 +2214,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         size = self.__Get_size(problemType)
 
-        # PETSc under MPI reads only the owned rows, and a rank never owns a node its elements miss
-        skipOrphans = MPI_SIZE > 1 and self.solver == SolverType.petsc
-        if len(self.mesh.orphanNodes) > 0 and not skipOrphans:
+        if len(self.mesh.orphanNodes) > 0:
             # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (TETRA10 mid nodes under P1 skipped)
             orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
             orphanDofs = self.__Compose(
@@ -2456,8 +2460,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[str, str, str]:
         """Best available (kspType, pcType, solverType) for the problem type."""
         if isinstance(problemType, tuple):
-            # several fields side by side, possibly a saddle point: Mumps' LU, the one a saddle point is accepted with under MPI
-            return "preonly", "lu", "mumps" if _PETSc_Has("mumps") else "petsc"
+            # several fields side by side, possibly a saddle point: an external LU, the ones a saddle point is accepted with under MPI
+            if _PETSc_Has("mumps"):
+                return "preonly", "lu", "mumps"
+            return (
+                "preonly",
+                "lu",
+                "superlu_dist" if _PETSc_Has("superlu_dist") else "petsc",
+            )
         if self.Get_dof_n(problemType) == 1:
             # Scalar problems
             # cg+gamg: works in serial and MPI, no external packages needed.
@@ -2490,6 +2500,29 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.Bc_dofs_nodes(
             ownedNodes, self.Get_unknowns(problemType), problemType
         )
+
+    def _Solver_Get_numbering(
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        known: _types.BoolArray,
+    ) -> _Numbering:
+        """The problem's reduced PETSc numbering, the owner of a dof deciding whether `known`; kept until the known dofs change on a rank or the mesh changes. Collective."""
+        numberings = cached_computed_values(self).setdefault(
+            "_Solver_Get_numbering", {}
+        )
+        numbering: _Numbering | None = numberings.get(problemType)
+        changed = numbering is None or not np.array_equal(known, numbering.known)
+        if Reduce_max(changed, self.mesh.comm) or numbering is None:
+            owned = np.zeros(known.size, dtype=bool)
+            owned[self.Get_dofs(problemType)] = True
+            numbering = _Numbering(
+                known,
+                owned,
+                self.mesh.comm,
+                lambda ids: self._Scatter_forward(problemType, ids),
+            )
+            numberings[problemType] = numbering
+        return numbering
 
     # ----------------------------------------------
     # Boundary conditions

@@ -16,6 +16,7 @@ from EasyFEA.Utilities import (
     Reduce_min,
     Reduce_max,
     Allgather,
+    Exscan_sum,
 )
 
 
@@ -78,3 +79,12 @@ def test_Allgather_without_comm_wraps_the_value():
 @pytest.mark.mpi
 def test_Allgather_returns_every_rank_value_in_rank_order():
     assert Allgather(MPI_RANK, MPI_COMM) == list(range(MPI_SIZE))
+
+
+def test_Exscan_sum_without_comm_is_zero():
+    assert Exscan_sum(5, None) == 0
+
+
+@pytest.mark.mpi
+def test_Exscan_sum_sums_the_ranks_before():
+    assert Exscan_sum(MPI_RANK + 1, MPI_COMM) == MPI_RANK * (MPI_RANK + 1) // 2
