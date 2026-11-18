@@ -12,8 +12,6 @@ import numpy as np
 from ..Utilities import _types
 from ..Utilities._mpi import (
     MPI_COMM,
-    MPI_RANK,
-    MPI_SIZE,
     Allgather,
     Concatenate_array,
     Reduce_sum,
@@ -56,7 +54,7 @@ class _FunctionSpace:
     @property
     def Ncoords(self) -> int:
         """number of node ids, the mesh nodes then the nodes this space adds; above ``Nn`` when some carry no DOF"""
-        return max(group.Ncoords for group in self.__dict_groupElem.values())
+        return max(group.Nn for group in self.__dict_groupElem.values())
 
     @property
     def ownedNodes(self) -> _types.IntArray:
@@ -176,7 +174,9 @@ class _FunctionSpace:
         partitioned = _FunctionSpace.__Is_partitioned(groups)
         tags = list(dict_nodes)
         if partitioned:
-            tags = sorted(set().union(*Allgather(tags, MPI_COMM)))
+            tags = sorted(
+                set().union(*Allgather(tags, MPI_COMM if partitioned else None))
+            )
         for tag in tags:
             nodes = np.concatenate(
                 [np.empty(0, np.int64), *dict_nodes.get(tag, [])], dtype=np.int64
@@ -192,10 +192,8 @@ class _FunctionSpace:
 
     @staticmethod
     def __Is_partitioned(groups: Iterable["_GroupElem"]) -> bool:
-        """Whether a mesh's groups are numbered by all its ranks together, each holding the serial ids; a gathered one (rank partition set by `_Gather`, on rank 0 alone) by itself."""
-        return MPI_SIZE > 1 and all(
-            groupElem._rankPartition is None for groupElem in groups
-        )
+        """Whether the ranks share the mesh of these groups."""
+        return all(groupElem.isPartitioned for groupElem in groups)
 
     def Get_meshValues(
         self, dofsValues: _types.FloatArray, dof_n: int
@@ -208,7 +206,7 @@ class _FunctionSpace:
             return values
         # the node values (Nn, dof_n), filled by the main-dimension groups
         dim = max(groupElem.dim for groupElem in groups)
-        nodeValues = np.zeros((max(g.Ncoords for g in groups), dof_n))
+        nodeValues = np.zeros((max(g.Nn for g in groups), dof_n))
         for groupElem, partner in groups.items():
             if groupElem.dim != dim:
                 continue
@@ -305,7 +303,7 @@ class _FunctionSpace:
         scale = order**3
         base = Nn * (scale + 1)
         limit = (np.iinfo(np.int64).max - base) // base
-        partitioned = _FunctionSpace.__Is_partitioned(mesh.dict_groupElem.values())
+        partitioned = mesh.isPartitioned
 
         def gather(array: np.ndarray) -> np.ndarray:
             """Every rank's ``array`` end to end on a partitioned mesh, ``array`` itself otherwise."""
@@ -313,9 +311,10 @@ class _FunctionSpace:
 
         # owner rank of each node (Nn,), and how many ranks own it, summed over the ranks: one at most when the owned nodes partition the nodes
         owner = np.zeros((2, Nn), dtype=np.int64)
-        owner[:, mesh._Get_mpi_owned_nodes()] = [[MPI_RANK], [1]]
+        rank = next(iter(mesh.dict_groupElem.values())).rank
+        owner[:, mesh._Get_mpi_owned_nodes()] = [[rank], [1]]
         if partitioned:
-            owner = Reduce_sum(owner, MPI_COMM)
+            owner = Reduce_sum(owner, mesh.comm)
         assert owner[1].max(initial=0) <= 1, "Nodes owned by several ranks."
         owner = owner[0]
         # mesh group -> its partner group, returned
@@ -345,9 +344,8 @@ class _FunctionSpace:
             # geometry node ids (Ne, nPe geometry), partner local coordinates (nPe, dim) and the elements this rank owns (Ne,)
             nodes = groupElem.connect.astype(np.int64)
             xi = partner.Get_Local_Coords()
-            isOwned = np.isin(
-                groupElem._globalElements, groupElem._Get_partitioned_data()[1]
-            )
+            isOwned = np.zeros(groupElem.Ne, dtype=bool)
+            isOwned[groupElem._ownedElements] = True
 
             # 2. the partner connect (Ne, nPe): the node id where a partner node sits on a geometry node (vertices, QUAD8 mid nodes), -1 elsewhere until step 5
             connect = np.full((groupElem.Ne, partner.nPe), -1, dtype=np.int64)
@@ -379,7 +377,7 @@ class _FunctionSpace:
                 if groupElem.dim == mesh.dim and size == partner.Nvertex:
                     mine = np.repeat(isOwned[:, None], columns.size, axis=1)
                 else:
-                    mine = owner[vertices].min(axis=2) == MPI_RANK
+                    mine = owner[vertices].min(axis=2) == rank
                 bySize.setdefault(size, []).append(
                     (connect, offVertex[columns], rows, mine)
                 )
@@ -430,7 +428,7 @@ class _FunctionSpace:
 
         # 6. the nodes this rank owns (NnSpace,): the mesh nodes by their owner, then the nodes of step 4
         isMine = np.zeros(NnSpace, dtype=bool)
-        isMine[:Nn] = owner == MPI_RANK
+        isMine[:Nn] = owner == rank
         for items in bySize.values():
             for connect, columns, _, mine in items:
                 isMine[connect[:, columns]] = mine

@@ -149,8 +149,11 @@ The parallel execution proceeds as follows for each solve:
    **every** rank. Consequently, all ranks hold the same, complete DOF result after each
    solve.
 
-The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be
-inspected via {py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
+Each element group ({py:class}`~EasyFEA.FEM._GroupElem`) stores its partition: the
+global id and owner rank of each element (`_globalElements`, `_elementOwners`) and the
+rank's nodes with their owners (`_globalNodes`, `_nodeOwners`). The mesh stores nothing
+and derives `mesh.globalNodes`, `mesh.isPartitioned` and `mesh.comm` from its groups. A
+pickled or saved mesh loads detached: `isPartitioned` False, `comm` None.
 
 ### Iteration saving
 
@@ -239,8 +242,8 @@ Two traps worth knowing:
 
 - **Ghost elements are counted twice.** A sum over elements must run over the *owned*
   ones only, or every partition-boundary element contributes from both its ranks.
-  `_Get_partitioned_data()` gives them; `groupElem._globalElements` maps local rows to
-  global indices. A `min` or `max` needs no such care — a duplicate cannot change an
+  `groupElem._ownedElements` selects them; `groupElem._globalElements` maps local rows
+  to global indices. A `min` or `max` needs no such care — a duplicate cannot change an
   extremum.
 - **A signed sum must be reduced before it is rectified.** `abs(local.sum())` reduced is
   not `abs(global.sum())`.

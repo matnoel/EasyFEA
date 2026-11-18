@@ -16,6 +16,7 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 # Nodes & Elements
 # Factory
 
+import copy
 import functools
 import itertools
 from scipy import sparse, spatial
@@ -88,7 +89,7 @@ class _GroupElem:
             error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordinates array."
             assert nodes.max() + 1 <= Ncoords, error
         self.__nodes = nodes
-        self.__Ncoords = Ncoords
+        self.__Nn = Ncoords
         self.__coord = coordinates[nodes]
 
         # Map global nodes to local nodes
@@ -96,11 +97,9 @@ class _GroupElem:
         self._global_to_local_nodes = np.empty(Ncoords, dtype=int)
         self._global_to_local_nodes[nodes] = np.arange(nodes.size, dtype=int)
 
-        # Set the paritionned data.
-        self._Set_partitioned_data(self.elements, self.nodes)
-
-        # rank partition: set on rank 0 after Gather(), None otherwise
-        self.__rankPartition: _types.IntArray = None
+        # serial until the Mesher partitions it
+        self._Set_partition(None, None, None, None)
+        self.__isPartitioned = False
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
@@ -205,123 +204,114 @@ class _GroupElem:
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
 
-    def _Set_partitioned_data(
+    def _Set_partition(
         self,
-        elements: _types.IntArray,
-        nodes: _types.IntArray,
+        globalElements: _types.IntArray | None,
+        elementOwners: _types.IntArray | None,
+        globalNodes: _types.IntArray | None,
+        nodeOwners: _types.IntArray | None,
         rank: int = 0,
-        ghostElements: _types.IntArray = [],
-        isPartitioned: bool = False,
     ) -> None:
-        """Sets the partitioned data used in mpi; `isPartitioned` when the ranks share the mesh, not when this rank holds it whole.
-
-        Parameters
-        ----------
-        elements : _types.IntArray
-            the positions of elements in the global mesh.
-        nodes : _types.IntArray
-            the (non-ghost) nodes.\n
-        rank : int, optional
-            mpi rank, by default 0
-        ghostElements : _types.IntArray, optional
-            the positions of ghost elements in the global mesh, by default [].
-
-        Remark
-        ------
-        Ghost nodes will be computed using the given (non-ghost) nodes array.
-
-        The four index arrays are stored **sorted**, whatever order they arrive in: `Mesher` builds them
-        from python sets, so they come in hash order, while `connect` is in global-index order. Every
-        consumer pairs the two through `np.searchsorted`, which requires sorted input and returns
-        out-of-range indices rather than complaining when it does not get it.
-        """
-
+        """Sets the global id (sorted) and owner rank of each element row, the rank-wide global ids (sorted) and owners of the rank's nodes (one read-only array shared by every group of the rank) and the rank; all None in serial."""
         Ne = self.__connect.shape[0]
-        # set elements (may be smaller than Ne when ghost elements are present)
-        elements = np.sort(np.asarray(elements, dtype=int))
-        assert elements.size <= Ne
-        ghostElements = np.sort(np.asarray(ghostElements, dtype=int))
-        assert ghostElements.size <= Ne
-        # get nodes and ghost nodes
-        nodes = np.sort(np.asarray(nodes, dtype=int))
-        ghostNodes = np.setdiff1d(self.nodes, nodes, assume_unique=True)
+        if globalElements is not None:
+            assert globalElements.shape == (Ne,) and elementOwners is not None
+            assert elementOwners.shape == (Ne,)
+            assert np.all(np.diff(globalElements) > 0), "globalElements must be sorted."
+        if globalNodes is not None:
+            assert nodeOwners is not None and nodeOwners.shape == globalNodes.shape
+            assert np.all(np.diff(globalNodes) > 0), "globalNodes must be sorted."
+        self.__globalElements = globalElements
+        self.__elementOwners = elementOwners
+        self.__globalNodes = globalNodes
+        self.__nodeOwners = nodeOwners
+        self.__rank = rank
+        self.__Lock_shared()
 
-        self.__partitionned_data = (rank, elements, ghostElements, nodes, ghostNodes)
-        self.__isPartitioned = isPartitioned
+    def __Lock_shared(self) -> None:
+        """The rank-wide node arrays are shared by every group: read-only."""
+        for array in (self.__globalNodes, self.__nodeOwners):
+            if array is not None:
+                array.flags.writeable = False
+
+    def __getstate__(self) -> dict:
+        # `isPartitioned` is never written: set by the Mesher scatter or a restart, so a pickled group loads detached
+        state = self.__dict__.copy()
+        state["_GroupElem__isPartitioned"] = False
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self.__Lock_shared()
+
+    def __deepcopy__(self, memo: dict) -> "_GroupElem":
+        # a copy is not a file: the ranks still share it
+        new = self.__class__.__new__(self.__class__)
+        memo[id(self)] = new
+        new.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        new.__Lock_shared()
+        return new
 
     @property
     def isPartitioned(self) -> bool:
-        """Whether the ranks share this group's mesh; False when this rank holds it whole (serial, gathered)."""
+        """Whether the ranks share this group's mesh; False when this rank holds it whole (serial, gathered, loaded, `_Mesh_Get_Meshes` pieces)."""
         return self.__isPartitioned
 
-    def _Sum_on_ownedElements_e(self, values_e: _types.FloatArray) -> _types.FloatArray:
-        """Sum of per-element values (Ne, ...) over this rank's owned elements, ghosts skipped."""
-        values_e = np.asarray(values_e)
-        if not self.__isPartitioned:
-            return values_e.sum(axis=0)
-        _, elements, _, _, _ = self.__partitionned_data
-        return values_e[np.isin(self._globalElements, elements)].sum(axis=0)
+    @isPartitioned.setter
+    def isPartitioned(self, value: bool) -> None:
+        self.__isPartitioned = bool(value)
 
-    def _Get_partitioned_data(
-        self,
-    ) -> tuple[int, _types.IntArray, _types.IntArray, _types.IntArray, _types.IntArray]:
-        """Returns the partitioned data used in mpi.\n
-        (rank, elements, ghostElements, nodes, ghostNodes)"""
-        return self.__partitionned_data
+    @property
+    def rank(self) -> int:
+        """rank of the partition this group belongs to, 0 in serial"""
+        return self.__rank
 
     @property
     def _globalElements(self) -> _types.IntArray:
-        """Global element index of each row of `connect`.
-
-        `arange(Ne)` in serial. Under MPI the rows are this rank's owned and ghost elements, sorted by
-        global index. Use it to index an array stored for the whole mesh (a fibre field, a per-element
-        contractility) with this rank's elements — the element counterpart of `_global_to_local_nodes`.
-
-        Not to be confused with `elements`, which is `arange(Ne)` in both cases because tags, `vol_e`
-        and every other per-element array are indexed by local row.
-
-        Always `Ne` long, so it indexes a whole-mesh array into exactly this group's rows. That holds
-        at the edges too: an empty group gives an empty `int` array rather than a float one, and a rank
-        holding only the boundary layer of a type (no owned element, ghosts only) gives the ghosts —
-        `connect` is built from the same `unique(owned ∪ ghosts)`.
-        """
-        _, elements, ghostElements, _, _ = self.__partitionned_data
-
-        # both arrays are stored sorted, so the merge is the only work left
-        if ghostElements.size == 0:
-            return elements
-
-        return np.unique(np.concatenate([elements, ghostElements]))
+        """Global id of each element row (Ne,), sorted; `arange(Ne)` in serial. Indexes a whole-mesh per-element array (fibres, contractility) with this group's rows."""
+        if self.__globalElements is None:
+            return np.arange(self.Ne, dtype=int)
+        return self.__globalElements
 
     @property
-    def _rankPartition(self) -> _types.IntArray | None:
-        """Array of shape (Ne,) where rankPartition[e] is the MPI rank that owned
-        element e. Set on rank 0 only after Gather(). None on all other ranks."""
-        return self.__rankPartition
+    def _elementOwners(self) -> _types.IntArray | None:
+        """Owner rank of each element row (Ne,), None in serial."""
+        return self.__elementOwners
 
-    @_rankPartition.setter
-    def _rankPartition(self, value: _types.IntArray) -> None:
-        assert isinstance(value, np.ndarray)
-        self.__rankPartition = value
+    @property
+    def _globalNodes(self) -> _types.IntArray | None:
+        """Global id of each of the rank's nodes, sorted, shared by every group of the rank; None in serial."""
+        return self.__globalNodes
+
+    @property
+    def _nodeOwners(self) -> _types.IntArray | None:
+        """Owner rank of each of the rank's nodes, aligned with `_globalNodes`; -1 for a node no main-dimension element uses; None in serial."""
+        return self.__nodeOwners
+
+    @property
+    def _ownedElements(self) -> _types.BoolArray | slice:
+        """Rows of the elements this rank owns: a mask, `slice(None)` in serial."""
+        if self.__elementOwners is None:
+            return slice(None)
+        return self.__elementOwners == self.__rank
+
+    def _Sum_on_ownedElements_e(self, values_e: _types.FloatArray) -> _types.FloatArray:
+        """Sum of per-element values (Ne, ...) over this rank's owned elements, ghosts skipped."""
+        return np.asarray(values_e)[self._ownedElements].sum(axis=0)
 
     @property
     def Nn(self) -> int:
-        """number of nodes used by the element group"""
-        return self.__nodes.size
-
-    @property
-    def Ncoords(self) -> int:
-        """number of coordinates in the mesh"""
-        return self.__Ncoords
+        """number of coordinates in the mesh, the size of the node numbering; the group's own nodes are `nodes`"""
+        return self.__Nn
 
     @property
     def coord(self) -> _types.FloatArray:
-        """this matrix contains the element group (local) coordinates (Nn, 3)"""
+        """coordinates of the group's own nodes (nodes.size, 3)"""
         return self.__coord.copy()
 
     @coord.setter
     def coord(self, coord: _types.FloatArray) -> None:
-        shape = (self.Ncoords, 3)
+        shape = (self.Nn, 3)
         assert coord.shape == shape, f"coord must be a {shape} array."
         self.__coord = coord[self.nodes]
         self._InitMatrix()
@@ -370,7 +360,7 @@ class _GroupElem:
             columns = np.repeat(elems, nPe)
 
             self.__connect_n_e = sparse.csr_matrix(
-                (np.ones(nPe * Ne), (rows, columns)), shape=(self.Ncoords, Ne)
+                (np.ones(nPe * Ne), (rows, columns)), shape=(self.Nn, Ne)
             )
 
         return self.__connect_n_e.copy()
@@ -664,7 +654,7 @@ class _GroupElem:
     ) -> FeArray.FeArrayALike:
         """Nodal ``sol`` at the Gauss points, ``(Ne, nPg)``, or ``(Ne, nPg, dof_n)`` with ``dof_n > 1`` values per node."""
         N_pg = self.Get_N_pg(matrixType)[:, 0]  # (nPg, nPe)
-        sol_e = sol.reshape(self.__Ncoords, -1)[self.connect]  # (Ne, nPe, dof_n)
+        sol_e = sol.reshape(self.__Nn, -1)[self.connect]  # (Ne, nPe, dof_n)
         sol_e_pg = N_pg @ sol_e
         return FeArray.asfearray(sol_e_pg[..., 0] if sol_e.shape[-1] == 1 else sol_e_pg)
 
@@ -1101,9 +1091,9 @@ class _GroupElem:
             Shape: ``(Ne, nPg, 3, 3)``.
         """
 
-        Ncoords = self.__Ncoords
-        assert isinstance(u, np.ndarray) and u.size % Ncoords == 0
-        dof_n = u.size // Ncoords
+        Nn = self.__Nn
+        assert isinstance(u, np.ndarray) and u.size % Nn == 0
+        dof_n = u.size // Nn
         assert dof_n in [1, 2, 3]
 
         # properties
@@ -1352,10 +1342,8 @@ class _GroupElem:
             return
         assert isinstance(tag, str), "tag must be a string"
 
-        if np.min(nodes) < 0 or np.max(nodes) >= self.__Ncoords:
-            raise Exception(
-                f"nodes must be within the range [0, {self.__Ncoords - 1}]."
-            )
+        if np.min(nodes) < 0 or np.max(nodes) >= self.__Nn:
+            raise Exception(f"nodes must be within the range [0, {self.__Nn - 1}].")
 
         self.__dict_nodes_tags[tag] = nodes
 
@@ -1420,13 +1408,13 @@ class _GroupElem:
     ) -> _types.FloatArray:
         """Locates sol on elements, ``(Ne, ...)``."""
 
-        Ncoords = self.__Ncoords
+        Nn = self.__Nn
 
         if isinstance(dof_n, (int, float)):
             sol_e = sol[self.Get_assembly_e(dof_n)]
-        elif sol.shape[0] == Ncoords * self.dim:
+        elif sol.shape[0] == Nn * self.dim:
             sol_e = sol[self.Get_assembly_e(self.dim)]
-        elif sol.shape[0] == Ncoords:
+        elif sol.shape[0] == Nn:
             sol_e = sol[self.connect]
         else:
             raise Exception("Wrong dimension")

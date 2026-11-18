@@ -253,7 +253,6 @@ def __Make_vtu(
     list_types: list[_types.IntArray] = []
     list_nPe_e: list[_types.IntArray] = []  # node count per cell, to build the offsets
     list_ghostCells: list[np.ndarray] = []
-    list_ghostNodes: list[_types.IntArray] = []
     # Get_list_groupElem order matches mesh.Ne / element results
     for groupElem in mesh.Get_list_groupElem(mesh.dim):
         elemType = groupElem.elemType
@@ -274,12 +273,9 @@ def __Make_vtu(
 
         # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours; value 1 means duplicate cells or points.
         if MPI_SIZE > 1:
-            _, _, ghostElems, _, ghostNodes = groupElem._Get_partitioned_data()
-            gc = np.zeros(groupElem.Ne, dtype=np.uint8)
-            if ghostElems.size > 0:
-                gc[np.searchsorted(groupElem._globalElements, ghostElems)] = 1
+            gc = np.ones(groupElem.Ne, dtype=np.uint8)
+            gc[groupElem._ownedElements] = 0
             list_ghostCells.append(gc)
-            list_ghostNodes.append(ghostNodes)
 
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
     connect = np.concatenate(list_connect)
@@ -290,10 +286,8 @@ def __Make_vtu(
     ghostPoints: _types.IntArray = None
     if MPI_SIZE > 1:
         ghostCells = np.concatenate(list_ghostCells)
-        ghostPoints = np.zeros(Nn, dtype=np.uint8)
-        ghostNodes = np.unique(np.concatenate(list_ghostNodes))
-        if ghostNodes.size > 0:
-            ghostPoints[np.searchsorted(nodes, ghostNodes)] = 1
+        ghostPoints = np.ones(Nn, dtype=np.uint8)
+        ghostPoints[np.isin(nodes, mesh._Get_mpi_owned_nodes())] = 0
 
     nodes = nodes.astype(np.uint64)  # GlobalPointIds / node-field indexing
 

@@ -936,8 +936,19 @@ def Get_partitions(elemType: ElemType, Nproc: int) -> list[Mesh]:
 
 
 def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
-    """(rank, elements, ghostElements, nodes, ghostNodes) of the main group of each partition."""
-    return [mesh.groupElem._Get_partitioned_data() for mesh in meshes]
+    """(rank, owned elements, ghost elements, owned nodes, ghost nodes) of the main group of each partition, in global ids."""
+    data = []
+    for mesh in meshes:
+        groupElem = mesh.groupElem
+        owned = np.zeros(groupElem.Ne, dtype=bool)
+        owned[groupElem._ownedElements] = True
+        elements = groupElem._globalElements
+        ownedNodes = mesh._Get_mpi_owned_nodes()
+        ghostNodes = np.setdiff1d(mesh.globalNodes, ownedNodes)
+        data.append(
+            (groupElem.rank, elements[owned], elements[~owned], ownedNodes, ghostNodes)
+        )
+    return data
 
 
 @pytest.fixture(scope="module")
@@ -1003,6 +1014,14 @@ def test_Mesher__Mesh_Get_Meshes_is_reproducible(partitions, subtests):
                 assert np.array_equal(np.sort(e1), np.sort(e2))
                 assert np.array_equal(np.sort(g1), np.sort(g2))
                 assert np.array_equal(np.sort(n1), np.sort(n2))
+
+
+def test_Mesher__Mesh_Get_Meshes_pieces_are_detached(partitions, subtests):
+    for elemType, (_, pieces) in partitions.items():
+        with subtests.test(elemType=str(elemType)):
+            for rank, mesh in enumerate(pieces):
+                assert not mesh.isPartitioned and mesh.comm is None
+                assert mesh.groupElem.rank == rank
 
 
 def test_Mesher__Mesh_Get_Meshes_needs_a_partition():

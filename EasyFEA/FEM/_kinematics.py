@@ -21,12 +21,12 @@ class Kinematics:
     @staticmethod
     def _CheckFormat(groupElem: _GroupElem, u: _types.FloatArray) -> None:
         assert isinstance(groupElem, _GroupElem)
-        Ncoords = groupElem.Ncoords
+        Nn = groupElem.Nn
         errorDim = "wrong displacement field dimension"
-        assert isinstance(u, np.ndarray) and u.size % Ncoords == 0, errorDim
+        assert isinstance(u, np.ndarray) and u.size % Nn == 0, errorDim
         # values per node a displacement can have: beams on lines, a face may sit in 3D
         dof_n = {1: (1, 2, 3, 6), 2: (2, 3), 3: (3,)}[groupElem.dim]
-        assert u.size // Ncoords in dof_n, errorDim
+        assert u.size // Nn in dof_n, errorDim
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class Kinematics:
     def displacement_e_pg(self) -> FeArray.FeArrayALike:
         """Element displacements of shape (Ne, nPg, nPe*dof_n), recomputed on each access."""
         groupElem = self.__groupElem
-        dof_n = self.__displacement.size // groupElem.Ncoords
+        dof_n = self.__displacement.size // groupElem.Nn
         u_e = groupElem.Locates_sol_e(self.__displacement, dof_n)
         nPg = groupElem.Get_gauss(self.__matrixType).nPg
         return FeArray.from_e(u_e, nPg)
@@ -82,7 +82,7 @@ class Kinematics:
     ) -> tuple[int, int, int]:
         """return Ne, nPg, dim"""
         Ne = self.__groupElem.Ne
-        dim = self.__displacement.size // self.__groupElem.Ncoords
+        dim = self.__displacement.size // self.__groupElem.Nn
         nPg = self.__groupElem.Get_N_pg(self.__matrixType).shape[0]
         return (Ne, nPg, dim)
 

@@ -304,7 +304,7 @@ class Elastic(_Simu):
             Sigma_e = [
                 np.mean(self.material.Compute_Sigma(kin), 1) for kin in list_kinematics
             ]
-            Ncoords = max(kin.groupElem.Ncoords for kin in list_kinematics)
+            Ncoords = max(kin.groupElem.Nn for kin in list_kinematics)
             Sigma_n = np.zeros((Ncoords, Sigma_e[0].shape[1]))
             elements_n = np.zeros(Ncoords)
             for kin, values_e in zip(list_kinematics, Sigma_e):

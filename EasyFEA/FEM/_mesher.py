@@ -2293,9 +2293,13 @@ class Mesher:
         coordinates: np.ndarray,
         nodeOwner: _types.IntArray,
     ) -> list["_GroupElem"]:
-        """Splits the elements of `gmshId` into one `_GroupElem` per partition: its own elements plus, as ghosts, every other element touching a node it owns."""
+        """Splits the elements of `gmshId` into one `_GroupElem` per partition: its own elements plus, as ghosts, every other element touching a node it owns; element ids and owners set, node ones by `__Set_node_partition`."""
 
         elements = np.arange(connect.shape[0], dtype=int)
+        # an element on several partitions (interface entities of a lower dimension) goes to the lowest
+        elementOwner = np.full(elements.size, -1, dtype=int)
+        for rank, idx_r in reversed(list(enumerate(rankElements))):
+            elementOwner[idx_r] = rank
 
         list_rank_groupElem: list[_GroupElem] = []
 
@@ -2305,14 +2309,7 @@ class Mesher:
             ghost_idx = others[(nodeOwner[connect[others]] == rank).any(axis=1)]
             all_idx = np.union1d(idx_r, ghost_idx)
             groupElem = GroupElemFactory._Create(gmshId, connect[all_idx], coordinates)
-            nodes = groupElem.nodes[nodeOwner[groupElem.nodes] == rank]
-            groupElem._Set_partitioned_data(
-                elements=idx_r,
-                nodes=nodes,
-                rank=rank,
-                ghostElements=ghost_idx,
-                isPartitioned=True,
-            )
+            groupElem._Set_partition(all_idx, elementOwner[all_idx], None, None, rank)
             list_rank_groupElem.append(groupElem)
 
         # return all rank GroupElems so rank 0 can scatter them
@@ -2416,9 +2413,30 @@ class Mesher:
             elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
             tic.Tac("Mesh", f"Create {elemType}", self.__verbosity)
 
+        if isPartitioned:
+            for dict_groupElem in list_dict_groupElem:
+                self.__Set_node_partition(dict_groupElem, nodeOwner)
+
         tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
 
         return list_dict_groupElem
+
+    @staticmethod
+    def __Set_node_partition(
+        dict_groupElem: dict[ElemType, "_GroupElem"], nodeOwner: _types.IntArray
+    ) -> None:
+        """Gives every group of a partition the rank-wide global ids of its nodes, the union over its groups, and their owners: one read-only array of each, shared."""
+        groups = list(dict_groupElem.values())
+        globalNodes = np.unique(np.concatenate([g.nodes for g in groups]))
+        nodeOwners = nodeOwner[globalNodes]
+        for groupElem in groups:
+            groupElem._Set_partition(
+                groupElem._globalElements,
+                groupElem._elementOwners,
+                globalNodes,
+                nodeOwners,
+                groupElem.rank,
+            )
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh.
@@ -2440,6 +2458,8 @@ class Mesher:
         if useMpi:
             # scatter requires one item per rank, hence Nproc == MPI_SIZE above
             dict_groupElem = MPI_COMM.scatter(list_dict_groupElem, root=0)
+            for groupElem in dict_groupElem.values():
+                groupElem.isPartitioned = True
         else:
             dict_groupElem = list_dict_groupElem[0]  # type: ignore[index]
 

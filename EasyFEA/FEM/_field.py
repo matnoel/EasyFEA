@@ -48,7 +48,7 @@ class Field:
         assert 1 <= dof_n <= groupElem.inDim
         self.__dof_n = dof_n
 
-        Ndof = groupElem.Ncoords * dof_n
+        Ndof = groupElem.Nn * dof_n
         self._Set_dofsValues(np.zeros(Ndof, dtype=float))
 
         self._Set_current_active_node(0)
@@ -114,7 +114,7 @@ class Field:
         return self.__dofsValues
 
     def _Set_dofsValues(self, values: _types.FloatArray):
-        Ndof = self.groupElem.Ncoords * self.__dof_n
+        Ndof = self.groupElem.Nn * self.__dof_n
         assert values.ndim == 1 and values.size == Ndof, (
             f"must be a ({Ndof},) array but is a {values.shape} array."
         )
@@ -267,13 +267,13 @@ class Field:
         # get mesh data
         groupElem = self.groupElem
         Ne = groupElem.Ne
-        Ncoords = groupElem.Ncoords
+        Nn = groupElem.Nn
         nPe = groupElem.nPe
 
         # get dof_n
         dofsValues = np.asarray(dofsValues).ravel()
-        assert dofsValues.size % Ncoords == 0, "Must be a (Ncoords * dof_n) array"
-        dof_n = dofsValues.size // Ncoords
+        assert dofsValues.size % Nn == 0, "Must be a (Nn * dof_n) array"
+        dof_n = dofsValues.size // Nn
 
         # get (Ne, nPe, dof_n) values
         dofsValues_e = groupElem.Locates_sol_e(dofsValues, dof_n).reshape(

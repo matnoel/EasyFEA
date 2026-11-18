@@ -102,7 +102,7 @@ def _Get_outward_face_normals(
         # number of the face's vertices each element holds (Ne, group.Ne)
         rows = np.repeat(np.arange(Ne), nVertex)
         columns = faces.connect[:, :nVertex].ravel()
-        faces_n = csr_matrix((np.ones(rows.size), (rows, columns)), (Ne, group.Ncoords))
+        faces_n = csr_matrix((np.ones(rows.size), (rows, columns)), (Ne, group.Nn))
         shared = (faces_n @ group.Get_connect_n_e()).tocoo()
         isHolder = shared.data == nVertex
         rows, elements = shared.row[isHolder], shared.col[isHolder]

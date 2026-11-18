@@ -138,7 +138,7 @@ def _fibers_from_vtu(
     groupElem3D = mesh.Get_list_groupElem(3)[0]
     nodes = mesh.nodes
 
-    fibers_n = np.zeros((groupElem3D.Ncoords, 3))
+    fibers_n = np.zeros((groupElem3D.Nn, 3))
     sheets_n = np.zeros_like(fibers_n)
     fiberFile = Folder.Join(path, "fiber.vtu")
     fibers_n[nodes] = meshio.vtu.read(fiberFile).point_data["f0"][nodes]

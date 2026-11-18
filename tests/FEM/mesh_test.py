@@ -3,12 +3,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import pickle
 
 import pytest
 import numpy as np
 from scipy.spatial import cKDTree
 
-from EasyFEA import Models, Simulations
+from EasyFEA import Mesher, Models, Simulations
 from EasyFEA.FEM import (
     ElemType,
     MatrixType,
@@ -19,7 +20,7 @@ from EasyFEA.FEM import (
     Mesh_Optim,
 )
 from EasyFEA.Geoms import Points, Circle, Domain, Line, Rotate
-from EasyFEA.Utilities import _IObserver, Allgather, Observable
+from EasyFEA.Utilities import _IObserver, Allgather, MPI_RANK, Observable
 
 from _numerics import rel_error
 
@@ -1330,3 +1331,72 @@ def test_Mesh_Nodes_Conditions_problemType_under_mpi_closes_the_nodes_of_this_ra
     # on the circle or its chords, whose sagitta is below this
     expected = local[np.hypot(local[:, 0], local[:, 1]) > 0.5 - 0.02]
     _assert_all_ranks_hold(mesh, space, nodes, expected)
+
+
+# ----------------------------------------------
+# Partition, MPI
+# ----------------------------------------------
+
+
+def _square() -> Mesh:
+    domain = Domain((0, 0), (1, 1), 0.1)
+    return domain.Mesh_2D([], ElemType.TRI3)
+
+
+def _all_ranks(array: np.ndarray, mesh: Mesh) -> np.ndarray:
+    return np.concatenate(Allgather(array, mesh.comm))
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_owned_nodes_and_elements_partition_the_mesh():
+    mesh = _square()
+    assert mesh.isPartitioned and mesh.comm is not None
+
+    nodes = _all_ranks(mesh._Get_mpi_owned_nodes(), mesh)
+    assert np.array_equal(np.sort(nodes), np.arange(mesh.Nn))
+    for groupElem in mesh.dict_groupElem.values():
+        owned = groupElem._globalElements[groupElem._ownedElements]
+        elements = np.sort(_all_ranks(owned, mesh))
+        assert np.array_equal(elements, np.arange(elements.size))
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_globalNodes_hold_the_rank_nodes_read_only():
+    mesh = _square()
+
+    globalNodes = mesh.globalNodes
+
+    assert not globalNodes.flags.writeable
+    assert np.all(np.diff(globalNodes) > 0)
+    assert np.isin(mesh.nodes, globalNodes).all()
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_pickled_loads_detached(tmp_path):
+    mesh = _square()
+
+    loaded = pickle.loads(pickle.dumps(mesh))
+    path = mesh.Save(str(tmp_path / str(MPI_RANK)), "mesh")
+    saved = Load_Mesh(path)
+
+    for detached in (loaded, saved):
+        assert not detached.isPartitioned and detached.comm is None
+        assert np.array_equal(detached.globalNodes, mesh.globalNodes)
+        assert np.array_equal(
+            detached._Get_mpi_owned_nodes(), mesh._Get_mpi_owned_nodes()
+        )
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_Get_Meshes_pieces_never_communicate():
+    if MPI_RANK == 0:
+        mesher = Mesher()
+        mesher._Surfaces(Domain((0, 0), (1, 1), 0.2))
+        mesher._Mesh_Generate(2, ElemType.TRI3)
+        pieces = mesher._Mesh_Get_Meshes(3)
+        for piece in pieces:
+            assert piece.comm is None
+            # partner groups and a reduced area, both collective on a shared mesh
+            piece._With_FunctionSpace(ELASTIC, 2)
+            assert piece.area > 0
+        assert abs(sum(piece.area for piece in pieces) - 1) < 1e-12

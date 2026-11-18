@@ -164,7 +164,7 @@ def test_MassAlongNormal_weighs_only_the_normal_component():
 
 def test_UV_and_MassAlongNormal_with_P2_u_on_TRI3_are_the_straight_TRI6(subtests):
     groupElem, isoElem, dofs = p2_faces()
-    size = isoElem.Ncoords * 3
+    size = isoElem.Nn * 3
 
     for name, operator in [
         ("UV", functools.partial(Bilinear.UV, coef=3.0, dof_n=3)),

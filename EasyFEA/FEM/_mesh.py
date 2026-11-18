@@ -60,9 +60,9 @@ class Mesh(Observable):
         """
 
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
-        # all groups must share the same global node numbering (one common Ncoords)
-        assert len({groupElem.Ncoords for groupElem in dict_groupElem.values()}) == 1, (
-            "All element groups must share the same coordinates (common Ncoords)."
+        # all groups must share the same global node numbering (one common Nn)
+        assert len({groupElem.Nn for groupElem in dict_groupElem.values()}) == 1, (
+            "All element groups must share the same coordinates (common Nn)."
         )
         self.__dict_groupElem = dict_groupElem
 
@@ -175,8 +175,8 @@ class Mesh(Observable):
     @property
     def Nn(self) -> int:
         """number of nodes in the mesh"""
-        # coords are shared across all groups, so Ncoords is group-independent
-        return next(iter(self.dict_groupElem.values())).Ncoords
+        # coords are shared across all groups, so Nn is group-independent
+        return next(iter(self.dict_groupElem.values())).Nn
 
     @property
     def dim(self):
@@ -251,7 +251,7 @@ class Mesh(Observable):
 
         if len(list_mesh) == 1:
             if return_mapping:
-                return list_mesh[0], [np.arange(list_mesh[0].groupElem.Ncoords)]
+                return list_mesh[0], [np.arange(list_mesh[0].groupElem.Nn)]
             return list_mesh[0]
 
         # Step 1: collect coords once per mesh (mesh.coord reconstructs each call)
@@ -402,19 +402,21 @@ class Mesh(Observable):
             np.concatenate([groupElem.nodes for groupElem in self.Get_list_groupElem()])
         )
 
-    def _Get_mpi_owned_nodes(self) -> _types.IntArray:
-        """MPI: nodes owned (non-ghost) by the current rank, as the union over the main-dimension element groups of their partition's owned nodes.
+    @property
+    def globalNodes(self) -> _types.IntArray:
+        """Global id of each of the rank's nodes, sorted (read-only); `arange(Nn)` when the mesh was never partitioned. Indexes a whole-mesh nodal file (fibres, contractility) with the rank's nodes."""
+        globalNodes = next(iter(self.__dict_groupElem.values()))._globalNodes
+        if globalNodes is None:
+            globalNodes = np.arange(self.Nn)
+            globalNodes.flags.writeable = False
+        return globalNodes
 
-        gmsh partitions *elements*; each node then goes to the lowest rank whose main-dimension elements use it, so it is owned by exactly one rank and the union is conflict-free. Across ranks the owned nodes form a partition of the mesh nodes. For a single-group mesh this is exactly ``groupElem._Get_partitioned_data()[3]``.
-        """
-        list_groupElem = self.Get_list_groupElem(self.dim)
-        if len(list_groupElem) == 1:
-            return list_groupElem[0]._Get_partitioned_data()[3]
-        return np.unique(
-            np.concatenate(
-                [groupElem._Get_partitioned_data()[3] for groupElem in list_groupElem]
-            )
-        )
+    def _Get_mpi_owned_nodes(self) -> _types.IntArray:
+        """Nodes this rank owns: each node goes to the lowest rank whose main-dimension elements use it, so the owned nodes of the ranks partition the mesh nodes; `nodes` when the mesh was never partitioned."""
+        groupElem = next(iter(self.__dict_groupElem.values()))
+        if groupElem._globalNodes is None:
+            return self.nodes
+        return groupElem._globalNodes[groupElem._nodeOwners == groupElem.rank]
 
     @property
     def coord(self) -> _types.FloatArray:
@@ -482,9 +484,9 @@ class Mesh(Observable):
         dict_gathered: dict = {}
         for elemType, groupElem in self.__dict_groupElem.items():
             # searchsorted maps each owned global index to its local row in connect.
-            _, elements, _, _, _ = groupElem._Get_partitioned_data()
-            owned_local = np.searchsorted(groupElem._globalElements, elements)
-            owned_connect = groupElem.connect[owned_local]  # (n_owned, nPe)
+            owned = groupElem._ownedElements
+            elements = groupElem._globalElements[owned]
+            owned_connect = groupElem.connect[owned]  # (n_owned, nPe)
 
             all_connect = MPI_COMM.gather(owned_connect, root=0)
             all_indices = MPI_COMM.gather(elements, root=0)
@@ -494,19 +496,13 @@ class Mesh(Observable):
                 non_empty_sizes = [idx.max() + 1 for idx in all_indices if idx.size > 0]
                 Ne_global = max(non_empty_sizes) if non_empty_sizes else 0
                 global_connect = np.empty((Ne_global, groupElem.nPe), dtype=int)
-                rank_partition = np.empty(Ne_global, dtype=int)
-                for r, (connect_r, indices_r) in enumerate(
-                    zip(all_connect, all_indices)
-                ):
+                for connect_r, indices_r in zip(all_connect, all_indices):
                     if indices_r.size > 0:
                         global_connect[indices_r] = connect_r
-                        rank_partition[indices_r] = r
 
-                gathered_ge = GroupElemFactory._Create(
+                dict_gathered[elemType] = GroupElemFactory._Create(
                     groupElem.gmshId, global_connect, coordinates
                 )
-                gathered_ge._rankPartition = rank_partition
-                dict_gathered[elemType] = gathered_ge
 
         if MPI_RANK == 0:
             mesh = Mesh(dict_gathered, self.__verbosity)
@@ -543,7 +539,7 @@ class Mesh(Observable):
         if problemType in self.__dict_functionSpace:
             return self.__dict_functionSpace[problemType]
         nodes = self.nodes
-        owned = self._Get_mpi_owned_nodes() if MPI_SIZE > 1 else nodes
+        owned = self._Get_mpi_owned_nodes()
         groups = {groupElem: groupElem for groupElem in self.dict_groupElem.values()}
         return _FunctionSpace(np.arange(self.Nn), owned, nodes, groups)
 
@@ -1408,10 +1404,18 @@ class Mesh(Observable):
         for elemType, groupElem in self.dict_groupElem.items():
             # GroupElemFactory.Create data: elemType, connect, coordinates
             createData = (groupElem.connect, coordinates)
-            # Partitionned data: elements, nodes, rank, ghostElements, isPartitioned
-            rank, elements, ghostElements, nodes, _ = groupElem._Get_partitioned_data()
-            isPartitioned = groupElem.isPartitioned
-            partitionedData = (elements, nodes, rank, ghostElements, isPartitioned)
+            # partition, never isPartitioned: a loaded mesh is detached
+            partitionedData = {
+                "globalElements": (
+                    None
+                    if groupElem._elementOwners is None
+                    else groupElem._globalElements
+                ),
+                "elementOwners": groupElem._elementOwners,
+                "globalNodes": groupElem._globalNodes,
+                "nodeOwners": groupElem._nodeOwners,
+                "rank": groupElem.rank,
+            }
             # nodes tags
             dict_nodes_tags = groupElem._dict_nodes_tags
             # append data
@@ -1462,18 +1466,10 @@ def Load_Mesh(path: str) -> Mesh:
         groupElem = GroupElemFactory.Create(
             elemType=elemType, connect=connect, coordinates=coordinates
         )
-        # set partitioned data
+        # partition, detached; older files load serial
         partitionedData = data[1]
-        elements, nodes, rank, ghostElements = partitionedData[:4]
-        # files saved before isPartitioned load whole
-        isPartitioned = len(partitionedData) > 4 and partitionedData[4]
-        groupElem._Set_partitioned_data(
-            elements=elements,
-            nodes=nodes,
-            rank=rank,
-            ghostElements=ghostElements,
-            isPartitioned=isPartitioned,
-        )
+        if isinstance(partitionedData, dict):
+            groupElem._Set_partition(**partitionedData)
         # append tags
         dict_nodes_tags = data[2]
         for tag, nodes in dict_nodes_tags.items():

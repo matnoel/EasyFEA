@@ -120,7 +120,7 @@ class BiLinearForm(_Form):
         columns = groupElem.Get_columns_e(dof_n).ravel()
 
         # get shape
-        Ndof = groupElem.Ncoords * dof_n
+        Ndof = groupElem.Nn * dof_n
         shape = (Ndof, Ndof)
 
         assert values.size == rows.size, f"Not enough data to fill a {shape} matrix."
@@ -195,7 +195,7 @@ class LinearForm(_Form):
         columns = np.zeros_like(rows)
 
         # get shape
-        Ndof = groupElem.Ncoords * dof_n
+        Ndof = groupElem.Nn * dof_n
         shape = (Ndof, 1)
 
         assert values.size == rows.size, f"Not enough data to fill a {shape} vector."

@@ -124,7 +124,7 @@ class InElastic(_Simu):
     ) -> dict[str, FeArray.FeArrayALike]:
         """The nodal ``external``, interpolated at the Gauss points."""
         # they could be interpolated onto the new mesh instead
-        assert all(v.size == groupElem.Ncoords for v in external.values()), (
+        assert all(v.size == groupElem.Nn for v in external.values()), (
             "the external variables cannot follow a mesh change - set them again"
         )
         return {

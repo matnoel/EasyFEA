@@ -39,7 +39,7 @@ class _Mapping:
             return self.__Get_reference_coord_e()
         groupElem = self.__groupElem
         displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-        shape = (groupElem.Ncoords, 3)
+        shape = (groupElem.Nn, 3)
         assert displacementMatrix.shape == shape, (
             f"displacmentMatrix must be of shape {shape}"
         )

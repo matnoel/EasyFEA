@@ -551,8 +551,8 @@ def test_Kinematics_refuses_a_size_no_displacement_has(subtests):
         groupElem = _mesh(dim).groupElem
         for dof_n in accepted:
             with subtests.test(dim=dim, dof_n=dof_n):
-                Kinematics(groupElem, np.zeros(groupElem.Ncoords * dof_n))
+                Kinematics(groupElem, np.zeros(groupElem.Nn * dof_n))
         for dof_n in refused:
             with subtests.test(dim=dim, dof_n=dof_n):
                 with pytest.raises(AssertionError, match="displacement field"):
-                    Kinematics(groupElem, np.zeros(groupElem.Ncoords * dof_n))
+                    Kinematics(groupElem, np.zeros(groupElem.Nn * dof_n))

@@ -3,9 +3,12 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import copy
+import pickle
 from typing import Callable
 
 import pytest
+
 import numpy as np
 
 from EasyFEA.FEM import (
@@ -145,7 +148,7 @@ def test_GroupElem_nodes_are_the_used_ones_sorted():
     groupElem = GroupElemFactory.Create(ElemType.SEG2, connect, np.zeros((5, 3)))
 
     assert np.array_equal(groupElem.nodes, [2, 4])
-    assert groupElem.Nn == 2 and groupElem.Ncoords == 5
+    assert groupElem.nodes.size == 2 and groupElem.Nn == 5
 
 
 def test_GroupElem_elements_are_the_connect_rows():
@@ -154,18 +157,10 @@ def test_GroupElem_elements_are_the_connect_rows():
     assert np.array_equal(groupElem.elements, [0, 1])
 
 
-def test_GroupElem_Nn_counts_the_used_nodes():
+def test_GroupElem_Nn_counts_the_mesh_coordinates():
     connect = np.array([[3, 1]])
 
-    assert GroupElemFactory.Create(ElemType.SEG2, connect, np.zeros((6, 3))).Nn == 2
-
-
-def test_GroupElem_Ncoords_counts_the_mesh_coordinates():
-    connect = np.array([[3, 1]])
-
-    assert (
-        GroupElemFactory.Create(ElemType.SEG2, connect, np.zeros((6, 3))).Ncoords == 6
-    )
+    assert GroupElemFactory.Create(ElemType.SEG2, connect, np.zeros((6, 3))).Nn == 6
 
 
 def test_GroupElem_coord_holds_the_used_nodes_and_is_set_from_the_mesh():
@@ -231,50 +226,55 @@ def test_GroupElem_connect_is_a_copy():
 # ----------------------------------------------------------------------------
 
 
-def test_GroupElem__Set_partitioned_data_sorts_and_derives_the_ghost_nodes():
+def _partitioned(rank: int = 1):
+    """Four segments, rows of global elements [1, 2, 3, 5] owned by ranks [1, 0, 1, 1], on rank `rank`."""
     groupElem = _segments([(i, 0, 0) for i in range(5)])
+    globalNodes = np.array([2, 3, 4, 6, 7])
+    groupElem._Set_partition(
+        np.array([1, 2, 3, 5]),
+        np.array([1, 0, 1, 1]),
+        globalNodes,
+        np.array([0, 1, 1, 1, 1]),
+        rank,
+    )
+    return groupElem
 
-    groupElem._Set_partitioned_data([3, 1], [2, 0, 1], 1, [2])
 
-    rank, elements, ghostElements, nodes, ghostNodes = groupElem._Get_partitioned_data()
-    assert rank == 1
-    assert np.array_equal(elements, [1, 3])
-    assert np.array_equal(ghostElements, [2])
-    assert np.array_equal(nodes, [0, 1, 2])
-    assert np.array_equal(ghostNodes, [3, 4])
-
-
-def test_GroupElem__Get_partitioned_data_of_a_serial_group_owns_everything():
+def test_GroupElem_partition_of_a_serial_group_owns_everything():
     groupElem = _segments([(i, 0, 0) for i in range(4)])
 
-    rank, elements, ghostElements, nodes, ghostNodes = groupElem._Get_partitioned_data()
+    assert groupElem.rank == 0 and not groupElem.isPartitioned
+    assert np.array_equal(groupElem._globalElements, groupElem.elements)
+    assert groupElem._ownedElements == slice(None)
+    assert groupElem._elementOwners is None
+    assert groupElem._globalNodes is None and groupElem._nodeOwners is None
 
-    assert rank == 0
-    assert np.array_equal(elements, groupElem.elements)
-    assert np.array_equal(nodes, groupElem.nodes)
-    assert ghostElements.size == ghostNodes.size == 0
+
+def test_GroupElem__Set_partition_owns_the_elements_of_its_rank():
+    groupElem = _partitioned()
+
+    assert groupElem.rank == 1
+    assert np.array_equal(groupElem._globalElements, [1, 2, 3, 5])
+    assert np.array_equal(groupElem._ownedElements, [True, False, True, True])
+    assert (
+        groupElem._Sum_on_ownedElements_e(np.array([1.0, 10.0, 100.0, 1000.0])) == 1101
+    )
 
 
-def test_GroupElem__globalElements_is_sorted(make_mesh_2D: Callable[..., Mesh]):
-    """Mesher builds partition arrays from python sets (hash order); consumers pair them with `connect` through `np.searchsorted`, which needs them sorted."""
-    mesh = make_mesh_2D()
-    groupElem = mesh.groupElem
-    Ne = groupElem.Ne
+def test_GroupElem__Set_partition_locks_the_node_arrays():
+    groupElem = _partitioned()
 
-    shuffled = np.random.default_rng(0).permutation(Ne)
+    with pytest.raises(ValueError):
+        groupElem._globalNodes[0] = 0  # type: ignore [index]
+    with pytest.raises(ValueError):
+        groupElem._nodeOwners[0] = 0  # type: ignore [index]
 
-    # a rank owning every element of the group and no ghost of it
-    groupElem._Set_partitioned_data(shuffled, groupElem.nodes)
-    assert np.array_equal(groupElem._globalElements, np.arange(Ne))
 
-    # owned + ghost
-    owned, ghosts = shuffled[: Ne // 2], shuffled[Ne // 2 :]
-    groupElem._Set_partitioned_data(owned, groupElem.nodes, 0, ghosts)
-    globalElements = groupElem._globalElements
+def test_GroupElem__Set_partition_needs_sorted_global_ids():
+    groupElem = _segments([(i, 0, 0) for i in range(3)])
 
-    assert np.array_equal(globalElements, np.arange(Ne))
-    rows = np.searchsorted(globalElements, np.sort(owned))
-    assert np.array_equal(globalElements[rows], np.sort(owned))
+    with pytest.raises(AssertionError, match="sorted"):
+        groupElem._Set_partition(np.array([2, 1]), np.zeros(2, int), None, None)
 
 
 def test_GroupElem__globalElements_of_an_empty_group_stays_int():
@@ -288,15 +288,25 @@ def test_GroupElem__globalElements_of_an_empty_group_stays_int():
     assert globalElements.dtype.kind == "i"
 
 
-def test_GroupElem__rankPartition_is_set_from_an_array():
-    groupElem = _segments([(0, 0, 0), (1, 0, 0), (2, 0, 0)])
-    assert groupElem._rankPartition is None
+def test_GroupElem_pickled_loads_detached():
+    groupElem = _partitioned()
+    groupElem.isPartitioned = True
 
-    groupElem._rankPartition = np.array([0, 1])
+    loaded = pickle.loads(pickle.dumps(groupElem))
 
-    assert np.array_equal(groupElem._rankPartition, [0, 1])
-    with pytest.raises(AssertionError):
-        groupElem._rankPartition = [0, 1]  # type: ignore [assignment]
+    assert groupElem.isPartitioned and not loaded.isPartitioned
+    assert np.array_equal(loaded._ownedElements, groupElem._ownedElements)
+    assert not loaded._globalNodes.flags.writeable  # type: ignore [union-attr]
+
+
+def test_GroupElem_deep_copy_stays_partitioned():
+    groupElem = _partitioned()
+    groupElem.isPartitioned = True
+
+    copied = copy.deepcopy(groupElem)
+
+    assert copied.isPartitioned
+    assert not copied._globalNodes.flags.writeable  # type: ignore [union-attr]
 
 
 # ----------------------------------------------------------------------------
@@ -400,7 +410,7 @@ def test_GroupElem__Get_sysCoord_e_of_a_face_has_k_normal_to_it(subtests):
         with subtests.test(elemType=str(elemType)):
             groupElem = reference_element(elemType, A)
 
-            P_e = groupElem._Get_sysCoord_e(np.ones((groupElem.Ncoords, 3)))
+            P_e = groupElem._Get_sysCoord_e(np.ones((groupElem.Nn, 3)))
 
             assert rel_error(np.swapaxes(P_e, 1, 2) @ P_e, np.eye(3)[None]) < 1e-12
             assert rel_error(np.abs(P_e[0, :, 2]), np.ones(3) / np.sqrt(3)) < 1e-12
@@ -789,7 +799,7 @@ def test_GroupElem_Get_GaussCoordinates_e_pg_maps_the_rule_affinely(subtests):
 
             x_e_pg = groupElem.Get_GaussCoordinates_e_pg(MatrixType.mass)
             moved_e_pg = groupElem.Get_GaussCoordinates_e_pg(
-                MatrixType.mass, displacementMatrix=np.ones((groupElem.Ncoords, 3))
+                MatrixType.mass, displacementMatrix=np.ones((groupElem.Nn, 3))
             )
             first_e_pg = groupElem.Get_GaussCoordinates_e_pg(
                 MatrixType.mass, np.array([0])

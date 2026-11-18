@@ -148,7 +148,7 @@ def test_ActiveStressTensor_residual_at_rest_does_the_fiber_work(subtests):
             mat = _material(groupElem, tau=tau)
 
             _, R = NonLinear.ActiveStressTensor(
-                mat, _kinematics(groupElem, np.zeros(groupElem.Ncoords * dim))
+                mat, _kinematics(groupElem, np.zeros(groupElem.Nn * dim))
             )
 
             T = np.array(FIBER) / 3
@@ -166,7 +166,7 @@ def test_ActiveStressTensor_residual_at_rest_does_the_fiber_work(subtests):
 
 def test_ActiveStressTensor_without_active_stress_returns_nothing():
     groupElem = element_mesh(3, ElemType.HEXA8).groupElem
-    kinematics = _kinematics(groupElem, np.zeros(groupElem.Ncoords * 3))
+    kinematics = _kinematics(groupElem, np.zeros(groupElem.Nn * 3))
 
     assert NonLinear.ActiveStressTensor(_material(groupElem), kinematics) == (
         None,
@@ -208,7 +208,7 @@ def test_KelvinVoigtDamping_damping_matrix_is_symmetric_positive(subtests):
 
 def test_KelvinVoigtDamping_inactive_returns_nothing(subtests):
     groupElem = element_mesh(2, ElemType.QUAD4).groupElem
-    u = np.zeros(groupElem.Ncoords * 2)
+    u = np.zeros(groupElem.Nn * 2)
     kinematics = _kinematics(groupElem, u)
     for name, eta, v in [("no viscosity", 0.0, u.copy()), ("no velocity", 0.7, None)]:
         with subtests.test(name):
@@ -251,7 +251,7 @@ def test_FollowingPressure_on_a_closed_surface_has_no_resultant(faces):
 
 def test_FollowingPressure_on_a_face_pushes_pressure_times_area(faces):
     groupElem, _, top = faces
-    u = np.zeros(groupElem.Ncoords * 3)
+    u = np.zeros(groupElem.Nn * 3)
 
     _, R = NonLinear.FollowingPressure(groupElem, u, 2.0, top)
 
@@ -273,7 +273,7 @@ def test_FollowingPressure_without_pressure_or_elements_is_zero(faces):
 
 def test_FollowingPressure_with_P2_u_on_TRI3_tangent_matches_finite_differences():
     groupElem, _, _ = p2_faces()
-    u = np.random.default_rng(4).standard_normal(groupElem.Ncoords * 3) * 0.02
+    u = np.random.default_rng(4).standard_normal(groupElem.Nn * 3) * 0.02
 
     def pressure(u_):
         return NonLinear.FollowingPressure(groupElem, u_, 2.0)
@@ -295,7 +295,7 @@ def test_FollowingPressure_on_a_curved_TRI6_tangent_matches_finite_differences()
 
 def test_FollowingPressure_with_P2_u_on_a_closed_surface_has_no_resultant():
     groupElem, _, _ = p2_faces()
-    u = np.random.default_rng(4).standard_normal(groupElem.Ncoords * 3) * 0.02
+    u = np.random.default_rng(4).standard_normal(groupElem.Nn * 3) * 0.02
 
     _, R = NonLinear.FollowingPressure(groupElem, u, 2.0)
 
@@ -304,8 +304,8 @@ def test_FollowingPressure_with_P2_u_on_a_closed_surface_has_no_resultant():
 
 def test_FollowingPressure_with_P2_u_on_TRI3_is_the_straight_TRI6():
     groupElem, isoElem, dofs = p2_faces()
-    u_iso = np.random.default_rng(4).standard_normal(isoElem.Ncoords * 3) * 0.02
-    size = isoElem.Ncoords * 3
+    u_iso = np.random.default_rng(4).standard_normal(isoElem.Nn * 3) * 0.02
+    size = isoElem.Nn * 3
 
     K, R = NonLinear.FollowingPressure(groupElem, u_iso[dofs], 2.0)
     K_iso, R_iso = NonLinear.FollowingPressure(isoElem, u_iso, 2.0)
@@ -405,7 +405,7 @@ UP_RULE = MatrixType.Order(4)
 
 
 def _incompressibility(uGroup, pGroup, assembly_p, u, p):
-    p_n = np.zeros(pGroup.Ncoords)
+    p_n = np.zeros(pGroup.Nn)
     p_n[pGroup.connect] = p[assembly_p]
     return NonLinear.MixedIncompressibility(Kinematics(uGroup, u, UP_RULE), pGroup, p_n)
 
@@ -508,4 +508,4 @@ def test_MixedIncompressibility_rejects_a_rule_p_does_not_share():
     kinematics = Kinematics(uGroup, np.zeros(assembly_u.max() + 1), MatrixType.rigi)
 
     with pytest.raises(ValueError, match="Order"):
-        NonLinear.MixedIncompressibility(kinematics, pGroup, np.zeros(pGroup.Ncoords))
+        NonLinear.MixedIncompressibility(kinematics, pGroup, np.zeros(pGroup.Nn))
