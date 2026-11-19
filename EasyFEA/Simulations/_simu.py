@@ -5,7 +5,6 @@
 
 from abc import ABC, abstractmethod
 import inspect
-import operator
 import pickle
 from contextlib import contextmanager
 from dataclasses import replace
@@ -61,7 +60,8 @@ from ..Models import _IModel
 # simu
 from ._problem_type import ProblemType
 from . import _iterations
-from ._terms import Term, Fold_terms, Same_provenance, _Folded, _LocalSystem
+from ._terms import Term, Fold_terms, _Folded, _LocalSystem
+from ._linear_system import _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from .Solvers import (
     Solve_simu,
@@ -755,6 +755,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__NindexMesh: int = -1
         """Current mesh index in self.__listMesh"""
         self.__listMesh: list[str | Mesh] = []
+        self.__linearSystems: dict[
+            ProblemType | tuple[ProblemType, ...], _LinearSystem
+        ] = {}
         self.mesh = mesh
 
         self.rho = 1.0
@@ -957,6 +960,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # This cannot live in `Need_Update`, which fires on every Newton
             # iteration — exactly the case those caches exist to serve.
             clear_cached_computed_values(self)
+            self.__Drop_linear_systems()
             mesh._Add_observer(self)
 
             # The mesh changes, so the matrices must be reconstructed
@@ -1051,6 +1055,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.Bc_Init()
         # the geometry-derived caches describe the partition
         clear_cached_computed_values(self)
+        self.__Drop_linear_systems()
         self.Need_Update()
 
         wholes = [self.__Layout(self.__Get_mesh(i)) for i in range(self.Nmesh)]
@@ -1137,6 +1142,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # switching to another mesh in the history changes the connectivity
         clear_cached_computed_values(self)
+        self.__Drop_linear_systems()
 
         self.Need_Update()  # need to reconstruct matrices
 
@@ -1146,9 +1152,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         elif isinstance(observable, Mesh):
             self._Check_dim_mesh_material()
             clear_cached_computed_values(self)
+            self.__Drop_linear_systems()
             self.Need_Update()
         else:
             Terminal.MyPrintError("Notification not yet implemented")
+
+    def _Get_linear_system(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _LinearSystem:
+        """The linear system of a problem key, kept until the mesh changes."""
+        system = self.__linearSystems.get(problem)
+        if system is None:
+            system = self.__linearSystems[problem] = _LinearSystem()
+        return system
+
+    def __Drop_linear_systems(self) -> None:
+        """Forgets every linear system: the mesh they were built on changed."""
+        self.__linearSystems = {}
 
     def Need_Update(self, value=True):
         """Sets whether the simulation needs to reconstruct matrices K, C, M and F."""
@@ -1350,18 +1370,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._verbosity,
         )
 
-        # a matrix folded from the same cached arrays is the previous one, kept until the mesh changes
-        kept = cached_computed_values(self).setdefault("Assembly", {})
-        key = (tuple(layout), Ndof)
+        # a matrix folded from the same cached arrays is the previous one, kept by the system until the mesh changes
+        system = self._Get_linear_system(
+            problemTypes[0] if len(problemTypes) == 1 else problemTypes
+        )
         assembled = []
         for slot, name in zip("KCMF", ("K matrix", "C matrix", "M matrix", "F vector")):
-            oldKey, oldStamp, matrix = kept.pop((problemTypes, slot), (None, [], None))
-            if oldKey != key or not Same_provenance(oldStamp, provenance[slot]):
-                matrix = self.__Assemble_csr(local[slot], key[0], Ndof, slot != "F")
+            blocks = local[slot]
+            contributing = tuple(
+                (block, tuple(groups)) for block, groups in blocks.items()
+            )
+
+            def assemble() -> sparse.csr_matrix:
+                matrix = self.__Assemble_csr(blocks, tuple(layout), Ndof, slot != "F")
                 tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
-            if None not in provenance[slot]:
-                kept[(problemTypes, slot)] = (key, provenance[slot], matrix)
-            assembled.append(matrix)
+                return matrix
+
+            key = (tuple(layout), Ndof, contributing)
+            assembled.append(system.Assembled(slot, key, provenance[slot], assemble))
         K, C, M, F = assembled
 
         return K, C, M, F
@@ -1921,11 +1947,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         dofsValues = self.__Compose(problemType, self.Bc_values_Dirichlet)
 
-        K, C, M, _ = self.Get_K_C_M_F(problemType)
+        # the system's last fold is the current one
+        self.Get_K_C_M_F(problemType)
 
         tic = Tic()
 
-        A = self.__Get_A(problemType, K, C, M)
+        A = self.__Get_A(problemType)
 
         tic.Tac("Solver", f"Construct A ({problemType})", self._verbosity)
 
@@ -1948,49 +1975,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return A, x
 
     def __Get_A(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        K: sparse.csr_matrix,
-        C: sparse.csr_matrix,
-        M: sparse.csr_matrix,
+        self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` of the time scheme (K when elliptic), a unit diagonal at the orphan dofs; the same read-only object while K, C, M are and the coefficients are unchanged."""
-        # an empty or unweighted C or M adds nothing but its own indptr
-        summed = [
-            (c, X)
-            for c, X in zip(self.timeScheme.coefs, (K, C, M))
-            if X is K or (c != 0 and X.nnz)
-        ]
-        coefs, matrices = zip(*summed)
-
-        kept = cached_computed_values(self).setdefault("__Get_A", {})
-        old = kept.get(problemType, ((), (), None))
-        if old[1] == coefs and all(map(operator.is_, old[0], matrices)):
-            return old[2]
-
-        indices, indptr, slots, diagonal = self.__Get_A_pattern(problemType, matrices)
-        if coefs == (1.0,) and diagonal.size == 0:
-            A = K
-        else:
-            data = np.zeros(indices.size)
-            for coef, X, slot in zip(coefs, matrices, slots):
-                data[slot] += coef * X.data
-            data[diagonal] += 1.0
-            A = sparse.csr_matrix((data, indices, indptr), shape=K.shape)
-        A.has_canonical_format = True
-        A.data.flags.writeable = False
-
-        kept[problemType] = (matrices, coefs, A)
-        return A
-
-    def __Get_A_pattern(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        matrices: tuple[sparse.csr_matrix, ...],
-    ) -> tuple[
-        _types.IntArray, _types.IntArray, list[_types.IntArray | slice], _types.IntArray
-    ]:
-        """Union of the patterns of `matrices` and of the orphan diagonal, kept while their patterns are: `(indices, indptr)`, each matrix's slots in it, the diagonal's; exact zeros stay, so A's pattern never follows its values."""
+        """The problem's A for the time scheme, kept by its linear system."""
         nodes = self.mesh.orphanNodes
         # only the orphans carrying a dof (TETRA10 mid nodes under P1 skipped)
         orphanDofs = self.__Compose(
@@ -2002,29 +1989,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             ),
             isDofs=True,
         )
-        K = matrices[0]
-        if orphanDofs.size == 0 and all(X.indptr is K.indptr for X in matrices):
-            return K.indices, K.indptr, [slice(None)] * len(matrices), orphanDofs
-
-        kept = cached_computed_values(self).setdefault("__Get_A_pattern", {})
-        indptrs = [X.indptr for X in matrices]
-        old = kept.get(problemType, ((), None))
-        if len(old[0]) == len(indptrs) and all(map(operator.is_, old[0], indptrs)):
-            return old[1]
-
-        # entries as row·n + col, sorted: the canonical CSR order
-        n = K.shape[0]
-        keys = [
-            np.repeat(np.arange(n, dtype=np.int64), np.diff(X.indptr)) * n + X.indices
-            for X in matrices
-        ]
-        keys.append(orphanDofs.astype(np.int64) * (n + 1))
-        canon = np.unique(np.concatenate(keys))
-        union = sparse.csr_matrix((np.ones(canon.size), divmod(canon, n)), shape=(n, n))
-        slots = [np.searchsorted(canon, key) for key in keys]
-        pattern = (union.indices, union.indptr, slots[:-1], slots[-1])
-        kept[problemType] = (indptrs, pattern)
-        return pattern
+        system = self._Get_linear_system(problemType)
+        return system.Get_A(self.timeScheme.coefs, orphanDofs)
 
     def __Solver_Get_Dirichlet_A_x(
         self,
