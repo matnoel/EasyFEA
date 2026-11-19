@@ -134,16 +134,13 @@ def _fibers_from_vtu(
     path: str,
     matrixType: MatrixType,
 ) -> tuple[FeArray, FeArray]:
-    """`fiber.vtu` / `sheet.vtu` source: read the FEniCS-generated nodal `f0` / `s0`, interpolate them to the Gauss points, then Gram-Schmidt to restore `f _|_ s` (interpolation through the shape functions bends the alignment). `mesh.nodes` are the rank-local owned indices; the unowned rows stay at zero, as Interpolate_e_pg expects."""
-    groupElem3D = mesh.Get_list_groupElem(3)[0]
-    nodes = mesh.nodes
+    """`fiber.vtu` / `sheet.vtu` source: read the FEniCS-generated nodal `f0` / `s0` on the mesh's nodes (`mesh.globalNodes` under MPI), interpolate them to the Gauss points, then Gram-Schmidt to restore `f _|_ s` (interpolation through the shape functions bends the alignment)."""
+    nodes = mesh.globalNodes
 
-    fibers_n = np.zeros((groupElem3D.Nn, 3))
-    sheets_n = np.zeros_like(fibers_n)
     fiberFile = Folder.Join(path, "fiber.vtu")
-    fibers_n[nodes] = meshio.vtu.read(fiberFile).point_data["f0"][nodes]
+    fibers_n = meshio.vtu.read(fiberFile).point_data["f0"][nodes]
     sheetFile = Folder.Join(path, "sheet.vtu")
-    sheets_n[nodes] = meshio.vtu.read(sheetFile).point_data["s0"][nodes]
+    sheets_n = meshio.vtu.read(sheetFile).point_data["s0"][nodes]
 
     fibers_e_pg = mesh.groupElem.Interpolate_e_pg(fibers_n, matrixType)
     sheets_e_pg = mesh.groupElem.Interpolate_e_pg(sheets_n, matrixType)

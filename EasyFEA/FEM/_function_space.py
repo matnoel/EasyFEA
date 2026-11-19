@@ -73,13 +73,45 @@ class _FunctionSpace:
         return self.__localNodes
 
     @property
+    def globalNodes(self) -> _types.IntArray:
+        """Global id of each node id (Ncoords,), read-only, the serial ids at any rank count: the mesh nodes', then the others' (each block sorted); `arange(Ncoords)` when the mesh was never partitioned."""
+        globalNodes = self.__Get_partition_group()._globalNodes
+        if globalNodes is None:
+            globalNodes = np.arange(self.Ncoords)
+            globalNodes.flags.writeable = False
+        return globalNodes
+
+    def __Get_partition_group(self) -> "_GroupElem":
+        """A group holding the space's node partition: a partner's, else the geometry's (iso)."""
+        groups = self.__dict_groupElem
+        return next(
+            (partner for g, partner in groups.items() if partner is not g),
+            next(iter(groups)),
+        )
+
+    def __Gather_held(self, nodes: _types.IntArray) -> _types.IntArray:
+        """The node ids this rank holds among every rank's ``nodes``, sorted; exchanged in global ids. Collective."""
+        globalNodes = self.globalNodes
+        exchanged = Concatenate_array(globalNodes[nodes])
+        held = exchanged[np.isin(exchanged, globalNodes)]
+        return np.sort(_FunctionSpace.__Get_local(globalNodes, held))
+
+    @staticmethod
+    def __Get_local(
+        globalNodes: _types.IntArray, ids: _types.IntArray
+    ) -> _types.IntArray:
+        """Node id of each global id of ``ids``, all held: its position in ``globalNodes`` (unique, sorted by block)."""
+        order = np.argsort(globalNodes, kind="stable")
+        return order[np.searchsorted(globalNodes[order], ids)]
+
+    @property
     def order(self) -> int:
         """highest order of the groups the field lives on, from which `Mesh._With_FunctionSpace` rebuilds it"""
         return max(group.order for group in self.__dict_groupElem.values())
 
     @property
     def coord(self) -> _types.FloatArray:
-        """node coordinates (Nn + added nodes, 3), indexed by node id: the mesh nodes, then the added nodes; under MPI zero rows off this rank, as `Mesh.coord`"""
+        """node coordinates (Nn + added nodes, 3), indexed by node id: the mesh nodes, then the added nodes"""
         groups = self.__dict_groupElem
         coord = np.zeros((self.Ncoords, 3))
         for groupElem in [*groups, *groups.values()]:
@@ -149,7 +181,7 @@ class _FunctionSpace:
         partitioned = _FunctionSpace.__Is_partitioned(groups)
         nodes = nodes.astype(np.int64)
         selected = np.zeros(self.Ncoords, bool)
-        selected[Concatenate_array(nodes) if partitioned else nodes] = True
+        selected[self.__Gather_held(nodes) if partitioned else nodes] = True
         closure = [np.empty(0, np.int64)]
         for groupElem, partner in groups.items():
             if 0 < groupElem.dim < mainDim:
@@ -158,7 +190,7 @@ class _FunctionSpace:
         added = np.unique(np.concatenate(closure, dtype=np.int64))
         # a rank can hold a node without the face it sits on
         if partitioned:
-            added = np.unique(Concatenate_array(added))
+            added = self.__Gather_held(added)
             added = added[np.isin(added, self.__localNodes)]
         return np.concatenate([nodes, added[~selected[added]]])
 
@@ -187,7 +219,7 @@ class _FunctionSpace:
             nodes = np.concatenate(
                 [np.empty(0, np.int64), *dict_nodes.get(tag, [])], dtype=np.int64
             )
-            nodes = np.unique(Concatenate_array(nodes) if partitioned else nodes)
+            nodes = np.unique(self.__Gather_held(nodes) if partitioned else nodes)
             for groupElem, partner in groups.items():
                 if partner is not groupElem:
                     partner.Set_Tag(
@@ -207,17 +239,16 @@ class _FunctionSpace:
         if not _FunctionSpace.__Is_partitioned(groups):
             return
         if self.__indexMap is None:
-            # the held nodes and their owners: those of a partner, else the geometry's (iso)
-            group = next(
-                (partner for g, partner in groups.items() if partner is not g),
-                next(iter(groups)),
-            )
-            nodes, owners = group._globalNodes, group._nodeOwners
-            assert nodes is not None and owners is not None
+            group = self.__Get_partition_group()
+            owners = group._nodeOwners
+            assert owners is not None
+            # the nodes carrying a DOF, by global id
+            nodes = self.Get_dof_nodes(np.arange(self.Ncoords))
+            nodes = nodes[np.argsort(self.globalNodes[nodes], kind="stable")]
             self.__indexMap = _IndexMap(
-                nodes,
+                self.globalNodes[nodes],
                 self.__Get_rows(nodes),
-                owners,
+                owners[nodes],
                 group.rank,
                 MPI_COMM,
             )
@@ -226,7 +257,7 @@ class _FunctionSpace:
     def Get_meshValues(
         self, dofsValues: _types.FloatArray, dof_n: int
     ) -> _types.FloatArray:
-        """Values (mesh.Nn, dof_n) at the mesh nodes of the DOF vector ``dofsValues`` (Nn*dof_n,): the reshape when isoparametric, else per group the values at its nodes or, super-parametric, lifted by the space's shape functions; zero rows at the nodes no main-dimension element covers (off this rank under MPI, as `Mesh.coord`)."""
+        """Values (mesh.Nn, dof_n) at the mesh nodes of the DOF vector ``dofsValues`` (Nn*dof_n,): the reshape when isoparametric, else per group the values at its nodes or, super-parametric, lifted by the space's shape functions; zero rows at the nodes no main-dimension element covers."""
         groups = self.__dict_groupElem
         # the values of each node (Nn, dof_n)
         values = np.asarray(dofsValues).reshape(-1, dof_n)
@@ -319,7 +350,7 @@ class _FunctionSpace:
     @staticmethod
     def _Create_partner_groups(mesh: "Mesh", order: int) -> "_FunctionSpace | None":
         """Space on the partner group of each mesh group, the complete Lagrange element of ``order`` (TETRA4, 2 → TETRA10; QUAD8, 2 → QUAD9), None when every group is its own partner (iso); collective on a partitioned mesh."""
-        # mesh nodes keep their ids, the added nodes take `Nn + k`, shared by every group and by every rank
+        # numbered in global ids, the serial ones at any rank count: mesh nodes keep theirs, the added nodes take `Nn + k` (Nn of the whole mesh); then in local ids, the mesh nodes' then the added nodes' this rank holds
         # local: `_group_elem` imports this module at its top
         from ._group_elem import GroupElemFactory
 
@@ -329,24 +360,19 @@ class _FunctionSpace:
         Nn = mesh.Nn
         # these values are multiples of 1/order per direction, so integers once multiplied by `scale`
         scale = order**3
-        partitioned = mesh.isPartitioned
         comm = mesh.comm
+        # global id of each mesh node (Nn,), and the whole mesh's node count
+        globalNodes = mesh.globalNodes
+        NnGlobal = int(Reduce_max(int(globalNodes.max(initial=-1)), comm)) + 1
 
-        def gather(array: np.ndarray) -> np.ndarray:
-            """Every rank's ``array`` end to end on a partitioned mesh, ``array`` itself otherwise."""
-            return Concatenate_array(array) if partitioned else array
-
-        # owner rank of each node this rank holds (Nn,), from the partition
+        # owner rank of each mesh node (Nn,), from the partition
         first = next(iter(mesh.dict_groupElem.values()))
         rank = first.rank
-        if first._nodeOwners is None:
+        owner = first._nodeOwners
+        if owner is None:
             owner = np.full(Nn, rank, dtype=np.int64)
-        else:
-            owner = np.full(Nn, -1, dtype=np.int64)
-            owner[first._globalNodes] = first._nodeOwners
         # rows of step 4 are bucketed on their lowest vertex, below this bound
-        globalMax = Reduce_max(int(mesh.globalNodes.max(initial=-1)), comm)
-        bound = (int(globalMax) + 1) * (scale + 1)
+        bound = NnGlobal * (scale + 1)
         # mesh group -> its partner group, returned
         partners: dict["_GroupElem", "_GroupElem"] = {}
         # mesh group -> (partner elemType, partner connect (Ne, nPe), filled in step 5)
@@ -371,14 +397,14 @@ class _FunctionSpace:
                 raise ValueError(f"No {topology} element of order {order} in EasyFEA.")
             partner = max(complete, key=lambda ref: ref.nPe)
             linear = min(refs, key=lambda ref: ref.nPe)
-            # geometry node ids (Ne, nPe geometry), partner local coordinates (nPe, dim) and the elements this rank owns (Ne,)
-            nodes = groupElem.connect.astype(np.int64)
+            # geometry node global ids (Ne, nPe geometry), partner local coordinates (nPe, dim) and the elements this rank owns (Ne,)
+            nodes = globalNodes[groupElem.connect].astype(np.int64)
             xi = partner.Get_Local_Coords()
             elementOwners = groupElem._elementOwners
             if elementOwners is None:
                 elementOwners = np.full(groupElem.Ne, rank, dtype=np.int64)
 
-            # 2. the partner connect (Ne, nPe): the node id where a partner node sits on a geometry node (vertices, QUAD8 mid nodes), -1 elsewhere until step 5
+            # 2. the partner connect (Ne, nPe) in global ids: the geometry node where a partner node sits on one (vertices, QUAD8 mid nodes), -1 elsewhere until step 5
             connect = np.full((groupElem.Ne, partner.nPe), -1, dtype=np.int64)
             # (nPe, nPe geometry): True where partner node j sits on geometry node i
             atNode = np.abs(xi[:, None] - groupElem.Get_Local_Coords()).max(2) < 1e-12
@@ -396,7 +422,7 @@ class _FunctionSpace:
             # support size of each node off the vertices (nOff,)
             sizes = np.count_nonzero(weights, axis=1)
             for size in np.unique(sizes):
-                # its nodes, as positions in offVertex (nCol,), their local vertices (nCol, size) and global vertices (Ne, nCol, size)
+                # its nodes, as positions in offVertex (nCol,), their element vertices (nCol, size) and global vertices (Ne, nCol, size)
                 columns = np.flatnonzero(sizes == size)
                 support = np.nonzero(weights[columns])[1].reshape(columns.size, size)
                 vertices = nodes[:, support]
@@ -408,13 +434,13 @@ class _FunctionSpace:
                 if groupElem.dim == mesh.dim and size == partner.Nvertex:
                     owners = np.repeat(elementOwners[:, None], columns.size, axis=1)
                 else:
-                    owners = owner[vertices].min(axis=2)
+                    owners = owner[groupElem.connect[:, support]].min(axis=2)
                 bySize.setdefault(size, []).append(
                     (connect, offVertex[columns], rows, owners)
                 )
 
-        # 5. the ids, one support size at a time over all groups and ranks: equal rows are one node, the geometry node holding it or else Nn + k in the serial row order
-        NnSpace = Nn
+        # 5. the global ids, one support size at a time over all groups and ranks: equal rows are one node, the geometry node holding it or else Nn + k in the serial row order
+        NnSpace = NnGlobal
         # the support sizes of every rank, so that all run the same collectives
         sizes = sorted(set().union(*Allgather(set(bySize), comm)))
         for size in sizes:
@@ -436,8 +462,18 @@ class _FunctionSpace:
                 connect[:, columns] = ids[start:end].reshape(-1, columns.size)
                 start = end
 
-        # 6. the owner of each node this rank holds (NnSpace,): the mesh nodes by their owner, then the nodes of step 4
-        spaceOwner = np.full(NnSpace, -1, dtype=np.int64)
+        # 6. the space's nodes this rank holds in global ids: the mesh nodes, then the others sorted (a mesh node only another rank holds, beside its element, then the added nodes); the partner connects in their local ids
+        connects = [connect for _, connect in dict_connect.values()]
+        others = np.setdiff1d(
+            np.concatenate([np.empty(0, np.int64), *map(np.ravel, connects)]),
+            globalNodes,
+        )
+        spaceNodes = np.concatenate([globalNodes, others])
+        for connect in connects:
+            connect[:] = _FunctionSpace.__Get_local(spaceNodes, connect)
+        Ncoords = spaceNodes.size
+        # the owner of each (Ncoords,): the mesh nodes by their owner, then the nodes of step 4
+        spaceOwner = np.full(Ncoords, -1, dtype=np.int64)
         spaceOwner[:Nn] = owner
         for items in bySize.values():
             for connect, columns, _, owners in items:
@@ -449,33 +485,30 @@ class _FunctionSpace:
                 partners[groupElem] = groupElem
             else:
                 partners[groupElem] = GroupElemFactory.Create(
-                    elemType, connect, np.zeros((NnSpace, 3))
+                    elemType, connect, np.zeros((Ncoords, 3))
                 )
-        # the space's nodes this rank holds, sorted: its partition, shared by the new partners, which take their group's elements
-        reached = np.unique(np.concatenate([g.nodes for g in partners.values()]))
+        if all(partner is groupElem for groupElem, partner in partners.items()):
+            return None
+        # the new partners share the space's node partition and take their group's elements
         if first._nodeOwners is not None:
-            reachedOwners = spaceOwner[reached]
             for groupElem, spaceGroup in partners.items():
                 if spaceGroup is groupElem:
                     continue
                 spaceGroup._Set_partition(
                     groupElem._globalElements,
                     groupElem._elementOwners,
-                    reached,
-                    reachedOwners,
+                    spaceNodes,
+                    spaceOwner,
                     rank,
                 )
                 spaceGroup.isPartitioned = groupElem.isPartitioned
-        # 8. the nodes carrying a DOF (NnSpace minus the nodes no partner reaches on any rank: TETRA10, 1 → the mid nodes), those this rank owns and those of its main-dimension elements
-        spaceNodes = np.concatenate(
-            [np.unique(gather(reached[reached < Nn])), np.arange(Nn, NnSpace)]
-        )
-        if all(partner is groupElem for groupElem, partner in partners.items()):
-            return None
+        # 8. the nodes carrying a DOF (all but the mesh nodes no partner reaches: TETRA10, 1 → the mid nodes), those this rank owns and those of its main-dimension elements
+        reached = np.unique(np.concatenate([g.nodes for g in partners.values()]))
+        dofNodes = np.concatenate([reached[reached < Nn], np.arange(Nn, Ncoords)])
         main = [partners[g].nodes for g in mesh.Get_list_groupElem()]
         localNodes = np.unique(np.concatenate(main))
         space = _FunctionSpace(
-            spaceNodes, spaceNodes[isMine[spaceNodes]], localNodes, partners
+            dofNodes, dofNodes[isMine[dofNodes]], localNodes, partners
         )
         space._Update_coord()
         space._Update_tags()

@@ -17,7 +17,7 @@ from EasyFEA.Geoms import Circle, Domain
 from EasyFEA.Models.InElastic import Plasticity
 from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardening
 from EasyFEA.Models.InElastic.Yield import VonMises
-from EasyFEA.Utilities import Allgather
+from EasyFEA.Utilities import Allgather, Reduce_max, Reduce_sum
 
 
 def _plate_with_hole(elemType: ElemType):
@@ -112,6 +112,21 @@ def _monolithic() -> Simulations.IncompressibleHyperElastic:
     return simu
 
 
+def _pinned() -> Simulations.IncompressibleHyperElastic:
+    """u prescribed on the whole boundary, so that p is free up to a constant, pinned at one node."""
+    material = Models.HyperElastic.NeoHookean(2, K=1.0)
+    mesh = _plate_with_hole(ElemType.TRI6)
+    simu = Simulations.IncompressibleHyperElastic(mesh, material)
+    nodesBoundary = mesh.Nodes_Tags(*(f"L{i}" for i in range(8)))
+    simu.add_dirichlet(
+        nodesBoundary,
+        [lambda x, y, z: 0.02 * y**2, lambda x, y, z: 0.02 * x**2],
+        ["x", "y"],
+    )
+    simu.Solve()
+    return simu
+
+
 _CASES = {
     "elastic": _elastic,
     "newmark": _newmark,
@@ -119,6 +134,7 @@ _CASES = {
     "inelastic": _inelastic,
     "moving": _moving,
     "monolithic": _monolithic,
+    "pinned": _pinned,
 }
 
 # the results a gathered simulation gives, at nodes and on elements
@@ -129,11 +145,12 @@ _RESULTS = {
     "inelastic": ["displacement", "Svm", "p"],
     "moving": ["displacement", "Svm"],
     "monolithic": ["displacement", "p", "Svm"],
+    "pinned": ["displacement", "p"],
 }
 
 
 def _space_coord(order: int) -> np.ndarray:
-    """Coordinates of every node id of the displacement on the order `order` elements of a TRI3 mesh, zero where this rank holds none."""
+    """Coordinates of every node id of the displacement on the order `order` elements of a TRI3 mesh."""
     mesh = _plate_with_hole(ElemType.TRI3)
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     return mesh._Get_FunctionSpace(Simulations.Elastic.problemType).coord
@@ -187,12 +204,15 @@ def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     space = mesh._Get_FunctionSpace(Simulations.Elastic.problemType)
     held = space.localNodes
+    globalNodes = space.globalNodes
 
     serial = _serial(f"space{order}")["coord"]
 
-    assert space.Ncoords == serial.shape[0]
-    np.testing.assert_allclose(space.coord[held], serial[held], rtol=0, atol=1e-12)
-    owned = np.concatenate(Allgather(space.ownedNodes, mesh.comm))
+    assert Reduce_max(int(globalNodes.max()), mesh.comm) + 1 == serial.shape[0]
+    np.testing.assert_allclose(
+        space.coord[held], serial[globalNodes[held]], rtol=0, atol=1e-12
+    )
+    owned = np.concatenate(Allgather(globalNodes[space.ownedNodes], mesh.comm))
     assert np.array_equal(np.sort(owned), np.arange(serial.shape[0]))
 
 
@@ -208,12 +228,27 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
 
     serial = _serial(case)
 
-    np.testing.assert_array_equal(serial["nodes"][nodes, :2], coord)
-    uSerial = serial["nodes"][nodes, 2:]
+    rows = serial["nodes"][simu.mesh.globalNodes[nodes]]
+    np.testing.assert_array_equal(rows[:, :2], coord)
+    uSerial = rows[:, 2:]
     assert np.abs(u - uSerial).max() < 1e-6 * np.abs(serial["nodes"][:, 2:]).max()
     for scalarsRank in Allgather(scalars, simu.mesh.comm):
         np.testing.assert_array_equal(scalarsRank, scalars)
     np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=1e-12)
+
+
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", _CASES)
+def test_Solve_over_the_ranks_holds_the_rank_nodes_only(case):
+    pytest.importorskip("petsc4py")
+    simu = _CASES[case]()
+    mesh = simu.mesh
+    whole = Reduce_sum(mesh._Get_mpi_owned_nodes().size, mesh.comm)
+
+    assert mesh.Nn < whole
+    assert mesh.coord.shape == (mesh.Nn, 3)
+    assert simu.displacement.shape == (mesh.Nn * 2,)
+    assert simu.Result("Svm").shape == (mesh.Nn,)
 
 
 @pytest.mark.mpi

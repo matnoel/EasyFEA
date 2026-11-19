@@ -1352,8 +1352,8 @@ def test_Mesh_under_mpi_owned_nodes_and_elements_partition_the_mesh():
     mesh = _square()
     assert mesh.isPartitioned and mesh.comm is not None
 
-    nodes = _all_ranks(mesh._Get_mpi_owned_nodes(), mesh)
-    assert np.array_equal(np.sort(nodes), np.arange(mesh.Nn))
+    nodes = _all_ranks(mesh.globalNodes[mesh._Get_mpi_owned_nodes()], mesh)
+    assert np.array_equal(np.sort(nodes), np.arange(nodes.size))
     for groupElem in mesh.dict_groupElem.values():
         owned = groupElem._globalElements[groupElem._ownedElements]
         elements = np.sort(_all_ranks(owned, mesh))
@@ -1361,14 +1361,22 @@ def test_Mesh_under_mpi_owned_nodes_and_elements_partition_the_mesh():
 
 
 @pytest.mark.mpi
-def test_Mesh_under_mpi_globalNodes_hold_the_rank_nodes_read_only():
+def test_Mesh_under_mpi_globalNodes_number_the_rank_nodes_read_only():
     mesh = _square()
 
     globalNodes = mesh.globalNodes
 
     assert not globalNodes.flags.writeable
+    assert globalNodes.shape == (mesh.Nn,)
     assert np.all(np.diff(globalNodes) > 0)
-    assert np.isin(mesh.nodes, globalNodes).all()
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_Merge_refuses_a_partitioned_mesh():
+    mesh = _square()
+
+    with pytest.raises(ValueError, match="partitioned"):
+        Mesh.Merge([mesh, mesh])
 
 
 @pytest.mark.mpi
@@ -1412,5 +1420,5 @@ def test_Mesh_under_mpi_space_groups_take_their_group_partition():
     ):
         assert spaceGroup.isPartitioned and spaceGroup.rank == groupElem.rank
         assert np.array_equal(spaceGroup._ownedElements, groupElem._ownedElements)
-        owned = spaceGroup._globalNodes[spaceGroup._nodeOwners == spaceGroup.rank]
+        owned = np.flatnonzero(spaceGroup._nodeOwners == spaceGroup.rank)
         assert np.array_equal(owned, space.ownedNodes)

@@ -24,7 +24,14 @@ from scipy.sparse.csgraph import connected_components
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK, Reduce_sum
+from ..Utilities._mpi import (
+    MPI_COMM,
+    MPI_SIZE,
+    MPI_RANK,
+    Reduce_sum,
+    Reduce_max,
+    Gather_rows,
+)
 from ..Utilities._cache import cache_computed_values, cached_computed_values
 
 # fem
@@ -87,7 +94,7 @@ class Mesh(Observable):
         usedNodes: set[int] = set()
         for groupElem in self.dict_groupElem.values():
             usedNodes.update(groupElem.connect.ravel().astype(int).tolist())
-        nodes = set(self.globalNodes.tolist())
+        nodes = set(range(self.Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:
@@ -247,6 +254,10 @@ class Mesh(Observable):
         from ._group_elem import GroupElemFactory
 
         assert len(list_mesh) >= 1, "list_mesh must contain at least one mesh."
+        if any(mesh.isPartitioned for mesh in list_mesh):
+            raise ValueError(
+                "Merge needs whole meshes: a partitioned mesh holds one rank's nodes in local ids, gather it first."
+            )
 
         if len(list_mesh) == 1:
             if return_mapping:
@@ -403,7 +414,7 @@ class Mesh(Observable):
 
     @property
     def globalNodes(self) -> _types.IntArray:
-        """Global id of each of the rank's nodes, sorted (read-only); `arange(Nn)` when the mesh was never partitioned. Indexes a whole-mesh nodal file (fibres, contractility) with the rank's nodes."""
+        """Global id of each node (Nn,), sorted, read-only; `arange(Nn)` when the mesh was never partitioned. `values[mesh.globalNodes]` reads a whole-mesh nodal file (fibres, contractility) on the rank's nodes."""
         globalNodes = next(iter(self.__dict_groupElem.values()))._globalNodes
         if globalNodes is None:
             globalNodes = np.arange(self.Nn)
@@ -415,22 +426,11 @@ class Mesh(Observable):
         groupElem = next(iter(self.__dict_groupElem.values()))
         if groupElem._globalNodes is None:
             return self.nodes
-        return groupElem._globalNodes[groupElem._nodeOwners == groupElem.rank]
+        return np.flatnonzero(groupElem._nodeOwners == groupElem.rank)
 
     @property
     def coord(self) -> _types.FloatArray:
-        """nodes coordinates matrix (Ncoords, 3), indexed by global node id.
-
-        MPI
-        ---
-        Global in its *indexing* only: the rows of the nodes outside this rank's partition are never
-        written and stay at zero. Index it with local nodes — `mesh.nodes`, or a node tag intersected
-        with them — and reduce anything global (see `Utilities._mpi`). Reading it whole is what makes
-        `argmin(coord[:, 2])` return a different node on each rank, and a `max` over a node tag return
-        the 0.0 of a row nobody filled.
-
-        `groupElem.coord` is the dense local slice, `(Nn_local, 3)`, with no such rows.
-        """
+        """nodes coordinates matrix (Nn, 3); under MPI the rank's nodes, ghosts included."""
         coord = np.zeros((self.Nn, 3), dtype=float)
         for groupElem in self.dict_groupElem.values():
             coord[groupElem.nodes] = groupElem.coord
@@ -451,64 +451,35 @@ class Mesh(Observable):
         return self.groupElem.connect
 
     def _Gather(self) -> "Mesh | None":
-        """Gather the distributed mesh to rank `root`, reconstructing the global Mesh.
-
-        Returns
-        -------
-        Mesh on rank `root`, None on other ranks.
-        """
-        if MPI_SIZE == 1:
+        """The whole mesh on rank 0, from every rank's owned elements and nodes placed by global id; None on the other ranks, `self` when this rank holds it whole. Collective on `comm`."""
+        comm = self.comm
+        if comm is None:
             return self
 
         from ._group_elem import GroupElemFactory
 
-        # Gather node coordinates once, from every element group (a mesh that mixes
-        # element types has several): each group carries its own local coords indexed
-        # by its global node ids, so the union covers all nodes. Nodes shared between
-        # groups are written more than once with the same coordinate (harmless).
-        local_coords = [groupElem.coord for groupElem in self.__dict_groupElem.values()]
-        local_nodes = [groupElem.nodes for groupElem in self.__dict_groupElem.values()]
-        all_coords = MPI_COMM.gather(np.concatenate(local_coords), root=0)
-        all_nodes = MPI_COMM.gather(np.concatenate(local_nodes), root=0)
+        globalNodes = self.globalNodes
+        Nn = int(Reduce_max(int(globalNodes.max(initial=-1)), comm)) + 1
+        coordinates = Gather_rows(globalNodes, self.coord, Nn, comm)
 
-        # assembled on rank 0 only; used inside if MPI_RANK == 0
-        coordinates: np.ndarray
-        if MPI_RANK == 0:
-            assert all_coords is not None and all_nodes is not None
-            coordinates = np.zeros((self.Nn, 3), dtype=float)
-            for coords_r, nodes_r in zip(all_coords, all_nodes):
-                coordinates[nodes_r] = coords_r
-
-        # Gather element connectivity per type.
         dict_gathered: dict = {}
         for elemType, groupElem in self.__dict_groupElem.items():
-            # searchsorted maps each owned global index to its local row in connect.
             owned = groupElem._ownedElements
             elements = groupElem._globalElements[owned]
-            owned_connect = groupElem.connect[owned]  # (n_owned, nPe)
-
-            all_connect = MPI_COMM.gather(owned_connect, root=0)
-            all_indices = MPI_COMM.gather(elements, root=0)
-
-            if MPI_RANK == 0:
-                assert all_connect is not None and all_indices is not None
-                non_empty_sizes = [idx.max() + 1 for idx in all_indices if idx.size > 0]
-                Ne_global = max(non_empty_sizes) if non_empty_sizes else 0
-                global_connect = np.empty((Ne_global, groupElem.nPe), dtype=int)
-                for connect_r, indices_r in zip(all_connect, all_indices):
-                    if indices_r.size > 0:
-                        global_connect[indices_r] = connect_r
-
+            Ne = int(Reduce_max(int(elements.max(initial=-1)), comm)) + 1
+            connect = globalNodes[groupElem.connect[owned]]
+            connect = Gather_rows(elements, connect, Ne, comm)
+            if coordinates is not None:
                 dict_gathered[elemType] = GroupElemFactory._Create(
-                    groupElem.gmshId, global_connect, coordinates
+                    groupElem.gmshId, connect, coordinates
                 )
 
-        if MPI_RANK == 0:
-            mesh = Mesh(dict_gathered, self.__verbosity)
-            for problemType, order in self.__Get_orders().items():
-                mesh.__Set_FunctionSpace(problemType, order)
-            return mesh
-        return None
+        if coordinates is None:
+            return None
+        mesh = Mesh(dict_gathered, self.__verbosity)
+        for problemType, order in self.__Get_orders().items():
+            mesh.__Set_FunctionSpace(problemType, order)
+        return mesh
 
     @property
     def verbosity(self) -> bool:

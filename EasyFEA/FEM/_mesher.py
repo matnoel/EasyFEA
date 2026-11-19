@@ -2285,35 +2285,25 @@ class Mesher:
                 nodeOwner[nodes[nodeOwner[nodes] < 0]] = rank
         return nodeOwner
 
-    def __Get_partitioned_groupElems(
-        self,
-        gmshId: int,
-        connect: np.ndarray,
+    @staticmethod
+    def __Get_held_elements(
+        connect: _types.IntArray,
         rankElements: list[_types.IntArray],
-        coordinates: np.ndarray,
         nodeOwner: _types.IntArray,
-    ) -> list["_GroupElem"]:
-        """Splits the elements of `gmshId` into one `_GroupElem` per partition: its own elements plus, as ghosts, every other element touching a node it owns; element ids and owners set, node ones by `__Set_node_partition`."""
-
+    ) -> tuple[_types.IntArray, list[_types.IntArray]]:
+        """Owner of each element, and the elements each partition holds: its own plus, as ghosts, every other element touching a node it owns."""
         elements = np.arange(connect.shape[0], dtype=int)
         # an element on several partitions (interface entities of a lower dimension) goes to the lowest
         elementOwner = np.full(elements.size, -1, dtype=int)
         for rank, idx_r in reversed(list(enumerate(rankElements))):
             elementOwner[idx_r] = rank
-
-        list_rank_groupElem: list[_GroupElem] = []
-
+        held = []
         for rank, idx_r in enumerate(rankElements):
             # assembly keeps the owned rows only, so every element touching an owned node must be local, whichever rank holds it
             others = np.setdiff1d(elements, idx_r, assume_unique=True)
             ghost_idx = others[(nodeOwner[connect[others]] == rank).any(axis=1)]
-            all_idx = np.union1d(idx_r, ghost_idx)
-            groupElem = GroupElemFactory._Create(gmshId, connect[all_idx], coordinates)
-            groupElem._Set_partition(all_idx, elementOwner[all_idx], None, None, rank)
-            list_rank_groupElem.append(groupElem)
-
-        # return all rank GroupElems so rank 0 can scatter them
-        return list_rank_groupElem
+            held.append(np.union1d(idx_r, ghost_idx))
+        return elementOwner, held
 
     def __Get_dict_groupElems(
         self, Nproc: int, coef: float
@@ -2341,7 +2331,7 @@ class Mesher:
         # Compute connect before partitioning: gmsh.model.mesh.partition adds
         # ghost / partition-boundary elements whose synthetic tags break
         # gmsh.model.mesh.getElementQualities inside __Get_connect, and
-        # would shift the connect-array indexing in __Get_partitioned_groupElems.
+        # would shift the connect-array indexing in __Get_held_elements.
         dict_connect: dict[int, tuple[_types.IntArray, _types.IntArray]] = {
             gmshId: self.__Get_connect(gmshId, changes) for gmshId in elementTypes
         }
@@ -2370,6 +2360,21 @@ class Mesher:
                 ],
                 coordinates.shape[0],
             )
+            held = {
+                gmshId: self.__Get_held_elements(
+                    connect, rankElements[gmshId], nodeOwner
+                )
+                for gmshId, (connect, _) in dict_connect.items()
+            }
+            # each partition's nodes, sorted by global id: a node's local id is its position there; with their owners, one array of each shared by the partition's groups
+            rankNodes = []
+            for rank in range(Nproc):
+                connects = [np.empty(0, dtype=int)]
+                for gmshId, (connect, _) in dict_connect.items():
+                    heldElements = held[gmshId][1]
+                    connects.append(connect[heldElements[rank]].ravel())
+                rankNodes.append(np.unique(np.concatenate(connects)))
+            rankOwners = [nodeOwner[nodes] for nodes in rankNodes]
 
         list_dict_groupElem: list[dict[ElemType, _GroupElem]] = [
             {} for _ in range(Nproc)
@@ -2379,13 +2384,24 @@ class Mesher:
             connect, _ = dict_connect[gmshId]
 
             if isPartitioned:
-                groupElems = self.__Get_partitioned_groupElems(
-                    gmshId,
-                    connect,
-                    rankElements[gmshId],
-                    coordinates,
-                    nodeOwner,
-                )
+                # each partition's elements in local ids, over its own coordinates
+                elementOwner, heldElements = held[gmshId]
+                groupElems = []
+                for rank, idx_r in enumerate(heldElements):
+                    nodes = rankNodes[rank]
+                    groupElem = GroupElemFactory._Create(
+                        gmshId,
+                        np.searchsorted(nodes, connect[idx_r]),
+                        coordinates[nodes],
+                    )
+                    groupElem._Set_partition(
+                        idx_r,
+                        elementOwner[idx_r],
+                        nodes,
+                        rankOwners[rank],
+                        rank,
+                    )
+                    groupElems.append(groupElem)
             else:
                 # Note that each group of elements contains all coordinates.
                 groupElems = [GroupElemFactory._Create(gmshId, connect, coordinates)]
@@ -2403,9 +2419,14 @@ class Mesher:
                     continue
                 # nodes associated with the group
                 nodesGroup = changes[nodeTags]  # Apply change
-                # add tag
+                # add tag, on a partition its nodes in local ids
                 for groupElem in groupElems:
-                    groupElem.Set_Tag(nodesGroup, name)
+                    if isPartitioned:
+                        nodes = rankNodes[groupElem.rank]
+                        local = nodesGroup[np.isin(nodesGroup, nodes)]
+                        groupElem.Set_Tag(np.searchsorted(nodes, local), name)
+                    else:
+                        groupElem.Set_Tag(nodesGroup, name)
 
             for dict_groupElem, groupElem in zip(list_dict_groupElem, groupElems):
                 dict_groupElem[groupElem.elemType] = groupElem
@@ -2413,30 +2434,9 @@ class Mesher:
             elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
             tic.Tac("Mesh", f"Create {elemType}", self.__verbosity)
 
-        if isPartitioned:
-            for dict_groupElem in list_dict_groupElem:
-                self.__Set_node_partition(dict_groupElem, nodeOwner)
-
         tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
 
         return list_dict_groupElem
-
-    @staticmethod
-    def __Set_node_partition(
-        dict_groupElem: dict[ElemType, "_GroupElem"], nodeOwner: _types.IntArray
-    ) -> None:
-        """Gives every group of a partition the rank-wide global ids of its nodes, the union over its groups, and their owners: one read-only array of each, shared."""
-        groups = list(dict_groupElem.values())
-        globalNodes = np.unique(np.concatenate([g.nodes for g in groups]))
-        nodeOwners = nodeOwner[globalNodes]
-        for groupElem in groups:
-            groupElem._Set_partition(
-                groupElem._globalElements,
-                groupElem._elementOwners,
-                globalNodes,
-                nodeOwners,
-                groupElem.rank,
-            )
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh.

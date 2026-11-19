@@ -215,7 +215,7 @@ class _GroupElem:
         nodeOwners: _types.IntArray | None,
         rank: int = 0,
     ) -> None:
-        """Sets the global id (sorted) and owner rank of each element row, the rank-wide global ids (sorted) and owners of the rank's nodes (one read-only array shared by every group of the rank) and the rank; all None in serial."""
+        """Sets the global id (sorted) and owner rank of each element row, the global id and owner of each node (one read-only array of each shared by every group of the rank) and the rank; all None in serial."""
         Ne = self.__connect.shape[0]
         if globalElements is not None:
             assert globalElements.shape == (Ne,) and elementOwners is not None
@@ -223,7 +223,9 @@ class _GroupElem:
             assert np.all(np.diff(globalElements) > 0), "globalElements must be sorted."
         if globalNodes is not None:
             assert nodeOwners is not None and nodeOwners.shape == globalNodes.shape
-            assert np.all(np.diff(globalNodes) > 0), "globalNodes must be sorted."
+            assert np.unique(globalNodes).size == globalNodes.size, (
+                "globalNodes must be unique."
+            )
         self.__globalElements = globalElements
         self.__elementOwners = elementOwners
         self.__globalNodes = globalNodes
@@ -283,12 +285,12 @@ class _GroupElem:
 
     @property
     def _globalNodes(self) -> _types.IntArray | None:
-        """Global id of each of the rank's nodes, sorted, shared by every group of the rank; None in serial."""
+        """Global id of each node (Nn,), shared by every group of the rank; sorted for a mesh group, by block for a space's (`_FunctionSpace.globalNodes`); None in serial."""
         return self.__globalNodes
 
     @property
     def _nodeOwners(self) -> _types.IntArray | None:
-        """Owner rank of each of the rank's nodes, aligned with `_globalNodes`; -1 for a node no main-dimension element uses; None in serial."""
+        """Owner rank of each node (Nn,); -1 for a node no main-dimension element uses; None in serial."""
         return self.__nodeOwners
 
     @property
@@ -1325,6 +1327,9 @@ class _GroupElem:
         """
         assert isinstance(tag, str), "tag must be a string"
         if nodes.size == 0:
+            # a partition keeps a tag it holds no node of: every rank knows every tag
+            if self.__globalNodes is not None:
+                self.__dict_nodes_tags[tag] = nodes
             return
         self.__Set_Nodes_Tag(nodes, tag)
         if elements is None:

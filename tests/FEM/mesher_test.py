@@ -943,7 +943,7 @@ def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
         owned = np.zeros(groupElem.Ne, dtype=bool)
         owned[groupElem._ownedElements] = True
         elements = groupElem._globalElements
-        ownedNodes = mesh._Get_mpi_owned_nodes()
+        ownedNodes = mesh.globalNodes[mesh._Get_mpi_owned_nodes()]
         ghostNodes = np.setdiff1d(mesh.globalNodes, ownedNodes)
         data.append(
             (groupElem.rank, elements[owned], elements[~owned], ownedNodes, ghostNodes)
@@ -980,6 +980,20 @@ def test_Mesher__Mesh_Get_Meshes_owned_nodes_partition_the_mesh(partitions, subt
 
             assert sum(len(nodes) for nodes in owned) == len(set().union(*owned))
             assert set().union(*owned) == set(range(whole.Nn))
+
+
+def test_Mesher__Mesh_Get_Meshes_pieces_are_their_partition_in_local_ids(
+    partitions, subtests
+):
+    for elemType, (whole, pieces) in partitions.items():
+        with subtests.test(elemType=str(elemType)):
+            for piece in pieces:
+                globalNodes = piece.globalNodes
+                assert np.array_equal(piece.coord, whole.coord[globalNodes])
+                for groupElem in piece.dict_groupElem.values():
+                    wholeGroup = whole.dict_groupElem[groupElem.elemType]
+                    connect = wholeGroup.connect[groupElem._globalElements]
+                    assert np.array_equal(globalNodes[groupElem.connect], connect)
 
 
 def test_Mesher__Mesh_Get_Meshes_pieces_have_no_orphan_nodes(partitions, subtests):

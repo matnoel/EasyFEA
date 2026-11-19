@@ -347,8 +347,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         owned = self.__Get_owned(dofs, problemType)
         reaction = np.zeros(size, dtype=float)
         reaction[owned] = self.__Get_reaction(owned, problemType)
-        # a ghost row from its owner; whole-size until the mesh is local
-        reaction = Reduce_sum(reaction, self.mesh.comm)
+        # a ghost row from its owner
+        self._Scatter_forward(problemType, reaction)
 
         return reaction[dofs]
 
@@ -934,14 +934,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return Gather_rows(source._globalElements[owned], values[owned], size, comm)
 
         for problemType in self.problemTypes:
+            dof_n = self.Get_dof_n(problemType)
             space = partition._Get_FunctionSpace(problemType)
-            dofs = space.Get_dofs(space.ownedNodes, self.Get_dof_n(problemType))
-            u, v, a = (
+            nodes = space.ownedNodes
+            rows = space.Get_dofs(nodes, 1)
+            # placed by global node id on rank 0, then the nodes carrying a DOF in row order
+            gathered = self.mesh._Get_FunctionSpace(problemType)
+            dofNodes = gathered.Get_dof_nodes(np.arange(gathered.Ncoords))
+            placed = (
                 Gather_rows(
-                    dofs, vector[problemType][dofs], vector[problemType].size, comm
+                    space.globalNodes[nodes],
+                    vector[problemType].reshape(-1, dof_n)[rows],
+                    gathered.Ncoords,
+                    comm,
                 )
                 for vector in (self.__dict_u_n, self.__dict_v_n, self.__dict_a_n)
             )
+            u, v, a = (None if p is None else p[dofNodes].ravel() for p in placed)
             if u is not None:
                 self._Set_solutions(problemType, u, v, a)
 
@@ -957,9 +966,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 for name, values in fields.items()
             }
         nodes = partition._Get_mpi_owned_nodes()
+        ids = partition.globalNodes[nodes]
         externals, nextExternals = (
             {
-                name: Gather_rows(nodes, values[nodes], partition.Nn, comm)
+                name: Gather_rows(ids, values[nodes], self.mesh.Nn, comm)
                 for name, values in fields.items()
             }
             for fields in (self.__variables.externals, self.__variables.nextExternals)
@@ -2738,7 +2748,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Bc_dofs_pinned(
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
     ) -> _types.IntArray:
-        """First DOF of each scalar field the system leaves free up to a constant: no diagonal block, and the other fields' free equations blind to a constant in it, ``‖K_rc[free] · 1‖ ≤ ε ‖K_rc[free]‖``. Pinned there, then shifted to zero mean after the solve."""
+        """DOF at global node 0 of each scalar field the system leaves free up to a constant: no diagonal block, and the other fields' free equations blind to a constant in it, ``‖K_rc[free] · 1‖ ≤ ε ‖K_rc[free]‖``. Pinned there on the ranks holding it, then shifted to zero mean after the solve."""
         K = self.Get_K_C_M_F(problem)[0]
         owned = np.zeros(K.shape[0], dtype=bool)
         owned[self.Get_dofs(problem)] = True
@@ -2757,7 +2767,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             constant = Reduce_sum(np.sum((K_rc @ np.ones(K_rc.shape[1])) ** 2), comm)
             scale = Reduce_sum(K_rc.multiply(K_rc).sum(), comm)
             if constant <= (1e-10) ** 2 * scale:
-                pinned.append(start)
+                space = self._Get_FunctionSpace(field)
+                node = space.Get_dof_nodes(np.flatnonzero(space.globalNodes == 0))
+                pinned.extend(start + space.Get_dofs(node, 1))
                 self.__pinnedFields.add(field)
         return np.asarray(pinned, dtype=int)
 

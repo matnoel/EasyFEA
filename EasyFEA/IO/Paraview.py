@@ -244,8 +244,8 @@ def __Make_vtu(
     Ncoords = mesh.Nn
     inDim = mesh.inDim
 
-    # Several element groups can share the main dimension (e.g. QUAD4 + TRI3). VTK represents such heterogeneous grids with a per-cell `types` array and cumulative `offsets`, so the cells are built by iterating over the groups (this collapses to the single-type case for a uniform mesh). The groups share one point set -- mesh.nodes, the union of their nodes, sorted -- with a local-compacted numbering, which works in serial and in MPI (where mesh.nodes are this rank's global ids).
-    nodes = mesh.nodes  # sorted unique global ids used by the main-dim groups
+    # Several element groups can share the main dimension (e.g. QUAD4 + TRI3). VTK represents such heterogeneous grids with a per-cell `types` array and cumulative `offsets`, so the cells are built by iterating over the groups (this collapses to the single-type case for a uniform mesh). The groups share one point set -- mesh.nodes, the union of their nodes, sorted -- with a local-compacted numbering, which works in serial and in MPI (where mesh.nodes are this rank's nodes, ghosts included).
+    nodes = mesh.nodes
     Nn = nodes.size
     coordinates = mesh.coord[nodes].ravel()
 
@@ -263,7 +263,7 @@ def __Make_vtu(
             vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
         else:
             vtkIndexes = np.arange(nPe).tolist()
-        # map global node ids to the shared local numbering (equivalent to groupElem._nodesIdx since mesh.nodes is sorted)
+        # map node ids to the shared compacted numbering (equivalent to groupElem._nodesIdx since mesh.nodes is sorted)
         connect_e = np.searchsorted(nodes, groupElem.connect[:, vtkIndexes])
         list_connect.append(connect_e.ravel())
         list_types.append(
@@ -289,7 +289,7 @@ def __Make_vtu(
         ghostPoints = np.ones(Nn, dtype=np.uint8)
         ghostPoints[np.isin(nodes, mesh._Get_mpi_owned_nodes())] = 0
 
-    nodes = nodes.astype(np.uint64)  # GlobalPointIds / node-field indexing
+    globalPointIds = mesh.globalNodes[nodes].astype(np.uint64)
 
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
 
@@ -411,8 +411,9 @@ def __Make_vtu(
         if ghostPoints is not None:
             __WriteBinary(ghostPoints.size, "uint32", file)  # byte count = Nn * 1
             __WriteBinary(ghostPoints, "uint8", file)
-            __WriteBinary(8 * nodes.size, "uint32", file)  # byte count = Nn * 8
-            __WriteBinary(nodes, "uint64", file)
+            # byte count = Nn * 8
+            __WriteBinary(8 * globalPointIds.size, "uint32", file)
+            __WriteBinary(globalPointIds, "uint64", file)
 
         # Element values (float64)
         for elementValues in list_values_e:

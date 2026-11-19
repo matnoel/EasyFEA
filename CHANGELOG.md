@@ -12,11 +12,18 @@ This document describes the changes made to the project.
 - `Simu.Calc_Resultant(dofs)`: the resultant of the internal force over `dofs`,
   identical on every rank. `Calc_Reaction(dofs)` returns the rows of `dofs` under MPI as
   in serial, so `np.sum(Calc_Reaction(dofs))` is the rank's share: use `Calc_Resultant`.
-- `mesh.globalNodes`: the global id of each of the rank's nodes, read-only, to index a
-  whole-mesh nodal file; `arange(Nn)` when never partitioned. Groups store the global
-  ids and owner ranks of their elements and of the rank's nodes, and `isPartitioned`,
-  which is never written: a pickled or saved mesh loads detached, and `_Mesh_Get_Meshes`
-  pieces never communicate under mpirun. `_rankPartition` is gone.
+- A rank's mesh is its partition's serial mesh: nodes in local ids sorted by global id,
+  ghosts included. `mesh.coord`, `connect`, tags, `Nodes_*` selections, dof vectors,
+  results and matrices have the rank's size, so `mesh.coord[nodes]` and
+  `Result(...)[nodes]` line up as in serial; no array of the whole mesh's size is left
+  on a rank. `Mesh.Merge` refuses a partitioned mesh; Paraview pieces write the global
+  ids as `GlobalPointIds`.
+- `mesh.globalNodes`: the global id of each node, read-only, so
+  `values[mesh.globalNodes]` reads a whole-mesh nodal file on the rank's nodes;
+  `arange(Nn)` when never partitioned. Groups store the global ids and owner ranks of
+  their elements and of the rank's nodes, and `isPartitioned`, which is never written: a
+  pickled or saved mesh loads detached, and `_Mesh_Get_Meshes` pieces never communicate
+  under mpirun. `_rankPartition` is gone.
 - `_GroupElem.Ncoords` renamed `Nn`, the size of the node numbering; the group's own
   node count is `nodes.size`.
 - `_GroupElem._global_to_local_nodes` renamed `_nodesIdx`, a read-only property.
