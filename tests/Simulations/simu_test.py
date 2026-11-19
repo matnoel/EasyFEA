@@ -1158,6 +1158,62 @@ def test_Simu_Assembly_rejects_a_field_given_twice():
         simu.Assembly((pt, pt))
 
 
+def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the_newton_iterate(
+    monkeypatch,
+):
+    mesh = Domain((0, 0), (1, 1)).Mesh_2D()
+    simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
+    u = np.arange(mesh.Nn, dtype=float)
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
+    )
+
+    K = simu.Assembly()[0]
+    _, b = simu._Solver_Get_A_b()
+
+    assert np.abs(b).max() > 0
+    assert np.allclose(b, -K @ u)
+
+
+def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space(monkeypatch):
+    mesh = Domain((0, 0), (1, 1)).Mesh_2D([], ElemType.TRI6)
+    meshP1 = mesh._With_FunctionSpace(Simulations.WeakForms.problemType, 1)
+    simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
+    # the vertices only: fewer DOFs than nodes
+    u = np.arange(meshP1._Get_FunctionSpace(simu.problemType).Nn, dtype=float)
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
+    )
+
+    K = simu.Assembly()[0]
+    _, b = simu._Solver_Get_A_b()
+
+    assert u.size < meshP1.Nn
+    assert np.abs(b).max() > 0
+    assert np.allclose(b, -K @ u)
+
+
+def test_Simu__Solver_Apply_Neumann_reads_a_block_term_on_its_column_field(monkeypatch):
+    U = Simulations.PhaseField.U
+    D = Simulations.PhaseField.D
+    simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
+    mesh = simu.mesh
+    x = {U: np.arange(2 * mesh.Nn) / 7.0, D: np.ones(mesh.Nn)}
+    monkeypatch.setattr(type(simu), "isNonLinear", True)
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda pt=None: x[pt]
+    )
+
+    K, _, _, F = simu.Assembly((U, D))
+    # PhaseField's override refolds U or D alone, never the pair
+    monkeypatch.setattr(simu, "Get_K_C_M_F", lambda problemType=None: None)
+    b = simu._Solver_Apply_Neumann((U, D))
+
+    x_ud = np.concatenate([x[U], x[D]])
+    assert np.abs(K[2 * mesh.Nn :, : 2 * mesh.Nn] @ x[U]).max() > 0
+    assert np.allclose(b, F.toarray().ravel() - K @ x_ud)
+
+
 def test_Simu_in_parallel_requires_petsc4py(monkeypatch: pytest.MonkeyPatch):
     _simu = importlib.import_module("EasyFEA.Simulations._simu")
     monkeypatch.setattr(_simu, "MPI_SIZE", 2)

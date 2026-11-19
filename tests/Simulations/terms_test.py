@@ -13,7 +13,7 @@ from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Circle, Domain
 from EasyFEA.Simulations import Fold_terms, ProblemType, Term
 
-from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible, laplacian
+from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible
 
 U = Simulations.PhaseField.U
 D = Simulations.PhaseField.D
@@ -310,27 +310,6 @@ def test_Fold_terms_keeps_the_cached_array_of_a_constant_term():
     assert again is first
 
 
-def test_Fold_terms_gives_a_single_slot_term_its_residual_when_nonlinear(
-    monkeypatch,
-):
-    mesh = Simu().mesh
-    simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
-    u = np.arange(mesh.Nn, dtype=float)
-    monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
-    )
-    groupElem = mesh.groupElem
-
-    terms = [Term("K", Operators.Bilinear.GradUGradV)]
-    pt = simu.problemType
-    fold = Fold_terms(simu, terms)
-    K_e, F_e = Array(fold, "K"), Array(fold, "F", (pt, pt))
-
-    u_e = groupElem.Locates_sol_e(u, 1)
-    assert np.abs(F_e).max() > 0
-    assert np.allclose(F_e, -np.einsum("eij,ej->ei", K_e, u_e))
-
-
 def test_Fold_terms_hands_operators_the_group_of_the_field_space():
     domain = Domain((0, 0), (1, 1))
     mesh = domain.Mesh_2D([], ElemType.TRI3)
@@ -341,32 +320,6 @@ def test_Fold_terms_hands_operators_the_group_of_the_field_space():
     K_e = Array(Fold_terms(simu, [Term("K", One_array)]), "K")
 
     assert K_e.shape == (groupElem.Ne, 6, 6)
-
-
-def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
-    monkeypatch,
-):
-    domain = Domain((0, 0), (1, 1))
-    mesh = domain.Mesh_2D([], ElemType.TRI6)
-    meshP1 = mesh._With_FunctionSpace(Simulations.WeakForms.problemType, 1)
-    simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
-    space = meshP1._Get_FunctionSpace(Simulations.WeakForms.problemType)
-    # the vertices only: fewer DOFs than nodes
-    u = np.arange(space.Nn, dtype=float)
-    monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
-    )
-    groupElem = meshP1.groupElem
-
-    terms = [Term("K", Operators.Bilinear.GradUGradV)]
-    pt = simu.problemType
-    fold = Fold_terms(simu, terms)
-    K_e, F_e = Array(fold, "K"), Array(fold, "F", (pt, pt))
-
-    u_e = u[space.Get_assembly_e(groupElem, 1)]
-    assert space.Nn < meshP1.Nn
-    assert np.abs(F_e).max() > 0
-    assert np.allclose(F_e, -np.einsum("eij,ej->ei", K_e, u_e))
 
 
 # ----------------------------------------------
@@ -452,26 +405,6 @@ def test_Fold_terms_hands_a_spanning_term_one_group_per_field_and_no_u():
     assert seen["groups"][0] is meshP2._Get_FunctionSpace(D).Get_list_groupElem()[0]
     assert seen["groups"][1] is meshP2.groupElem
     assert seen["u"] is None
-
-
-def test_Fold_terms_gives_a_single_slot_block_term_the_residual_of_its_column_field(
-    monkeypatch,
-):
-    simu = coupled_phasefield()
-    mesh = simu.mesh
-    groupElem = mesh.groupElem
-    x = {U: np.arange(2 * mesh.Nn) / 7.0, D: np.ones(mesh.Nn)}
-    monkeypatch.setattr(type(simu), "isNonLinear", True)
-    monkeypatch.setattr(simu, "Get_u_v_a", lambda pt=None: (x[pt], None, None))
-
-    fold = Fold_terms(simu, [Term("K", coupling, problemTypes=((D, U),))], D)
-
-    K_du = Array(fold, "K", (D, U))
-    F_d = Array(fold, "F")
-    u_e = groupElem.Locates_sol_e(x[U], 2)
-    assert [c.block for c in fold if c.slot == "F"] == [(D, D)]
-    assert np.abs(F_d).max() > 0
-    assert np.allclose(F_d, -np.einsum("eij,ej->ei", K_du, u_e))
 
 
 def test_Term_Scaled_keeps_its_blocks():

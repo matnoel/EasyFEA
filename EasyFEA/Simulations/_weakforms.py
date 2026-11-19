@@ -127,7 +127,7 @@ class WeakForms(_Simu):
     def Get_terms(self, problemType=None) -> list[Term]:
         """One term per form the user supplied; the fold applies :py:attr:`thickness` to each.
 
-        The K/C/M forms fill a single slot, so in a nonlinear simulation the fold also contracts their residual ``-K·u_t`` / ``-C·v_t`` / ``-M·a_t``. ``computeF`` is a load, hence the ``F`` slot.
+        The K/C/M forms declare no ``R``, so they are linear: b takes ``-K·u_t`` / ``-C·v_t`` / ``-M·a_t`` from them. ``computeF`` is a load, hence the ``F`` slot.
         """
         weakForms = self.weakForms
 

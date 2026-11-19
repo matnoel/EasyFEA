@@ -45,10 +45,11 @@ ______________________________________________________________________
 {py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, whose terms are folded
 over the mesh element groups into, per group, the element tuple
 $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws),
-damping, mass, and the force vector. For a linear problem $\Frm_e$ is the load alone and
-the time scheme moves $\urm^n, \vrm^n, \arm^n$ to the right-hand side; for a non-linear
-one it is the complete residual $-\Rrm_e$, as described
-{ref}`below <howto-pipeline-nonlinear-operators>`.
+damping, mass, and the force vector. $\Frm_e$ is the load alone; a term declaring an
+internal force $\Rrm_e$ is non-linear, as described
+{ref}`below <howto-pipeline-nonlinear-operators>`. Every other term is linear: the
+right-hand side takes $-\Krm_e \, \urm_t - \Crm_e \, \vrm_t - \Mrm_e \, \arm_t$ from it,
+the fields the time scheme evaluates at the unknown.
 
 These element matrices come from **operators** in {py:mod}`EasyFEA.FEM.Operators` —
 small functions that integrate a form over the Gauss points:
@@ -72,17 +73,16 @@ A non-linear problem solves for the **increment**, not for $\urm^{n+1}$:
 
 $$\Arm(\urm) \, \Delta \urm = - \Rrm(\urm)$$
 
-That single difference sets the whole contract. Because the unknown is $\Delta \urm$,
-the time-scheme history terms of the previous section do not apply — they move
-$\urm^n, \vrm^n, \arm^n$ to the right-hand side of a solve for $\urm^{n+1}$ — so the
-solver adds nothing of its own. $\Frm_e$ must therefore be the **complete** residual
-$-\Rrm_e$, inertia and damping included.
+The right-hand side is the load minus every internal force at the current iterate: a
+linear term's $\Krm_e \, \urm_t + \Crm_e \, \vrm_t + \Mrm_e \, \arm_t$, a non-linear
+term's own $\Rrm_e$. A non-linear term's matrices go to $\Arm$ only, so its $\Rrm_e$
+must be **complete**, damping included.
 
 Every operator in {py:mod}`~EasyFEA.FEM.Operators.NonLinear` is built for this and
 returns its own $(\text{tangent}, \text{residual})$ pair, evaluated at the current
 iterate. Assembly is then the same two moves for each of them, whatever the physics:
 
-- the **residual** is subtracted from $\Frm_e$;
+- the **residual** goes to the $\Rrm$ slot, subtracted from the load;
 - the **tangent** goes to the slot carrying the weight it needs — $\Krm_e$ for a
   derivative with respect to $\urm$, $\Crm_e$ with respect to $\vrm$, $\Mrm_e$ with
   respect to $\arm$ — so that the single

@@ -1874,48 +1874,56 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return u, newtonIter, timeIter, list_norm
 
+    def _Solver_Get_load(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> _types.FloatArray:
+        """External load of the monolithic problem holding `problemType`, Neumann + the terms' F, at the end of the step; Lagrange rows included."""
+        return self.__Get_load(self._Get_monolithic_problem(problemType))
+
+    def __Get_load(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
+        """`_Solver_Get_load` of a problem key, refolded when stale."""
+        system = self.__Get_folded(problem)
+        layout, Ndof = self.__Get_layout(self.__Fields(problem))
+        dofs = self.__Compose(problem, self.Bc_dofs_Neumann, isDofs=True)
+        dofsValues = self.__Compose(problem, self.Bc_values_Neumann)
+
+        load = np.zeros(Ndof, dtype=float)
+        np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
+        load += system.Get_load(layout, Ndof)
+        return load
+
     def _Solver_Apply_Neumann(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
-        """Fill in the Neumann boundary conditions by constructing b from A x = b.
-
-        Parameters
-        ----------
-        problemType : ProblemType | tuple[ProblemType, ...]
-            problem type, or a monolithic problem's fields
-
-        Returns
-        -------
-        _types.FloatArray
-            The b vector (Ndof,), Lagrange rows included.
-        """
-
-        dofs = self.__Compose(problemType, self.Bc_dofs_Neumann, isDofs=True)
-        dofsValues = self.__Compose(problemType, self.Bc_values_Neumann)
-        Ndof = self.__Get_Ndof(problemType)
-
-        K, C, M, F = self.Get_K_C_M_F(problemType)
-
+        """b of `A x = b`: the load minus the internal forces at x, 0 when linear, the Newton iterate otherwise; Lagrange rows included."""
         tic = Tic()
 
-        b = np.zeros(Ndof, dtype=float)
-        np.add.at(b, np.asarray(dofs, dtype=int), dofsValues)
-        b += F.toarray().ravel()
+        load = self.__Get_load(problemType)
+        system = self._Get_linear_system(problemType)
+        if self.isNonLinear:
+            x = self.__Compose(
+                problemType, self._Solver_Get_Newton_Raphson_current_solution
+            )
+        elif system.internal:
+            # R is folded at u_n, not at x = 0
+            raise ValueError(
+                "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`."
+            )
+        else:
+            x = np.zeros(self.__Get_size(problemType))
+        u_n = self._Get_u_n(problemType)
+        v_n = self._Get_v_n(problemType)
+        a_n = self._Get_a_n(problemType)
+        fields = tuple(
+            field if field is not None and field.any() else None
+            for field in self.timeScheme.Evaluate(x, u_n, v_n, a_n)
+        )
+        layout, _ = self.__Get_layout(self.__Fields(problemType))
+        b = system.Get_b(load, fields, layout)
 
-        # nonlinear: the unknown is Δu and `F` the complete residual -R(u), b is built
-        if not self.isNonLinear:
-            # the history: the operators at the evaluation point of a zero unknown, zero on the Lagrange rows
-            u_n, v_n, a_n = np.zeros((3, Ndof), dtype=b.dtype)
-            size = self.__Get_size(problemType)
-            u_n[:size] = self._Get_u_n(problemType)
-            v_n[:size] = self._Get_v_n(problemType)
-            a_n[:size] = self._Get_a_n(problemType)
-            fields = self.timeScheme.Evaluate(np.zeros(Ndof), u_n, v_n, a_n)
-            for X, field in zip((K, C, M), fields):
-                if field is not None and X.nnz and field.any():
-                    b -= X @ field
-
-        tic.Tac("Solver", f"Neumann ({problemType})", self._verbosity)
+        tic.Tac("Solver", f"b ({problemType})", self._verbosity)
 
         return b
 
@@ -1974,11 +1982,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> sparse.csr_matrix:
         """The problem's A for the time scheme, summed from its fold's contributions and kept by its linear system."""
-        system = self._Get_linear_system(problemType)
-        if not system.folded:
-            self.Need_Update()
-        # refolds when stale
-        self.Get_K_C_M_F(problemType)
+        system = self.__Get_folded(problemType)
         layout, Ndof = self.__Get_layout(self.__Fields(problemType))
         return system.Get_A(
             self.timeScheme.coefs,
@@ -1986,6 +1990,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Ndof,
             lambda contributing: self.__Get_csr_map(layout, True, Ndof, contributing),
         )
+
+    def __Get_folded(
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _LinearSystem:
+        """The problem's linear system, refolded when stale."""
+        system = self._Get_linear_system(problemType)
+        if not system.folded:
+            self.Need_Update()
+        self.Get_K_C_M_F(problemType)
+        return system
 
     def _Solver_Get_A_b(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None

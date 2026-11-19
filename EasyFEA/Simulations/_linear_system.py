@@ -250,3 +250,55 @@ class _LinearSystem:
         self.__AFold = fold
         self.__stamp += 1
         return A
+
+    def Get_load(self, layout: tuple, Ndof: int) -> _types.FloatArray:
+        """The last fold's F contributions, summed: the load the terms declare."""
+        pieces = [(c, c.coef * c.array) for c in self.__fold if c.slot == "F"]
+        return _Scatter(pieces, layout, Ndof)
+
+    @property
+    def internal(self) -> bool:
+        """Whether the last fold holds an internal force R."""
+        return any(c.slot == "R" for c in self.__fold)
+
+    def Get_b(
+        self,
+        load: _types.FloatArray,
+        fields: tuple[_types.FloatArray | None, ...],
+        layout: tuple,
+    ) -> _types.FloatArray:
+        """`load − Σ coef·R − Σ coef·X_e·field` over the last fold, X_e of the terms declaring no R; a None field is skipped."""
+        pieces = []
+        for c in self.__fold:
+            if c.slot == "R":
+                pieces.append((c, -c.coef * c.array))
+            elif c.slot in "KCM" and "R" not in c.term.slots:
+                field = fields["KCM".index(c.slot)]
+                if field is None:
+                    continue
+                x_e = field[_Dofs_e(layout, c.block[1], c.group)]
+                pieces.append((c, -c.coef * np.matmul(c.array, x_e[..., None])[..., 0]))
+        return load + _Scatter(pieces, layout, load.size)
+
+
+def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
+    """`field`'s dofs on each element of `group`, in the problem's vector."""
+    for problemType, space, dof_n, offset in layout:
+        if problemType == field:
+            return space.Get_assembly_e(group, dof_n) + offset
+    raise KeyError(field)
+
+
+def _Scatter(
+    pieces: list[tuple[_Contribution, np.ndarray]], layout: tuple, Ndof: int
+) -> _types.FloatArray:
+    """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
+    if not pieces:
+        return np.zeros(Ndof)
+    rows = np.concatenate(
+        [_Dofs_e(layout, c.block[0], c.group).ravel() for c, _ in pieces]
+    )
+    data = np.concatenate([vector.ravel() for _, vector in pieces])
+    if np.iscomplexobj(data):
+        raise TypeError("Complex systems are not supported.")
+    return np.bincount(rows, weights=data, minlength=Ndof)

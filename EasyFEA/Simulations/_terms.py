@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from typing import Concatenate
 
     from ..FEM import Mesh, _GroupElem
-    from ..FEM._function_space import _FunctionSpace
     from ._simu import _Simu
     from ._problem_type import ProblemType
 
@@ -67,9 +66,6 @@ def Same_contributions(a: list[_Contribution], b: list[_Contribution]) -> bool:
 
 _SLOTS = "KCMFR"
 """Slot letters, one per array the operator returns. ``K``/``C``/``M`` are the stiffness, damping and mass matrices; ``F`` is an external load, added to the right-hand side as-is; ``R`` is an **internal** force, so it reaches ``F`` negated. Every nonlinear operator returns an ``R`` — it is the residual of ``A·Δu = -R(u)`` — and ``F`` is reserved for genuine loads such as a phase-field source."""
-
-_SLOT_FIELD = {"K": "u", "C": "v", "M": "a"}
-"""Field a single-slot term's residual contracts against: ``K·u_t``, ``C·v_t``, ``M·a_t``."""
 
 _INJECTABLE = frozenset({"u", "elements"})
 """Parameters the fold fills in by name when the caller does not supply them. Kept short and generic on purpose: injection makes an operator's *parameter names* part of the contract, so it covers only quantities every simulation has. Anything domain-specific — a hyperelastic state, a material — is passed by a named method instead, as in :py:meth:`HyperElastic.Get_terms`."""
@@ -363,29 +359,17 @@ def Fold_terms(
     r"""Every contribution of `terms`, unsummed, in term then group then slot order; filter it by slot, block or group.
 
     Each carries :py:attr:`_Simu.thickness` times the term's scale as its ``coef``, so operators stay free of simulation-level geometry; a vector's block is ``(rows, rows)``.
-
-    In a nonlinear simulation a **single-slot** term also contributes its own residual as an ``F`` contribution — :math:`-\Krm_e \, \mathrm{u}_t`, :math:`-\Crm_e \, \vrm_t`, :math:`-\Mrm_e \, \arm_t`, with the field of its columns, into its rows. A single slot means the contribution is linear in its field, so that product *is* its residual. Multi-slot terms return their own force and are never given one.
     """
 
     if problemType is None:
         problemType = simu.problemType
 
     thickness = simu.thickness
-    isNonLinear = simu.isNonLinear
     diagonal = (problemType, problemType)
-
-    iterates: dict["ProblemType", dict[str, _types.FloatArray | None]] = {}
-
-    def Iterates(problemType: "ProblemType") -> dict[str, _types.FloatArray | None]:
-        if problemType not in iterates:
-            u, v, a = simu.Get_u_v_a(problemType)
-            iterates[problemType] = {"u": u, "v": v, "a": a}
-        return iterates[problemType]
 
     # by node id, as an operator reads it through its group's connect
     u_t = simu._Get_FunctionSpace(problemType).Get_nodeValues(
-        Iterates(problemType)["u"],  # type: ignore [arg-type]
-        simu.Get_dof_n(problemType),
+        simu.Get_u_v_a(problemType)[0], simu.Get_dof_n(problemType)
     )
 
     out: list[_Contribution] = []
@@ -413,36 +397,15 @@ def Fold_terms(
                     "arrays, they do not copy one into several."
                 )
 
-            own = None  # this group's K, C or M, for its residual
-
             for slot, block, array in zip(term.slots, blocks, arrays):
                 if array is None:
                     continue
                 _Check_rank(term, slot, array)
                 _Check_shape(term, slot, block, array, groupElem, simu)
                 out.append(_Contribution(slot, block, groupElem, array, coef, term))
-                if slot in "KCM":
-                    own = out[-1]
-
-            if isNonLinear and len(term.slots) == 1 and own is not None:
-                rows, cols = own.block
-                residual = _Residual(
-                    term,
-                    groupElem,
-                    own.array,
-                    Iterates(cols),
-                    simu._Get_FunctionSpace(cols),
-                    simu.Get_dof_n(cols),
-                )
-                if residual is not None:
-                    out.append(
-                        _Contribution(
-                            "F", (rows, rows), groupElem, residual, coef, term
-                        )
-                    )
 
             # not held through the next term's evaluation
-            del arrays, own
+            del arrays
 
     return out
 
@@ -489,25 +452,3 @@ def _Check_shape(
         f"{block}, which takes {shape}: rows from {block[0]}'s space, columns from "
         f"{block[1]}'s."
     )
-
-
-def _Residual(
-    term: Term,
-    groupElem: "_GroupElem",
-    matrix_e: np.ndarray,
-    fields: dict[str, _types.FloatArray | None],
-    space: "_FunctionSpace",
-    dof_n: int,
-) -> np.ndarray | None:
-    """``-A_e · x_t`` for a single-slot term, where `x_t` is the field that slot multiplies, gathered on `groupElem`'s DOFs in `space`.
-
-    Sound because a single slot means the contribution is linear in that field, so the product *is* the residual. Returns None when the field does not exist under the active time scheme (no velocity in a static problem).
-    """
-
-    x_t = fields[_SLOT_FIELD[term.slots[0]]]
-    if x_t is None:
-        return None
-
-    x_e = x_t[space.Get_assembly_e(groupElem, dof_n)]
-
-    return -np.einsum("eij,ej->ei", matrix_e, x_e, optimize=True)
