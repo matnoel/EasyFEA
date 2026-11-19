@@ -160,8 +160,11 @@ pickled or saved mesh loads detached: `isPartitioned` False, `comm` None.
 {py:meth}`~EasyFEA.Simulations._Simu.Save_Iter` stores only the primary unknowns per
 iteration (e.g. displacement for elastic simulations, displacement and damage for
 phase-field). Derived quantities such as stress and strain are not stored — they are
-recomputed on demand by `Result()`. With a folder, each rank writes its own file
-(`results{i}_rank{N}.pickle`): element-sized fields describe the rank's own partition.
+recomputed on demand by `Result()`. With a folder, each rank writes the rows it owns to
+`path/to/folder/Rank{r}/Results/results{i}.pickle`, mapped by its mesh in
+`Rank{r}/Meshes/`: nothing is stored twice. Reading an iteration back
+({py:meth}`~EasyFEA.Simulations._Simu.Set_Iter`, `Result(..., iter=i)`) is collective:
+every rank gets its rows, the ghost ones from their owners.
 
 Iteration results are kept in **memory** by default. To write them to **disk** and
 prevent memory issues, provide a folder at construction time or set it afterward:
@@ -174,15 +177,16 @@ simu = Simulations.Elastic(mesh, mat, folder="path/to/folder")
 simu.folder = "path/to/folder"
 ```
 
-Iteration results will then be saved in `path/to/folder/Results` as `results*.pickle`
-files.
+Iteration results will then be saved in `path/to/folder/Rank{r}/Results` as
+`results*.pickle` files (`path/to/folder/Results` in serial).
 
 ### Saving simulation
 
 {py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank
-(`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh
-partition. {py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per
-rank transparently.
+(`path/to/folder/Rank{r}/simulation.pickle`), each rank holding its own partition, with
+the iterations kept in memory. Under `mpirun` on as many ranks,
+{py:func}`~EasyFEA.Simulations.Load_Simu` gives each rank its partition back, so a run
+resumes where it was saved; on another rank count it raises.
 
 ### Phase-field convergence
 

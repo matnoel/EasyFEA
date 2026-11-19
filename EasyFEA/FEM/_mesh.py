@@ -26,7 +26,6 @@ from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import (
     MPI_COMM,
-    MPI_SIZE,
     MPI_RANK,
     Reduce_sum,
     Reduce_max,
@@ -557,6 +556,26 @@ class Mesh(Observable):
     def isPartitioned(self) -> bool:
         """Whether the ranks share this mesh; False when this rank holds it whole (serial, gathered)."""
         return next(iter(self.__dict_groupElem.values())).isPartitioned
+
+    @isPartitioned.setter
+    def isPartitioned(self, value: bool) -> None:
+        groups = list(self.__dict_groupElem.values())
+        for space in self.__dict_functionSpace.values():
+            groups += [g for dim in range(4) for g in space.Get_list_groupElem(dim)]
+        assert not value or all(g._globalNodes is not None for g in groups), (
+            "Only a rank's partition is shared by the ranks."
+        )
+        for groupElem in groups:
+            groupElem.isPartitioned = value
+
+    def _Shared(self) -> "Mesh":
+        """This rank's partition, loaded from its file, shared by the ranks again, its spaces renumbered over them: `Load_Mesh` builds them on the rank alone. Collective."""
+        orders = self.__Get_orders()
+        self.__dict_functionSpace = {}
+        self.isPartitioned = True
+        for problemType, order in orders.items():
+            self.__Set_FunctionSpace(problemType, order)
+        return self
 
     @property
     def comm(self):
@@ -1356,21 +1375,27 @@ class Mesh(Observable):
         filename: str = "mesh",
         gather=False,
     ) -> str:
-        """Saves the mesh in the folder. Saves the mesh as 'filename.pickle'."""
+        """Saves the mesh as 'folder/filename.pickle'; a partitioned mesh unless `gather`, the rank's partition as 'folder/Rank{r}/filename.pickle'."""
 
         if gather:
             self = self._Gather()
             if self is None:
                 return
+        elif self.isPartitioned:
+            rank = next(iter(self.__dict_groupElem.values())).rank
+            folder = Folder.Join(folder, f"Rank{rank}")
 
-        # Save mesh
-        suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
-        # Rank 0 creates the folder first; barrier ensures all ranks see it before writing.
-        if MPI_SIZE > 1 and MPI_RANK == 0:
-            Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
-        path_mesh = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+        path_mesh = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
+        self._Dump(path_mesh)
 
-        # create dict_groupElem_data
+        if MPI_RANK == 0:
+            path = folder.replace(Folder.EASYFEA_DIR, "")
+            Terminal.MyPrint(f"Saved mesh data in:\n{path}\n", "green")
+
+        return path_mesh
+
+    def _Dump(self, path: str) -> None:
+        """Pickles the mesh to `path`, read back by `Load_Mesh`; a partitioned mesh, the rank's partition."""
         coordinates = self.coord
         orders = self.__Get_orders()
         dict_groupElem_data: dict[ElemType, tuple] = {}
@@ -1399,14 +1424,11 @@ class Mesh(Observable):
                 orders,
             )
 
-        with open(path_mesh, "wb") as file:
+        # replaced at once: a rank reading it never sees it half written
+        tmp = f"{path}.tmp"
+        with open(tmp, "wb") as file:
             pickle.dump(dict_groupElem_data, file)
-
-        if MPI_RANK == 0:
-            path = folder.replace(Folder.EASYFEA_DIR, "")
-            Terminal.MyPrint(f"Saved mesh data in:\n{path}\n", "green")
-
-        return path_mesh
+        Folder.os.replace(tmp, path)
 
 
 def Load_Mesh(path: str) -> Mesh:

@@ -435,27 +435,82 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         }
         scalars = {**extras, "indexMesh": self.__indexMesh}
         snapshot = self.__variables.Snapshot(scalars, dofs, self._externalNames)
-        _iterations.Append(self.__list_results, snapshot, self.folder)
+        partition = self.__Partition(self.mesh)
+        if partition is not None and self.folder != "":
+            self.__Write_rank_mesh(partition.rank)
+        _iterations.Append(self.__list_results, snapshot, self.folder, partition)
         self.__Niter += 1
 
     def Get_results(self, iter: int = -1) -> dict:
-        """Return the iteration dict at index ``iter``, under flat keys (dof field names, ``internal/<elemType>/<name>``, ``external/<name>``, scalars), loading from disk if pickled. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that), and no collective under MPI."""
-        iteration = _iterations.Get(
-            self.__list_results, iter, self.folder, self.isGathered
-        )
-        return _iterations.Flat(iteration)
+        """Return the iteration dict at index ``iter``, under flat keys (dof field names, ``internal/<elemType>/<name>``, ``external/<name>``, scalars), loading from disk if pickled. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that); collective on a partitioned mesh."""
+        return _iterations.Flat(self.__Read(iter))
 
     def _Get_results_scalars(self, iter: int = -1) -> dict[str, Any]:
-        """The scalars of the saved iteration `iter`, from memory."""
-        return _iterations.Get_scalars(self.__list_results, iter)
+        """The scalars of the saved iteration `iter`, from memory; on rank 0 only under MPI."""
+        return _iterations.Get_scalars(self.__list_results, iter, None)
 
     def Set_Iter(self, iter: int = -1) -> dict:
-        """Sets the simulation to the saved iteration `iter` (the last by default) and returns its entries, as `Get_results`."""
-        iteration = _iterations.Get(
-            self.__list_results, iter, self.folder, self.isGathered
-        )
+        """Sets the simulation to the saved iteration `iter` (the last by default) and returns its entries, as `Get_results`; collective on a partitioned mesh."""
+        iteration = self.__Read(iter)
         self.__Restore(iteration)
         return _iterations.Flat(iteration)
+
+    def __Read(self, iter: int) -> _iterations.Iteration:
+        """A copy of the saved iteration `iter`, the rank's rows of it on a partitioned mesh."""
+        entries = self.__list_results
+        scalars = _iterations.Get_scalars(entries, iter, self.mesh.comm)
+        partition = self.__Partition(self.__Get_mesh(scalars["indexMesh"]))
+        return _iterations.Get(
+            entries,
+            iter,
+            self.folder,
+            scalars,
+            partition,
+        )
+
+    def __Partition(self, mesh: Mesh) -> _iterations.Partition | None:
+        """How the rank's arrays on `mesh` split into the rows it owns; None unless the ranks share `mesh`."""
+        if not mesh.isPartitioned:
+            return None
+        dofs = {}
+        for problemType, names in self.dofFields.items():
+            space = mesh._Get_FunctionSpace(problemType)
+            rows = space.Get_dofs(space.ownedNodes, 1)
+            dof_n = self.Get_dof_n(problemType)
+            dofRows = _iterations.DofRows(rows, dof_n, space)
+            dofs.update({name: dofRows for name in names})
+        groups = mesh.Get_list_groupElem(self.dim)
+        spaceGroups = mesh._Get_FunctionSpace(self.problemType).Get_list_groupElem(
+            self.dim
+        )
+        return _iterations.Partition(
+            groups[0].rank,
+            mesh.comm,
+            dofs,
+            mesh._Get_mpi_owned_nodes(),
+            mesh._Get_FunctionSpace(),
+            {g.elemType.value: (g, m.elemType) for g, m in zip(spaceGroups, groups)},
+        )
+
+    def __Get_mesh(self, index: int) -> Mesh:
+        """The mesh of index `index`, loaded from `folder` once saved, shared by the ranks as the current one."""
+        if index == self.__indexMesh:
+            return self.__mesh
+        mesh = self.__listMesh[index]
+        if isinstance(mesh, str):
+            mesh = Load_Mesh(Folder.Join(self.folder, mesh))
+            if self.mesh.isPartitioned:
+                mesh = mesh._Shared()
+        return mesh
+
+    def __Write_rank_mesh(self, rank: int) -> None:
+        """Writes the rank's current mesh once to ``folder/Rank{rank}/Meshes/``, where saved iterations find the rows of the other ranks."""
+        index = self.__indexMesh
+        if isinstance(self.__listMesh[index], str):
+            return
+        path = Folder.Join(f"Rank{rank}", "Meshes", f"mesh{index}.pickle")
+        self.mesh._Dump(Folder.Join(self.folder, path, mkdir=True))
+        self.__listMesh[index] = path
 
     @contextmanager
     def _Iter_Visit(self) -> Iterator[None]:
@@ -474,8 +529,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Sets the simulation to copies of the saved `iteration`, a dof field it lacks to zero."""
         indexMesh = iteration["scalars"]["indexMesh"]
         if indexMesh != self.__indexMesh:
-            self.__indexMesh = indexMesh
             self.__Update_mesh(indexMesh)
+            self.__indexMesh = indexMesh
 
         dofs = iteration["dofs"]
         for problemType, names in self.dofFields.items():
@@ -907,11 +962,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
 
         partition = self.mesh
-        list_mesh: list[Mesh] = []
-        for mesh in self.__listMesh:
-            if isinstance(mesh, str):
-                mesh = Load_Mesh(Folder.Join(self.folder, mesh))
-            list_mesh.append(mesh._Gather())
+        list_mesh = [self.__Get_mesh(i)._Gather() for i in range(self.Nmesh)]
 
         if MPI_RANK == 0:
             for i, mesh in enumerate(list_mesh):
@@ -1032,10 +1083,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             The mesh index in self.__listMesh.
         """
 
-        mesh = self.__listMesh[index]
-
-        if isinstance(mesh, str):
-            mesh = Load_Mesh(Folder.Join(self.folder, mesh))
+        mesh = self.__Get_mesh(index)
 
         self.__mesh = mesh
 
@@ -3674,33 +3722,45 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         gather=False,
         additionalInfos: str = "",
     ) -> str | None:
-        """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
+        """Saves the simulation as 'filename.pickle' and its summary in the folder; on a partitioned mesh, each rank its partition in 'Rank{r}/', the iterations kept in memory written to it as `Save_Iter` would. Collective unless `gather`."""
 
         if gather:
             self._Gather()
             if MPI_RANK != 0:
                 return None
 
-        # create path
-        suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
-        # Rank 0 creates the folder first; barrier ensures all ranks see it before writing.
-        if MPI_SIZE > 1 and MPI_RANK == 0:
-            Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
-        path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+        partition = self.__Partition(self.mesh)
+        root = (
+            folder
+            if partition is None
+            else Folder.Join(folder, f"Rank{partition.rank}")
+        )
+        path_simu = Folder.Join(root, f"{filename}.pickle", mkdir=True)
 
-        # The folder setter handles flushing any pending in-memory iteration
-        # dicts to disk when transitioning from `folder == ""` to set.
-        self.folder = folder
-
-        # Save meshes
-        folder_meshes = Folder.Join(folder, "Meshes")
+        # meshes read from the folder they were saved in, before it changes
         list_mesh = []
-        for i, mesh in enumerate(self.__listMesh):
-            if isinstance(mesh, str):
-                mesh = Load_Mesh(Folder.Join(folder, mesh))
-            path = mesh.Save(folder_meshes, f"mesh{i}")
+        for i in range(self.Nmesh):
+            path = Folder.Join(root, "Meshes", f"mesh{i}.pickle", mkdir=True)
+            self.__Get_mesh(i)._Dump(path)
             list_mesh.append(Folder.os.path.relpath(path, folder))
         self.__listMesh = list_mesh
+        self.folder = folder
+
+        # the rank's rows of the iterations kept in memory, in the same files as Save_Iter's
+        if partition is not None:
+            # an earlier save over more ranks would read as this one's
+            stale = partition.size
+            while partition.rank == 0 and Folder.Exists(
+                old := Folder.Join(folder, f"Rank{stale}", f"{filename}.pickle")
+            ):
+                Folder.os.remove(old)
+                stale += 1
+            _iterations.Write_memory(
+                self.__list_results,
+                folder,
+                partition.comm,
+                lambda index: self.__Partition(self.__Get_mesh(index)),
+            )
 
         # Save simulation
         with open(path_simu, "wb") as file:
@@ -3728,7 +3788,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
 
 def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
-    """Loads the simulation from the specified folder.
+    """Loads the simulation from the specified folder; under MPI a simulation saved over as many ranks, each rank its partition, to resume it.
 
     Parameters
     ----------
@@ -3745,11 +3805,21 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
         The loaded simulation.
     """
 
-    suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 else ""
-    path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle")
-    assert Folder.Exists(path_simu), (
-        f"The file {filename}{suffix}.pickle cannot be found."
-    )
+    path_simu = Folder.Join(folder, f"{filename}.pickle")
+    ranks = 0
+    while Folder.Exists(Folder.Join(folder, f"Rank{ranks}", f"{filename}.pickle")):
+        ranks += 1
+    if MPI_SIZE > 1:
+        if ranks != MPI_SIZE:
+            raise ValueError(
+                f"{folder} holds a simulation saved over {ranks or 1} rank(s): load it on as many, not {MPI_SIZE}."
+            )
+        path_simu = Folder.Join(folder, f"Rank{MPI_RANK}", f"{filename}.pickle")
+    elif ranks > 0 and not Folder.Exists(path_simu):
+        raise ValueError(
+            f"{folder} holds a simulation saved over {ranks} ranks: load it on as many."
+        )
+    assert Folder.Exists(path_simu), f"The file {path_simu} cannot be found."
 
     try:
         with open(path_simu, "rb") as file:
@@ -3759,6 +3829,8 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
         return None  # type: ignore [return-value]
 
     simu.folder = folder
+    # the same partition on the same ranks: shared again
+    simu.mesh.isPartitioned = MPI_SIZE > 1
 
     if gather:
         simu._Gather()

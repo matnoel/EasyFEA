@@ -121,6 +121,15 @@ def Allgather(value, comm) -> list:
     return comm.allgather(value)
 
 
+def Bcast(value, comm):
+    """Rank 0's `value` on every rank of `comm`; `value` itself when `comm` is None."""
+
+    if comm is None:
+        return value
+
+    return comm.bcast(value, root=0)
+
+
 def Gather(value, comm) -> list | None:
     """Every rank's `value` in rank order on rank 0 of `comm`, None on the others; `[value]` when `comm` is None."""
 

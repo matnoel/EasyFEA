@@ -45,6 +45,15 @@ This document describes the changes made to the project.
   collectives.
 - Paraview `.pvd` timesteps are the iteration indices, also when `N` samples them (was
   the file position).
+- Saved iterations: each rank writes the rows it owns to `Rank{r}/Results/`, mapped by
+  its mesh in `Rank{r}/Meshes/`, so nothing is stored twice; `Set_Iter` and
+  `Get_results` are collective, ghost rows from their owners. Scalars are held by rank
+  0's entries only and no longer written to results files (serial too). `Save` writes
+  `Rank{r}/simulation.pickle`, the iterations kept in memory with it; `Load_Simu` under
+  mpirun resumes a run saved over as many ranks and raises on another count. Runs saved
+  per rank before (`_rank{r}` files) are no longer read; serial runs still are.
+  `Mesh.Save` of a partitioned mesh writes `folder/Rank{r}/filename.pickle` (was
+  `filename_rank{r}.pickle`).
 
 ## 7.3.0 (November 13, 2026):
 
