@@ -15,8 +15,9 @@ from ..Utilities._mpi import (
     Allgather,
     Reduce_max,
     Concatenate_array,
+    Exchange,
+    Build_exchange,
 )
-from ._index_map import _IndexMap
 from ._utils import ElemType, MatrixType, _Order
 
 if TYPE_CHECKING:
@@ -30,17 +31,13 @@ class _FunctionSpace:
     def __init__(
         self,
         nodes: _types.IntArray,
-        ownedNodes: _types.IntArray,
-        localNodes: _types.IntArray,
         dict_groupElem: dict["_GroupElem", "_GroupElem"],
     ):
         """Over ``nodes``, the sorted ids carrying a DOF, on the group mapped to each mesh group (whose connect holds the node ids), the group itself when isoparametric."""
         self.__dict_groupElem = dict_groupElem
         self.__Nn = nodes.size
-        self.__ownedNodes = ownedNodes
-        self.__localNodes = localNodes
         self.__rows: _types.IntArray | None = None
-        self.__indexMap: _IndexMap | None = None
+        self.__exchange: Exchange | None = None
         # super-parametric: the nodes no group reaches carry no DOF
         if nodes.size > 0 and nodes[-1] >= nodes.size:
             rows = np.full(nodes[-1] + 1, -1, dtype=int)
@@ -49,8 +46,8 @@ class _FunctionSpace:
             self.__rows = rows
 
     def __getstate__(self) -> dict:
-        # the map's communicator does not pickle, and a copy rebuilds it on its first scatter
-        return {**self.__dict__, "_FunctionSpace__indexMap": None}
+        # communicators do not pickle: a copy rebuilds its exchange
+        return {**self.__dict__, "_FunctionSpace__exchange": None}
 
     @property
     def Nn(self) -> int:
@@ -63,14 +60,36 @@ class _FunctionSpace:
         return max(group.Nn for group in self.__dict_groupElem.values())
 
     @property
-    def ownedNodes(self) -> _types.IntArray:
-        """nodes owned by this MPI rank (every node in serial): a vertex by its mesh node's owner, a cell node by its element's rank, any other (added, or a geometry mid node) by the lowest owner of its support vertices"""
-        return self.__ownedNodes
+    def _dofNodes(self) -> _types.IntArray:
+        """Node id of each DOF row (Nn,)."""
+        return self.Get_dof_nodes(np.arange(self.Ncoords))
 
     @property
-    def localNodes(self) -> _types.IntArray:
-        """nodes of this MPI rank's main-dimension elements, ghosts included (every node in serial)"""
-        return self.__localNodes
+    def _dofOwners(self) -> _types.IntArray | None:
+        """Owner rank of each DOF row (Nn,), -1 for none, None when never partitioned: a vertex by its mesh node's owner, a cell node by its element's rank, any other (added, or a geometry mid node) by the lowest owner of its support vertices."""
+        owners = self.__Get_partition_group()._nodeOwners
+        return None if owners is None else owners[self._dofNodes]
+
+    @property
+    def rank(self) -> int:
+        """rank of the partition the space belongs to, 0 in serial"""
+        return self.__Get_partition_group().rank
+
+    def _Get_exchange(self) -> Exchange | None:
+        """Exchange of the DOF rows (Nn,), None unless partitioned; the node exchange of the groups when every node carries a DOF. Collective on a partitioned mesh."""
+        group = self.__Get_partition_group()
+        if not _FunctionSpace.__Is_partitioned(self.__dict_groupElem):
+            return None
+        if self.__rows is None and self.Nn == self.Ncoords:
+            return group._Get_node_exchange()
+        if self.__exchange is None:
+            nodes = self._dofNodes
+            owners = group._nodeOwners
+            assert owners is not None
+            self.__exchange = Build_exchange(
+                self.globalNodes[nodes], owners[nodes], MPI_COMM
+            )
+        return self.__exchange
 
     @property
     def globalNodes(self) -> _types.IntArray:
@@ -191,7 +210,9 @@ class _FunctionSpace:
         # a rank can hold a node without the face it sits on
         if partitioned:
             added = self.__Gather_held(added)
-            added = added[np.isin(added, self.__localNodes)]
+            # the nodes of this rank's main-dimension elements
+            held = [p.nodes for g, p in groups.items() if g.dim == mainDim]
+            added = added[np.isin(added, np.concatenate(held))]
         return np.concatenate([nodes, added[~selected[added]]])
 
     def _Update_tags(self) -> None:
@@ -232,27 +253,6 @@ class _FunctionSpace:
     def __Is_partitioned(groups: Iterable["_GroupElem"]) -> bool:
         """Whether the ranks share the mesh of these groups."""
         return all(groupElem.isPartitioned for groupElem in groups)
-
-    def Scatter_forward(self, array: np.ndarray, dof_n: int) -> None:
-        """Copies onto the ghost rows of ``array`` (node-major, ``dof_n`` per node) their owners' values, in place; nothing unless partitioned. Collective on a partitioned mesh: its map is built on the first call."""
-        groups = self.__dict_groupElem
-        if not _FunctionSpace.__Is_partitioned(groups):
-            return
-        if self.__indexMap is None:
-            group = self.__Get_partition_group()
-            owners = group._nodeOwners
-            assert owners is not None
-            # the nodes carrying a DOF, by global id
-            nodes = self.Get_dof_nodes(np.arange(self.Ncoords))
-            nodes = nodes[np.argsort(self.globalNodes[nodes], kind="stable")]
-            self.__indexMap = _IndexMap(
-                self.globalNodes[nodes],
-                self.__Get_rows(nodes),
-                owners[nodes],
-                group.rank,
-                MPI_COMM,
-            )
-        self.__indexMap.Scatter_forward(array, dof_n)
 
     def Get_meshValues(
         self, dofsValues: _types.FloatArray, dof_n: int
@@ -478,7 +478,6 @@ class _FunctionSpace:
         for items in bySize.values():
             for connect, columns, _, owners in items:
                 spaceOwner[connect[:, columns]] = owners
-        isMine = spaceOwner == rank
         # 7. the partner groups, or the group itself when it already is its partner; their coordinates are set by `_Update_coord`
         for groupElem, (elemType, connect) in dict_connect.items():
             if elemType == groupElem.elemType:
@@ -502,14 +501,10 @@ class _FunctionSpace:
                     rank,
                 )
                 spaceGroup.isPartitioned = groupElem.isPartitioned
-        # 8. the nodes carrying a DOF (all but the mesh nodes no partner reaches: TETRA10, 1 → the mid nodes), those this rank owns and those of its main-dimension elements
+        # 8. the nodes carrying a DOF (all but the mesh nodes no partner reaches: TETRA10, 1 → the mid nodes)
         reached = np.unique(np.concatenate([g.nodes for g in partners.values()]))
         dofNodes = np.concatenate([reached[reached < Nn], np.arange(Nn, Ncoords)])
-        main = [partners[g].nodes for g in mesh.Get_list_groupElem()]
-        localNodes = np.unique(np.concatenate(main))
-        space = _FunctionSpace(
-            dofNodes, dofNodes[isMine[dofNodes]], localNodes, partners
-        )
+        space = _FunctionSpace(dofNodes, partners)
         space._Update_coord()
         space._Update_tags()
         return space

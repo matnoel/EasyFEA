@@ -15,6 +15,7 @@ from PIL import Image
 from EasyFEA import ElemType, Matplotlib, Mesh, Mesher, Models, Simulations, Tic
 from EasyFEA.FEM import GroupElemFactory
 from EasyFEA.Geoms import Circle, CircleArc, Domain, Line, Point
+from _owned import owned_nodes
 
 from Geoms._shapes import rounded_corners
 from Simulations._simus import (
@@ -91,7 +92,7 @@ def test_Plot_contours_the_pressure_on_the_cells_of_a_compact_space():
     mesh = contour.Mesh_2D([], ElemType.TRI6, isOrganised=True)
     simu = incompressible(mesh)
     space = simu._Get_FunctionSpace(PRESSURE)
-    simu._Set_solutions(PRESSURE, space.coord[space.ownedNodes, 0])
+    simu._Set_solutions(PRESSURE, space.coord[owned_nodes(space), 0])
 
     ax = Matplotlib.Plot(simu, "p", nColors=11)
 

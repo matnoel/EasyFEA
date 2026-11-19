@@ -13,6 +13,7 @@ from EasyFEA.FEM import ElemType, Mesh, Mesher
 from EasyFEA.Geoms import Circle, CircleArc, Contour, Domain, Line, Point, Points
 
 from _numerics import rel_error
+from _owned import owned_elements, owned_nodes
 
 
 def _reset_gmsh():
@@ -941,9 +942,9 @@ def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
     for mesh in meshes:
         groupElem = mesh.groupElem
         owned = np.zeros(groupElem.Ne, dtype=bool)
-        owned[groupElem._ownedElements] = True
+        owned[owned_elements(groupElem)] = True
         elements = groupElem._globalElements
-        ownedNodes = mesh.globalNodes[mesh._Get_mpi_owned_nodes()]
+        ownedNodes = mesh.globalNodes[owned_nodes(mesh._Get_FunctionSpace())]
         ghostNodes = np.setdiff1d(mesh.globalNodes, ownedNodes)
         data.append(
             (groupElem.rank, elements[owned], elements[~owned], ownedNodes, ghostNodes)

@@ -9,7 +9,7 @@ import warnings
 
 import numpy as np
 from functools import wraps
-from typing import Callable
+from typing import Any, Callable, NamedTuple
 
 from ._requires import Create_requires_decorator, Params, R
 
@@ -137,6 +137,102 @@ def Gather(value, comm) -> list | None:
         return [value]
 
     return comm.gather(value, root=0)
+
+
+# Owned and ghost rows
+# --------------------
+# A partitioned array holds its rank's rows, ghosts included: the leading axis indexes rows, each with a global id and an owner rank (-1 for none). Every owned/ghost question goes through these four functions.
+
+
+class Exchange(NamedTuple):
+    """The rows a rank sends its neighbours and the ghost rows it receives, built once by `Build_exchange`; never pickled (its graph communicator does not)."""
+
+    size: int
+    """number of rows of the arrays it scatters"""
+    send: np.ndarray
+    """rows sent, grouped by destination"""
+    recv: np.ndarray
+    """ghost rows received, grouped by source"""
+    sendCounts: np.ndarray
+    recvCounts: np.ndarray
+    graph: Any
+    """the neighbour graph communicator"""
+
+
+def Owned(owners: np.ndarray | None, rank: int) -> np.ndarray | slice:
+    """Rows `rank` owns: a mask over `owners`, `slice(None)` when there are none (never partitioned)."""
+    if owners is None:
+        return slice(None)
+    return owners == rank
+
+
+def Sum_owned(values, owners: np.ndarray | None, rank: int, comm):
+    """Sum over the leading axis of the rows `rank` owns, reduced over `comm`: each row counted once over the ranks. Collective on `comm`."""
+    return Reduce_sum(np.asarray(values)[Owned(owners, rank)].sum(axis=0), comm)
+
+
+def Build_exchange(globalIds: np.ndarray, owners: np.ndarray, comm) -> Exchange | None:
+    """The exchange of the rows of global ids `globalIds` and owners `owners` (-1 for none, never a ghost), None when `comm` is None. Collective on `comm`."""
+    if comm is None:
+        return None
+    rank = comm.Get_rank()
+    rows = np.arange(globalIds.size)
+    isGhost = (owners != rank) & (owners >= 0)
+    order = np.argsort(owners[isGhost], kind="stable")
+    ghostOwners = owners[isGhost][order]
+    ghostIds = globalIds[isGhost][order]
+    recv = rows[isGhost][order]
+    sources, recvCounts = np.unique(ghostOwners, return_counts=True)
+
+    # the ghosts each rank owns, asked of it; what the others ask of this rank
+    splits = np.searchsorted(ghostOwners, np.arange(1, comm.Get_size()))
+    asked = comm.alltoall(np.split(ghostIds, splits))
+    sendCounts = np.array([ids.size for ids in asked], dtype=int)
+    destinations = np.flatnonzero(sendCounts)
+    asked = np.concatenate([np.empty(0, dtype=globalIds.dtype), *asked])
+    sorter = np.argsort(globalIds, kind="stable")
+    found = np.searchsorted(globalIds, asked, sorter=sorter)
+    found = sorter[np.minimum(found, sorter.size - 1)] if sorter.size else found
+    assert np.array_equal(globalIds[found], asked), (
+        "A rank owns a row it does not hold."
+    )
+
+    graph = comm.Create_dist_graph_adjacent(
+        sources.tolist(), destinations.tolist(), reorder=False
+    )
+    return Exchange(
+        globalIds.size,
+        found,
+        recv,
+        sendCounts[destinations],
+        recvCounts,
+        graph,
+    )
+
+
+def Scatter_forward(values: np.ndarray, exchange: Exchange | None) -> None:
+    """Copies onto the ghost rows of `values` (rows on the leading axis, any trailing shape and dtype) their owners' values, in place; nothing when `exchange` is None. Collective on its graph."""
+    if exchange is None:
+        return
+    assert values.shape[0] == exchange.size, (
+        f"{values.shape[0]} rows, the exchange has {exchange.size}."
+    )
+    rows = values.reshape(exchange.size, -1)
+    assert np.shares_memory(rows, values) or values.size == 0, (
+        "values must be contiguous."
+    )
+    width = rows.shape[1]
+    send = np.ascontiguousarray(rows[exchange.send])
+    recv = np.empty((exchange.recv.size, width), dtype=rows.dtype)
+
+    def Counts(counts):
+        counts = counts * width
+        return counts.tolist(), (np.cumsum(counts) - counts).tolist()
+
+    exchange.graph.Neighbor_alltoallv(
+        [send, Counts(exchange.sendCounts)], [recv, Counts(exchange.recvCounts)]
+    )
+    rows[exchange.recv] = recv
 
 
 def Place_rows(parts: list[tuple[np.ndarray, np.ndarray]], size: int) -> np.ndarray:

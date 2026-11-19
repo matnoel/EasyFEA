@@ -15,6 +15,7 @@ from EasyFEA.FEM import GroupElemFactory, Kinematics, MatrixType, Operators
 from EasyFEA.Geoms import Domain, Points
 
 from _numerics import rel_error
+from _owned import owned_nodes
 from ._simus import PRESSURE, incompressible, measure
 
 U = Simulations.HyperElastic.problemType
@@ -388,7 +389,7 @@ def test_IncompressibleHyperElastic_Result_p_lifts_p_exactly(subtests):
         with subtests.test(name):
             simu = incompressible(build())
             pCoord = simu._Get_FunctionSpace(PRESSURE).coord
-            nodes = simu._Get_FunctionSpace(PRESSURE).ownedNodes
+            nodes = owned_nodes(simu._Get_FunctionSpace(PRESSURE))
             simu._Set_solutions(PRESSURE, 1 + pCoord[nodes] @ a)
 
             values = simu.Result("p")
@@ -403,7 +404,7 @@ def test_IncompressibleHyperElastic_Result_p_on_elements_is_the_vertex_mean(subt
         with subtests.test(name):
             simu = incompressible(build())
             space = simu._Get_FunctionSpace(PRESSURE)
-            simu._Set_solutions(PRESSURE, 1 + space.coord[space.ownedNodes] @ a)
+            simu._Set_solutions(PRESSURE, 1 + space.coord[owned_nodes(space)] @ a)
 
             values = simu.Result("p", nodeValues=False)
 
@@ -901,7 +902,7 @@ def test_IncompressibleHyperElastic_Solve_under_mpi_is_the_exact_stretch():
     simu.Solve()
 
     t, p, _ = _exact_stretch(simu.dim)
-    points = simu._Get_FunctionSpace(U).ownedNodes
+    points = owned_nodes(simu._Get_FunctionSpace(U))
     coord = simu._Get_FunctionSpace(U).coord[points, :2]
     u = simu.displacement.reshape(-1, 2)[points]
     assert np.abs(u[:, 0] - (STRETCH - 1) * coord[:, 0]).max() < 1e-10

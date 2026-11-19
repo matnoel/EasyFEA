@@ -22,6 +22,8 @@ from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardenin
 from EasyFEA.Models.InElastic.Yield import VonMises
 from EasyFEA.Utilities import Allgather, Reduce_max, Reduce_sum
 
+from _owned import held_nodes, owned_nodes
+
 
 def _plate_with_hole(elemType: ElemType):
     """Unit-height plate with an off-centre hole: no symmetry for a partition to hide behind."""
@@ -434,7 +436,7 @@ def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
     mesh = _plate_with_hole(ElemType.TRI3)
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     space = mesh._Get_FunctionSpace(Simulations.Elastic.problemType)
-    held = space.localNodes
+    held = held_nodes(space)
     globalNodes = space.globalNodes
 
     serial = _serial(f"space{order}")["coord"]
@@ -443,7 +445,7 @@ def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
     np.testing.assert_allclose(
         space.coord[held], serial[globalNodes[held]], rtol=0, atol=1e-12
     )
-    owned = np.concatenate(Allgather(globalNodes[space.ownedNodes], mesh.comm))
+    owned = np.concatenate(Allgather(globalNodes[owned_nodes(space)], mesh.comm))
     assert np.array_equal(np.sort(owned), np.arange(serial.shape[0]))
 
 
@@ -452,7 +454,7 @@ def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
 def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     pytest.importorskip("petsc4py")
     simu = _CASES[case]()
-    nodes = simu.mesh._Get_mpi_owned_nodes()
+    nodes = owned_nodes(simu.mesh._Get_FunctionSpace())
     coord = simu.mesh.coord[nodes, :2]
     u = _fields(simu)[nodes]
     scalars = _scalars(simu)
@@ -479,7 +481,7 @@ def test_Solve_over_the_ranks_holds_the_rank_nodes_only(case):
     pytest.importorskip("petsc4py")
     simu = _CASES[case]()
     mesh = simu.mesh
-    whole = Reduce_sum(mesh._Get_mpi_owned_nodes().size, mesh.comm)
+    whole = Reduce_sum(owned_nodes(mesh._Get_FunctionSpace()).size, mesh.comm)
 
     assert mesh.Nn < whole
     assert mesh.coord.shape == (mesh.Nn, 3)

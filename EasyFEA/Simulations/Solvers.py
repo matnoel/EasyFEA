@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Exscan_sum, Reduce_sum
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Exscan_sum, Reduce_sum, Scatter_forward
 
 # fem
 from ..FEM import LagrangeCondition
@@ -340,7 +340,7 @@ def Solve_simu(
         raise NotImplementedError
 
     # x is right at the owned dofs only
-    simu._Scatter_forward(problemType, x)
+    Scatter_forward(x, simu._Get_dof_exchange(problemType))
 
     if resolution in [ResolType.r1, ResolType.r3]:
         return x, rhsNorm
@@ -383,7 +383,7 @@ def __Solver_1(
         known[dofsKnown] = True
         numbering = simu._Solver_Get_numbering(problemType, known)
         # the known values of the ghosts from their owner
-        simu._Scatter_forward(problemType, x)
+        Scatter_forward(x, simu._Get_dof_exchange(problemType))
         residual = b - A @ x
         if simu.isNonLinear:
             rhsNorm = __Residual_norm(residual[numbering.rows], numbering.comm)

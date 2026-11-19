@@ -39,6 +39,7 @@ from ..Geoms._utils import AsPoint
 from ..Geoms import Jacobian_Matrix
 
 from ..Utilities import _types, _params
+from ..Utilities._mpi import MPI_COMM, Exchange, Build_exchange
 from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 
 
@@ -231,6 +232,7 @@ class _GroupElem:
         self.__globalNodes = globalNodes
         self.__nodeOwners = nodeOwners
         self.__rank = rank
+        self.__exchanges: dict[str, tuple[bool, Exchange | None]] = {}
         self.__Lock_shared()
 
     def __Lock_shared(self) -> None:
@@ -243,6 +245,8 @@ class _GroupElem:
         # `isPartitioned` is never written: set by the Mesher scatter or a restart, so a pickled group loads detached
         state = self.__dict__.copy()
         state["_GroupElem__isPartitioned"] = False
+        # communicators do not pickle
+        state["_GroupElem__exchanges"] = {}
         return state
 
     def __setstate__(self, state: dict) -> None:
@@ -253,7 +257,8 @@ class _GroupElem:
         # a copy is not a file: the ranks still share it
         new = self.__class__.__new__(self.__class__)
         memo[id(self)] = new
-        new.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        state = {**self.__dict__, "_GroupElem__exchanges": {}}
+        new.__dict__.update(copy.deepcopy(state, memo))
         new.__Lock_shared()
         return new
 
@@ -293,16 +298,31 @@ class _GroupElem:
         """Owner rank of each node (Nn,); -1 for a node no main-dimension element uses; None in serial."""
         return self.__nodeOwners
 
-    @property
-    def _ownedElements(self) -> _types.BoolArray | slice:
-        """Rows of the elements this rank owns: a mask, `slice(None)` in serial."""
-        if self.__elementOwners is None:
-            return slice(None)
-        return self.__elementOwners == self.__rank
+    def __Get_exchange(
+        self,
+        name: str,
+        globalIds: _types.IntArray | None,
+        owners: _types.IntArray | None,
+    ) -> Exchange | None:
+        """The exchange of the rows of `globalIds`, built on the first call while partitioned, None otherwise. Collective on a partitioned mesh."""
+        isPartitioned = self.__isPartitioned and globalIds is not None
+        kept = self.__exchanges.get(name)
+        if kept is None or kept[0] != isPartitioned:
+            exchange = (
+                Build_exchange(globalIds, owners, MPI_COMM) if isPartitioned else None  # type: ignore [arg-type]
+            )
+            kept = self.__exchanges[name] = (isPartitioned, exchange)
+        return kept[1]
 
-    def _Sum_on_ownedElements_e(self, values_e: _types.FloatArray) -> _types.FloatArray:
-        """Sum of per-element values (Ne, ...) over this rank's owned elements, ghosts skipped."""
-        return np.asarray(values_e)[self._ownedElements].sum(axis=0)
+    def _Get_node_exchange(self) -> Exchange | None:
+        """Exchange of the node rows (Nn,), None unless partitioned. Collective on a partitioned mesh."""
+        return self.__Get_exchange("nodes", self.__globalNodes, self.__nodeOwners)
+
+    def _Get_element_exchange(self) -> Exchange | None:
+        """Exchange of the element rows (Ne,), None unless partitioned. Collective on a partitioned mesh."""
+        return self.__Get_exchange(
+            "elements", self.__globalElements, self.__elementOwners
+        )
 
     @property
     def Nn(self) -> int:

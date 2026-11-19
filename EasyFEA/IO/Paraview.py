@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Sequence
 
 # utilities
 from ..Utilities import Terminal, Folder, Tic
-from ..Utilities._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from ..Utilities._mpi import MPI_SIZE, MPI_RANK, MPI_COMM, Owned
 
 from ..Utilities import _types
 from ..FEM._kelvin_mandel import VTK_ORDER
@@ -274,7 +274,7 @@ def __Make_vtu(
         # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours; value 1 means duplicate cells or points.
         if MPI_SIZE > 1:
             gc = np.ones(groupElem.Ne, dtype=np.uint8)
-            gc[groupElem._ownedElements] = 0
+            gc[Owned(groupElem._elementOwners, groupElem.rank)] = 0
             list_ghostCells.append(gc)
 
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
@@ -287,7 +287,10 @@ def __Make_vtu(
     if MPI_SIZE > 1:
         ghostCells = np.concatenate(list_ghostCells)
         ghostPoints = np.ones(Nn, dtype=np.uint8)
-        ghostPoints[np.isin(nodes, mesh._Get_mpi_owned_nodes())] = 0
+        space = mesh._Get_FunctionSpace()
+        isOwned = np.zeros(mesh.Nn, dtype=bool)
+        isOwned[Owned(space._dofOwners, space.rank)] = True
+        ghostPoints[isOwned[nodes]] = 0
 
     globalPointIds = mesh.globalNodes[nodes].astype(np.uint64)
 

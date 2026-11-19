@@ -16,7 +16,7 @@ import numpy as np
 from ..FEM import ElemType, FeArray, _GroupElem
 from ..FEM._function_space import _FunctionSpace
 from ..Utilities import Folder, _types
-from ..Utilities._mpi import MPI_RANK, Allgather, Bcast
+from ..Utilities._mpi import MPI_RANK, Allgather, Bcast, Owned, Scatter_forward
 
 
 class Iteration(TypedDict):
@@ -206,7 +206,7 @@ def Share_of(layout: Layout) -> Share:
         {name: anchors[id(d.space)] for name, d in layout.dofs.items()},
         layout.nodeSpace.globalNodes[layout.nodes],
         {
-            key: group._globalElements[group._ownedElements]
+            key: group._globalElements[Owned(group._elementOwners, group.rank)]
             for key, (group, _) in layout.groups.items()
         },
     )
@@ -403,7 +403,7 @@ def Owned_memory(
         entry = _Entry_at(entries, index)
         if isinstance(entry.file, dict) and entry.ranks is not None:
             layout = layout_of(Get_scalars(entries, index, comm)["indexMesh"])
-            owned[index] = Owned(entry.file, layout)
+            owned[index] = Owned_rows(entry.file, layout)
     return owned
 
 
@@ -441,10 +441,10 @@ def _Write(arrays: Iteration, folder: str, file: str, partition: Layout | None) 
         _Dump(arrays, _Results_path(folder, file, mkdir=True))
         return
     path = Folder.Join(_Rank_dir(folder, partition.rank), "Results", file, mkdir=True)
-    _Collectively(partition.comm, _Dump, Owned(arrays, partition), path)
+    _Collectively(partition.comm, _Dump, Owned_rows(arrays, partition), path)
 
 
-def Owned(arrays: Iteration, layout: Layout) -> Iteration:
+def Owned_rows(arrays: Iteration, layout: Layout) -> Iteration:
     """The rows of `arrays` that `layout` owns, without scalars."""
     p = layout
     return {
@@ -456,7 +456,11 @@ def Owned(arrays: Iteration, layout: Layout) -> Iteration:
         "nodal": {name: values[p.nodes] for name, values in arrays["nodal"].items()},
         "quadrature": {
             elemType: {
-                name: values[p.groups[elemType][0]._ownedElements]
+                name: values[
+                    Owned(
+                        p.groups[elemType][0]._elementOwners, p.groups[elemType][0].rank
+                    )
+                ]
                 for name, values in fields.items()
             }
             for elemType, fields in arrays["quadrature"].items()
@@ -465,18 +469,23 @@ def Owned(arrays: Iteration, layout: Layout) -> Iteration:
 
 
 def _Read(folder: str, file: str, indexMesh: int, partition: Layout) -> Iteration:
-    """The rank's arrays of the iteration written to ``folder/Rank{r}/Results/file``: the owned rows from its file, the ghost nodes by scatter, the ghost elements from their owners' files, found in their mesh files. Collective, raising on every rank if one cannot read its rows."""
+    """The rank's arrays of the iteration written to ``folder/Rank{r}/Results/file``: the owned rows from its file, the ghost nodes and elements by scatter. Collective, raising on every rank if one cannot read its rows."""
     p = partition
     arrays = _Collectively(p.comm, _Read_rows, folder, file, indexMesh, p)
     for name, values in arrays["dofs"].items():
-        p.dofs[name].space.Scatter_forward(values, p.dofs[name].dof_n)
+        space = p.dofs[name].space
+        Scatter_forward(values.reshape(space.Nn, -1), space._Get_exchange())
     for values in arrays["nodal"].values():
-        p.nodeSpace.Scatter_forward(values, values[:1].size)
+        Scatter_forward(values, p.nodeSpace._Get_exchange())
+    for elemType, fields in arrays["quadrature"].items():
+        exchange = p.groups[elemType][0]._Get_element_exchange()
+        for values in fields.values():
+            Scatter_forward(np.asarray(values), exchange)
     return arrays
 
 
 def _Read_rows(folder: str, file: str, indexMesh: int, p: Layout) -> Iteration:
-    """The rank's arrays of the iteration, its ghost nodes still zero; raises if a file holds the rows of another partition."""
+    """The rank's arrays of the iteration, its ghost rows still zero; raises if a file holds the rows of another partition."""
     path = Folder.Join(_Rank_dir(folder, p.rank), "Results", file)
     own: Iteration = _Load(path)
 
@@ -497,33 +506,16 @@ def _Read_rows(folder: str, file: str, indexMesh: int, p: Layout) -> Iteration:
         for name, values_f in own["nodal"].items()
     }
 
-    owners: dict[int, tuple[str, Iteration, dict[ElemType, _types.IntArray]]] = {}
     quadrature: dict[str, dict[str, FeArray]] = {}
     for elemType, fields in own["quadrature"].items():
-        group, meshType = p.groups[elemType]
-        elementOwners = group._elementOwners
-        assert elementOwners is not None
-        owned = elementOwners == group.rank
-        quadrature[elemType] = {}
-        for name, values_f in fields.items():
-            kind = f"internal variable {elemType}/{name}"
-            values = place(kind, values_f, owned, group.Ne)
-            for q in np.unique(elementOwners[~owned]).tolist():
-                if q not in owners:
-                    pathOwner = Folder.Join(_Rank_dir(folder, q), "Results", file)
-                    owners[q] = (
-                        pathOwner,
-                        _Load(pathOwner),
-                        _Owned_elements(folder, q, indexMesh),
-                    )
-                pathOwner, iterationOwner, ownedElements = owners[q]
-                valuesOwner = iterationOwner["quadrature"][elemType][name]
-                ownedIds = ownedElements[meshType]
-                _Check_rows(pathOwner, kind, valuesOwner.shape[0], ownedIds.size)
-                ghosts = np.flatnonzero(elementOwners == q)
-                ids = group._globalElements[ghosts]
-                values[ghosts] = valuesOwner[np.searchsorted(ownedIds, ids)]
-            quadrature[elemType][name] = values
+        group, _ = p.groups[elemType]
+        owned = Owned(group._elementOwners, group.rank)
+        quadrature[elemType] = {
+            name: place(
+                f"internal variable {elemType}/{name}", values_f, owned, group.Ne
+            )
+            for name, values_f in fields.items()
+        }
 
     return {"scalars": {}, "dofs": dofs, "nodal": nodal, "quadrature": quadrature}
 
@@ -538,21 +530,6 @@ def _Collectively(comm, function: Callable, *args) -> Any:
     if errors:
         raise ValueError(errors[0])
     return result
-
-
-def _Owned_elements(
-    folder: str, rank: int, indexMesh: int
-) -> dict[ElemType, _types.IntArray]:
-    """Global ids of the elements `rank` owns per group, sorted, from its mesh file."""
-    data = _Load(
-        Folder.Join(_Rank_dir(folder, rank), "Meshes", f"mesh{indexMesh}.pickle")
-    )
-    owned = {}
-    for elemType, (_, partition, *_) in data.items():
-        globalElements, owners = partition["globalElements"], partition["elementOwners"]
-        if owners is not None:
-            owned[elemType] = globalElements[owners == partition["rank"]]
-    return owned
 
 
 def _Check_rows(path: str, kind: str, rows: int, owned: int) -> None:

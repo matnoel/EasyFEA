@@ -30,6 +30,8 @@ from ..Utilities._mpi import (
     Reduce_sum,
     Gather,
     Place_rows,
+    Owned,
+    Sum_owned,
 )
 from ..Utilities._cache import cache_computed_values, cached_computed_values
 
@@ -444,13 +446,6 @@ class Mesh(Observable):
             globalNodes.flags.writeable = False
         return globalNodes
 
-    def _Get_mpi_owned_nodes(self) -> _types.IntArray:
-        """Nodes this rank owns: each node goes to the lowest rank whose main-dimension elements use it, so the owned nodes of the ranks partition the mesh nodes; `nodes` when the mesh was never partitioned."""
-        groupElem = next(iter(self.__dict_groupElem.values()))
-        if groupElem._globalNodes is None:
-            return self.nodes
-        return np.flatnonzero(groupElem._nodeOwners == groupElem.rank)
-
     @property
     def coord(self) -> _types.FloatArray:
         """nodes coordinates matrix (Nn, 3); under MPI the rank's nodes, ghosts included."""
@@ -487,7 +482,7 @@ class Mesh(Observable):
         groups = {}
         for elemType, groupElem in self.__dict_groupElem.items():
             owned = np.zeros(groupElem.Ne, dtype=bool)
-            owned[groupElem._ownedElements] = True
+            owned[Owned(groupElem._elementOwners, groupElem.rank)] = True
             globalElements = groupElem._globalElements
             elementTags = groupElem._dict_elements_tags
             tags = {}
@@ -559,10 +554,8 @@ class Mesh(Observable):
 
     @cache_computed_values
     def __Get_isoparametric_space(self) -> _FunctionSpace:
-        nodes = self.nodes
-        owned = self._Get_mpi_owned_nodes()
         groups = {groupElem: groupElem for groupElem in self.dict_groupElem.values()}
-        return _FunctionSpace(np.arange(self.Nn), owned, nodes, groups)
+        return _FunctionSpace(np.arange(self.Nn), groups)
 
     def _Get_lists_groupElem(self, dim: int) -> list[list["_GroupElem"]]:
         """The mesh's groups of dimension ``dim``, then those of each space not isoparametric, every list in the same order."""
@@ -639,7 +632,9 @@ class Mesh(Observable):
         for groupElem, values_e in zip(
             self.Get_list_groupElem(dim), list_values_e, strict=True
         ):
-            local = local + groupElem._Sum_on_ownedElements_e(values_e)
+            # one reduction: a rank may hold no element of a group
+            owners, rank = groupElem._elementOwners, groupElem.rank
+            local = local + Sum_owned(values_e, owners, rank, None)
         return Reduce_sum(local, self.comm)
 
     def __Get_measure(self, dim: int) -> float:

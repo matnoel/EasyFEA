@@ -31,10 +31,14 @@ from ..Utilities._mpi import (
     MPI_SIZE,
     Bcast,
     MPI_RANK,
+    Exchange,
     Gather,
     Place_rows,
     Reduce_sum,
     Reduce_max,
+    Owned,
+    Build_exchange,
+    Scatter_forward,
 )
 
 # fem
@@ -332,7 +336,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, dofs: _types.IntArray, problemType: ProblemType
     ) -> _types.IntArray:
         """The dofs of `dofs` this rank owns, in their order."""
-        return dofs[np.isin(dofs, self.Get_dofs(problemType))]
+        owners, rank = self.__Get_dof_owners(problemType)
+        isOwned = np.zeros(self.__Get_size(problemType), dtype=bool)
+        isOwned[Owned(owners, rank)] = True
+        return dofs[isOwned[dofs]]
 
     def Calc_Reaction(
         self, dofs: _types.IntArray = None, problemType: ProblemType = None
@@ -353,7 +360,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         reaction = np.zeros(size, dtype=float)
         reaction[owned] = self.__Get_reaction(owned, problemType)
         # a ghost row from its owner
-        self._Scatter_forward(problemType, reaction)
+        Scatter_forward(reaction, self._Get_dof_exchange(problemType))
 
         return reaction[dofs]
 
@@ -493,19 +500,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = {}
         for problemType, names in self.dofFields.items():
             space = mesh._Get_FunctionSpace(problemType)
-            rows = space.Get_dofs(space.ownedNodes, 1)
+            ownedNodes = space._dofNodes[Owned(space._dofOwners, space.rank)]
+            rows = space.Get_dofs(ownedNodes, 1)
             dof_n = self.Get_dof_n(problemType)
-            dofRows = _iterations.DofRows(rows, dof_n, space, space.ownedNodes)
+            dofRows = _iterations.DofRows(rows, dof_n, space, ownedNodes)
             dofs.update({name: dofRows for name in names})
         groups = mesh.Get_list_groupElem(mesh.dim)
         spaceGroups = mesh._Get_FunctionSpace(self.problemType).Get_list_groupElem(
             mesh.dim
         )
+        nodeSpace = mesh._Get_FunctionSpace()
         return _iterations.Layout(
             groups[0].rank,
             mesh.comm,
             dofs,
-            mesh._Get_mpi_owned_nodes(),
+            nodeSpace._dofNodes[Owned(nodeSpace._dofOwners, nodeSpace.rank)],
             mesh._Get_FunctionSpace(),
             {g.elemType.value: (g, m.elemType) for g, m in zip(spaceGroups, groups)},
             {g.elemType: g for g in groups},
@@ -765,6 +774,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
         self._petscSolvers: dict[ProblemType | tuple[ProblemType, ...], tuple] = {}
+        self.__dofExchanges: dict[ProblemType | tuple[ProblemType, ...], tuple] = {}
+        """`(mesh, exchange)` per problem; not pickled."""
         """`(ksp, matrix, numbering, A)` per problem, A the last one filled, kept between solves; not pickled."""
 
         # Solver used
@@ -1010,7 +1021,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if np.ndim(value) > 0 and len(value) == mesh.Ne:
                 parameters.append(
                     [
-                        (g._globalElements[g._ownedElements], part[g._ownedElements])
+                        (
+                            g._globalElements[Owned(g._elementOwners, g.rank)],
+                            part[Owned(g._elementOwners, g.rank)],
+                        )
                         for g, part in zip(sources, np.split(value, splits))
                     ]
                 )
@@ -1019,7 +1033,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return _RankPart(
             [mesh._Owned_part() for mesh in meshes],
             [_iterations.Share_of(layout) for layout in layouts],
-            _iterations.Owned(state, layout),
+            _iterations.Owned_rows(state, layout),
             _iterations.Owned_memory(
                 self.__list_results, mesh.comm, lambda index: layouts[index]
             ),
@@ -1375,7 +1389,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __getstate__(self) -> dict:
         # PETSc objects do not pickle: a copy builds its own
-        return {**self.__dict__, "_petscSolvers": {}}
+        return {**self.__dict__, "_petscSolvers": {}, "_Simu__dofExchanges": {}}
 
     def _Solver_Set_TimeScheme(self, timeScheme: _TimeScheme) -> None:
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
@@ -1593,15 +1607,44 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._Trial_internals(), self._externalNames
         )
 
-    def _Scatter_forward(
-        self, problem: ProblemType | tuple[ProblemType, ...], x: np.ndarray
-    ) -> None:
-        """Copies onto the ghost rows of the problem's vector `x` (its fields end to end, any dtype) their owners' values, in place; nothing unless partitioned, collective otherwise."""
+    def __Get_dof_owners(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> tuple[_types.IntArray | None, int]:
+        """Owner rank of each dof of the problem's vector (its fields end to end), None when never partitioned, and this rank."""
         fields = self.__Fields(problem)
-        for field, start in zip(fields, self.__Get_offsets(fields)):
-            end = start + self.__Get_size(field)
+        spaces = [self._Get_FunctionSpace(field) for field in fields]
+        rank = spaces[0].rank
+        if any(space._dofOwners is None for space in spaces):
+            return None, rank
+        owners = [
+            np.repeat(space._dofOwners, self.Get_dof_n(field))
+            for field, space in zip(fields, spaces)
+        ]
+        return np.concatenate(owners), rank
+
+    def _Get_dof_exchange(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> Exchange | None:
+        """Exchange of the rows of the problem's vector (its fields end to end), None unless partitioned; kept until the mesh changes. Collective on a partitioned mesh."""
+        comm = self.mesh.comm
+        if comm is None:
+            return None
+        kept = self.__dofExchanges.get(problem)
+        if kept is not None and kept[0] is self.mesh:
+            return kept[1]
+        fields = self.__Fields(problem)
+        globalIds = []
+        for f, field in enumerate(fields):
             space = self._Get_FunctionSpace(field)
-            space.Scatter_forward(x[start:end], self.Get_dof_n(field))
+            dof_n = self.Get_dof_n(field)
+            nodes = space.globalNodes[space._dofNodes].astype(np.int64)
+            dofs = nodes[:, None] * dof_n + np.arange(dof_n)
+            globalIds.append((dofs * len(fields) + f).ravel())
+        owners, _ = self.__Get_dof_owners(problem)
+        assert owners is not None
+        exchange = Build_exchange(np.concatenate(globalIds), owners, comm)
+        self.__dofExchanges[problem] = (self.mesh, exchange)
+        return exchange
 
     def _Set_solutions(
         self,
@@ -2282,11 +2325,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if isinstance(problemType, tuple):
             return self.__Compose(problemType, self.Get_dofs, isDofs=True)
 
-        ownedNodes = self._Get_FunctionSpace(problemType).ownedNodes
-
-        return self.Bc_dofs_nodes(
-            ownedNodes, self.Get_unknowns(problemType), problemType
-        )
+        owners, rank = self.__Get_dof_owners(problemType)
+        return np.arange(self.__Get_size(problemType))[Owned(owners, rank)]
 
     def _Solver_Get_numbering(
         self,
@@ -2306,7 +2346,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 known,
                 owned,
                 self.mesh.comm,
-                lambda ids: self._Scatter_forward(problemType, ids),
+                lambda ids: Scatter_forward(ids, self._Get_dof_exchange(problemType)),
             )
             numberings[problemType] = numbering
         return numbering
@@ -3365,8 +3405,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # exact on the owned rows only
         values_n = mesh.Get_Node_Values(values_e)
-        space = mesh._Get_FunctionSpace()
-        space.Scatter_forward(values_n, values_e.shape[1])
+        Scatter_forward(values_n, mesh._Get_FunctionSpace()._Get_exchange())
         return values_n.ravel() if is1d else values_n
 
     def Save(

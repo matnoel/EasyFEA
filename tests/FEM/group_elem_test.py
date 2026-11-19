@@ -21,6 +21,8 @@ from EasyFEA.FEM import (
     _GroupElem,
 )
 from EasyFEA.Geoms import Line, Domain, Circle, Points
+from _owned import owned_elements
+from EasyFEA.Utilities._mpi import Sum_owned
 
 from _numerics import affine, mandel, rel_error
 
@@ -262,7 +264,7 @@ def test_GroupElem_partition_of_a_serial_group_owns_everything():
 
     assert groupElem.rank == 0 and not groupElem.isPartitioned
     assert np.array_equal(groupElem._globalElements, groupElem.elements)
-    assert groupElem._ownedElements == slice(None)
+    assert np.array_equal(owned_elements(groupElem), groupElem.elements)
     assert groupElem._elementOwners is None
     assert groupElem._globalNodes is None and groupElem._nodeOwners is None
 
@@ -272,10 +274,9 @@ def test_GroupElem__Set_partition_owns_the_elements_of_its_rank():
 
     assert groupElem.rank == 1
     assert np.array_equal(groupElem._globalElements, [1, 2, 3, 5])
-    assert np.array_equal(groupElem._ownedElements, [True, False, True, True])
-    assert (
-        groupElem._Sum_on_ownedElements_e(np.array([1.0, 10.0, 100.0, 1000.0])) == 1101
-    )
+    assert np.array_equal(owned_elements(groupElem), [0, 2, 3])
+    values = np.array([1.0, 10.0, 100.0, 1000.0])
+    assert Sum_owned(values, groupElem._elementOwners, groupElem.rank, None) == 1101
 
 
 def test_GroupElem__Set_partition_locks_the_node_arrays():
@@ -312,7 +313,7 @@ def test_GroupElem_pickled_loads_detached():
     loaded = pickle.loads(pickle.dumps(groupElem))
 
     assert groupElem.isPartitioned and not loaded.isPartitioned
-    assert np.array_equal(loaded._ownedElements, groupElem._ownedElements)
+    assert np.array_equal(owned_elements(loaded), owned_elements(groupElem))
     assert not loaded._globalNodes.flags.writeable  # type: ignore [union-attr]
 
 

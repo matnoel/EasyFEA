@@ -31,6 +31,7 @@ from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
 from EasyFEA.Utilities import MPI_SIZE
 
 from _numerics import rel_error
+from _owned import owned_nodes
 from . import _reference
 from ._simus import (
     PRESSURE,
@@ -1746,7 +1747,7 @@ def test_Simu_Solve_pins_a_field_left_free_up_to_a_constant(subtests):
             u = simu.Solve()
 
             space = mesh._Get_FunctionSpace(PRESSURE)
-            y = space.coord[space.ownedNodes, 1]
+            y = space.coord[owned_nodes(space), 1]
             assert np.abs(u).max() < 1e-12
             assert np.abs(simu._Get_u_n(PRESSURE) - g * (0.5 - y)).max() < 1e-12
 

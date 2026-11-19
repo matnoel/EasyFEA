@@ -21,6 +21,7 @@ from EasyFEA.FEM import (
 )
 from EasyFEA.Geoms import Points, Circle, Domain, Line, Rotate
 from EasyFEA.Utilities import _IObserver, Allgather, MPI_RANK, Observable
+from _owned import owned_elements, owned_nodes, held_nodes
 
 from _numerics import rel_error
 
@@ -212,8 +213,8 @@ def test_Mesh_nodes_are_those_of_the_main_groups(grid: Mesh, mixed: Mesh):
 
 
 def test_Mesh__Get_mpi_owned_nodes_in_serial_are_all_the_nodes(grid: Mesh, mixed: Mesh):
-    assert np.array_equal(grid._Get_mpi_owned_nodes(), grid.nodes)
-    assert np.array_equal(mixed._Get_mpi_owned_nodes(), mixed.nodes)
+    assert np.array_equal(owned_nodes(grid._Get_FunctionSpace()), grid.nodes)
+    assert np.array_equal(owned_nodes(mixed._Get_FunctionSpace()), mixed.nodes)
 
 
 class _Recorder(_IObserver):
@@ -1290,7 +1291,7 @@ def test_Mesh_Set_Tag_on_a_space_reaches_its_mid_nodes():
 
 def _held(space, nodes: np.ndarray) -> set[tuple]:
     """Coordinates of the ``nodes`` this rank holds."""
-    held = nodes[np.isin(nodes, space.localNodes)]
+    held = nodes[np.isin(nodes, held_nodes(space))]
     return {tuple(row) for row in np.round(space.coord[held], 9).tolist()}
 
 
@@ -1309,11 +1310,11 @@ def test_Mesh_Nodes_Tags_problemType_under_mpi_holds_the_nodes_of_this_rank():
     mesh = domain.Mesh_Extrude([], (0, 0, 1), [4], ElemType.TETRA4)
     mesh = mesh._With_FunctionSpace(ELASTIC, 2)
     space = mesh._Get_FunctionSpace(ELASTIC)
-    local = space.coord[space.localNodes]
+    local = space.coord[held_nodes(space)]
     for tag in ("S0", "S1", "S2", "S3", "S4", "S5"):
         nodes = mesh.Nodes_Tags(tag, problemType=ELASTIC)
         # the plane the tag lies in, from every rank's nodes it holds
-        held = nodes[np.isin(nodes, space.localNodes)]
+        held = nodes[np.isin(nodes, held_nodes(space))]
         coord = np.concatenate(Allgather(space.coord[held], mesh.comm))
         axis = int(np.argmin(np.ptp(coord, axis=0)))
         expected = local[local[:, axis] == coord[0, axis]]
@@ -1324,7 +1325,7 @@ def test_Mesh_Nodes_Tags_problemType_under_mpi_holds_the_nodes_of_this_rank():
 def test_Mesh_Nodes_Conditions_problemType_under_mpi_closes_the_nodes_of_this_rank():
     mesh, _ = _space_cylinder()
     space = mesh._Get_FunctionSpace(ELASTIC)
-    local = space.coord[space.localNodes]
+    local = space.coord[held_nodes(space)]
 
     nodes = mesh.Nodes_Conditions(_on_radius(0.5), problemType=ELASTIC)
 
@@ -1352,10 +1353,10 @@ def test_Mesh_under_mpi_owned_nodes_and_elements_partition_the_mesh():
     mesh = _square()
     assert mesh.isPartitioned and mesh.comm is not None
 
-    nodes = _all_ranks(mesh.globalNodes[mesh._Get_mpi_owned_nodes()], mesh)
+    nodes = _all_ranks(mesh.globalNodes[owned_nodes(mesh._Get_FunctionSpace())], mesh)
     assert np.array_equal(np.sort(nodes), np.arange(nodes.size))
     for groupElem in mesh.dict_groupElem.values():
-        owned = groupElem._globalElements[groupElem._ownedElements]
+        owned = groupElem._globalElements[owned_elements(groupElem)]
         elements = np.sort(_all_ranks(owned, mesh))
         assert np.array_equal(elements, np.arange(elements.size))
 
@@ -1391,7 +1392,8 @@ def test_Mesh_under_mpi_pickled_loads_detached(tmp_path):
         assert not detached.isPartitioned and detached.comm is None
         assert np.array_equal(detached.globalNodes, mesh.globalNodes)
         assert np.array_equal(
-            detached._Get_mpi_owned_nodes(), mesh._Get_mpi_owned_nodes()
+            owned_nodes(detached._Get_FunctionSpace()),
+            owned_nodes(mesh._Get_FunctionSpace()),
         )
 
 
@@ -1419,6 +1421,6 @@ def test_Mesh_under_mpi_space_groups_take_their_group_partition():
         mesh.Get_list_groupElem(), space.Get_list_groupElem()
     ):
         assert spaceGroup.isPartitioned and spaceGroup.rank == groupElem.rank
-        assert np.array_equal(spaceGroup._ownedElements, groupElem._ownedElements)
+        assert np.array_equal(owned_elements(spaceGroup), owned_elements(groupElem))
         owned = np.flatnonzero(spaceGroup._nodeOwners == spaceGroup.rank)
-        assert np.array_equal(owned, space.ownedNodes)
+        assert np.array_equal(owned, owned_nodes(space))
