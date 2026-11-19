@@ -184,6 +184,49 @@ def _held(simu) -> dict[str, np.ndarray]:
     }
 
 
+def _iterations_of(simu) -> dict[str, np.ndarray]:
+    """Every array of each saved iteration a script reads: its entries, `Svm` at nodes and on elements."""
+    iterations = {}
+    for i in range(simu.Niter):
+        for name, value in simu.Set_Iter(i).items():
+            if isinstance(value, np.ndarray):
+                iterations[f"{name.replace('/', '|')}@{i}"] = np.asarray(value)
+        iterations[f"Svm@{i}"] = simu.Result("Svm")
+        iterations[f"Svm_e@{i}"] = simu.Result("Svm", nodeValues=False)
+    return iterations
+
+
+def _assert_iterations_equal(read: dict, serial: dict) -> None:
+    assert read.keys() == serial.keys()
+    for name, expected in serial.items():
+        assert read[name].shape == expected.shape, name
+        scale = max(np.abs(expected).max(initial=0), 1e-300)
+        assert np.abs(read[name] - expected).max(initial=0) < 1e-6 * scale, name
+
+
+def _two_meshes(folder: str = "") -> Simulations.Elastic:
+    """An order 2 displacement on a TRI3 mesh, then on another, each solved and saved."""
+    problemType = Simulations.Elastic.problemType
+    meshes = [
+        _plate_with_hole(ElemType.TRI3)._With_FunctionSpace(problemType, 2)
+        for _ in range(2)
+    ]
+    material = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+    simu = Simulations.Elastic(meshes[0], material, folder=folder)
+    for i, mesh in enumerate(meshes):
+        if i > 0:
+            simu.mesh = mesh
+        _clamped_and_pulled(simu, [1e-3 * (i + 1)], ["x"])
+        simu.Solve()
+        simu.Save_Iter()
+    return simu
+
+
+def _saved(case: str, folder: str = ""):
+    """`case` of `_HISTORIES`, or ``two_meshes``, solved and saved step after step."""
+    return _two_meshes(folder) if case == "two_meshes" else _history(case, folder)
+
+
 _HISTORIES = ["plastic", "heated"]
 
 
@@ -568,6 +611,45 @@ def test_Load_Simu_over_another_rank_count_raises(tmp_path):
         Simulations.Load_Simu(folder)
 
 
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes"])
+@pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
+def test_Load_Simu_serially_reads_a_run_over_the_ranks_as_the_serial_run(
+    case, inFolder, tmp_path
+):
+    pytest.importorskip("petsc4py")
+    folder = _shared_folder(tmp_path)
+    simu = _saved(case, folder if inFolder else "")
+    simu.Save(folder)
+    if simu.mesh.comm.Get_rank() != 0:
+        return
+
+    read = _serial(f"load:{folder}")
+
+    _assert_iterations_equal(read, _serial(f"iterations:{case}"))
+
+
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes"])
+@pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
+def test_Set_Iter_after_Gather_gives_the_serial_iterations(case, inFolder, tmp_path):
+    pytest.importorskip("petsc4py")
+    from EasyFEA import Matplotlib
+
+    folder = _shared_folder(tmp_path)
+    simu = _saved(case, folder if inFolder else "")
+    comm = simu.mesh.comm
+    serial = _serial(f"iterations:{case}") if comm.Get_rank() == 0 else {}
+
+    simu._Gather()
+
+    if comm.Get_rank() != 0:
+        return
+    _assert_iterations_equal(_iterations_of(simu), serial)
+    Matplotlib.Movie_simu(simu, "Svm", folder, "movie.gif")
+    assert Path(folder, "movie.gif").stat().st_size > 0
+
+
 if __name__ == "__main__":
     case, path = sys.argv[1:]
     if case.startswith("space"):
@@ -581,6 +663,14 @@ if __name__ == "__main__":
             iterations[f"u{i}"] = simu.displacement.reshape(-1, 2)
             iterations[f"Svm_e{i}"] = simu.Result("Svm", nodeValues=False)
         np.savez(path, **iterations)
+        sys.exit()
+    if case.startswith("iterations:"):
+        np.savez(path, **_iterations_of(_saved(case[11:])))
+        sys.exit()
+    if case.startswith("load:"):
+        # `_Heated` unpickles from this module as pytest imported it
+        sys.path.insert(0, str(Path(__file__).parents[1]))
+        np.savez(path, **_iterations_of(Simulations.Load_Simu(case[5:])))
         sys.exit()
     if case.startswith("saved:"):
         folder = os.path.dirname(path)

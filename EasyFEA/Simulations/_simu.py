@@ -10,7 +10,7 @@ import pickle
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 import numpy as np
 from scipy import sparse
 import textwrap
@@ -29,8 +29,8 @@ from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import (
     MPI_SIZE,
     MPI_RANK,
-    Allgather,
-    Gather_rows,
+    Gather,
+    Place_rows,
     Reduce_sum,
     Reduce_max,
 )
@@ -47,6 +47,7 @@ from ..FEM import (
     Operators,
 )
 from ..FEM._function_space import _FunctionSpace
+from ..FEM._mesh import _MeshPart
 
 # materials
 from ..Models import _IModel
@@ -153,6 +154,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __mesh: Mesh
     __list_results: list[_iterations.Entry]
     __variables: _iterations.Variables
+    __wholeRows: dict[int, list[_iterations.Rows]] = {}
+    """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
 
     # ----------------------------------------------
     # Abstract method
@@ -426,20 +429,25 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert not arrays, (
             f"Save_Iter stores no user arrays ({arrays}): declare them as the simulation's dof fields, internal or external variables"
         )
-        nRoles = AlgoType(self.algo).nRoles
-        getters = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
-        dofs = {
-            name: get(problemType)
-            for problemType, names in self.dofFields.items()
-            for name, get in zip(names[:nRoles], getters)
-        }
         scalars = {**extras, "indexMesh": self.__indexMesh}
-        snapshot = self.__variables.Snapshot(scalars, dofs, self._externalNames)
+        snapshot = self.__variables.Snapshot(
+            scalars, self.__Dofs(), self._externalNames
+        )
         partition = self.__Partition(self.mesh)
         if partition is not None and self.folder != "":
             self.__Write_rank_mesh(partition.rank)
         _iterations.Append(self.__list_results, snapshot, self.folder, partition)
         self.__Niter += 1
+
+    def __Dofs(self) -> dict[str, _types.FloatArray]:
+        """The current dof fields by name, those of the algorithm's roles."""
+        nRoles = AlgoType(self.algo).nRoles
+        getters = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
+        return {
+            name: get(problemType)
+            for problemType, names in self.dofFields.items()
+            for name, get in zip(names[:nRoles], getters)
+        }
 
     def Get_results(self, iter: int = -1) -> dict:
         """Return the iteration dict at index ``iter``, under flat keys (dof field names, ``internal/<elemType>/<name>``, ``external/<name>``, scalars), loading from disk if pickled. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that); collective on a partitioned mesh."""
@@ -459,37 +467,46 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """A copy of the saved iteration `iter`, the rank's rows of it on a partitioned mesh."""
         entries = self.__list_results
         scalars = _iterations.Get_scalars(entries, iter, self.mesh.comm)
-        partition = self.__Partition(self.__Get_mesh(scalars["indexMesh"]))
+        index = scalars["indexMesh"]
+        mesh = self.__Get_mesh(index)
+        partition = self.__Partition(mesh)
+        pieces = None
+        if partition is None and index in self.__wholeRows:
+            pieces = _iterations.Pieces(self.__Layout(mesh), self.__wholeRows[index])
         return _iterations.Get(
             entries,
             iter,
             self.folder,
             scalars,
             partition,
+            pieces,
         )
 
-    def __Partition(self, mesh: Mesh) -> _iterations.Partition | None:
+    def __Partition(self, mesh: Mesh) -> _iterations.Layout | None:
         """How the rank's arrays on `mesh` split into the rows it owns; None unless the ranks share `mesh`."""
-        if not mesh.isPartitioned:
-            return None
+        return self.__Layout(mesh) if mesh.isPartitioned else None
+
+    def __Layout(self, mesh: Mesh) -> _iterations.Layout:
+        """How the arrays of a saved iteration lie on `mesh`: the rows the rank owns, every row of a mesh held whole."""
         dofs = {}
         for problemType, names in self.dofFields.items():
             space = mesh._Get_FunctionSpace(problemType)
             rows = space.Get_dofs(space.ownedNodes, 1)
             dof_n = self.Get_dof_n(problemType)
-            dofRows = _iterations.DofRows(rows, dof_n, space)
+            dofRows = _iterations.DofRows(rows, dof_n, space, space.ownedNodes)
             dofs.update({name: dofRows for name in names})
         groups = mesh.Get_list_groupElem(self.dim)
         spaceGroups = mesh._Get_FunctionSpace(self.problemType).Get_list_groupElem(
             self.dim
         )
-        return _iterations.Partition(
+        return _iterations.Layout(
             groups[0].rank,
             mesh.comm,
             dofs,
             mesh._Get_mpi_owned_nodes(),
             mesh._Get_FunctionSpace(),
             {g.elemType.value: (g, m.elemType) for g, m in zip(spaceGroups, groups)},
+            {g.elemType: g for g in groups},
         )
 
     def __Get_mesh(self, index: int) -> Mesh:
@@ -954,99 +971,123 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return not self.mesh.isPartitioned
 
     def _Gather(self):
-        """Gives rank 0 the whole mesh and the current state placed by global id: u, v, a of each problem type, the internal and nodal external variables, the heterogeneous parameters; rank 0 becomes a serial simulation, the other ranks keep their partition. Collective."""
+        """Gives rank 0 the whole mesh and the current state placed by global id: u, v, a of each problem type, the internal and nodal external variables, the heterogeneous parameters and the iterations kept in memory; rank 0 becomes a serial simulation, the other ranks keep their partition. Collective."""
         if MPI_SIZE == 1:
             return
 
         # rank 0 turns serial: its solvers on the world comm are freed while every rank is here
         _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
 
-        partition = self.mesh
-        list_mesh = [self.__Get_mesh(i)._Gather() for i in range(self.Nmesh)]
-
-        if MPI_RANK == 0:
-            for i, mesh in enumerate(list_mesh):
-                mesh._ResetMatrix()
-                self.__listMesh[i] = mesh
-            self.__mesh = self.__listMesh[self.__indexMesh]
-            self.Bc_Init()
-            # rank 0 swaps its partition for the full global mesh — the geometry-derived caches describe the
-            # partition and no longer apply.
-            clear_cached_computed_values(self)
-            self.Need_Update()
-
-        comm = partition.comm
+        comm = self.mesh.comm
         if comm is None:
             return
+        parts = Gather(self.__Rank_part(), comm)
+        if parts is not None:
+            self.__Assemble(parts)
 
-        # `self.mesh` is now the gathered mesh on rank 0, `partition` elsewhere: the same groups in the same order
-        def gather_e(source: _GroupElem, values: np.ndarray, size: int):
-            owned = source._ownedElements
-            return Gather_rows(source._globalElements[owned], values[owned], size, comm)
+    def _Assemble_ranks(self, simus: list["_Simu"]) -> None:
+        """Turns this simulation whole from the partitions of every rank, `simus` loaded from a run saved over the ranks, itself rank 0's."""
+        self.__Assemble([simu.__Rank_part() for simu in simus])
 
-        for problemType in self.problemTypes:
-            dof_n = self.Get_dof_n(problemType)
-            space = partition._Get_FunctionSpace(problemType)
-            nodes = space.ownedNodes
-            rows = space.Get_dofs(nodes, 1)
-            # placed by global node id on rank 0, then the nodes carrying a DOF in row order
-            gathered = self.mesh._Get_FunctionSpace(problemType)
-            dofNodes = gathered.Get_dof_nodes(np.arange(gathered.Ncoords))
-            placed = (
-                Gather_rows(
-                    space.globalNodes[nodes],
-                    vector[problemType].reshape(-1, dof_n)[rows],
-                    gathered.Ncoords,
-                    comm,
-                )
-                for vector in (self.__dict_u_n, self.__dict_v_n, self.__dict_a_n)
-            )
-            u, v, a = (None if p is None else p[dofNodes].ravel() for p in placed)
-            if u is not None:
-                self._Set_solutions(problemType, u, v, a)
-
-        groups = {
-            groupElem.elemType.value: groupElem
-            for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.dim)
+    def __Rank_part(self) -> "_RankPart":
+        """What the rank owns of the simulation, from which `__Assemble` builds the whole one; collective on a partitioned mesh."""
+        meshes = [self.__Get_mesh(i) for i in range(self.Nmesh)]
+        layouts = [self.__Layout(mesh) for mesh in meshes]
+        layout = layouts[self.__indexMesh]
+        variables = self.__variables
+        state: _iterations.Iteration = {
+            "scalars": {},
+            "dofs": self.__Dofs(),
+            "nodal": {
+                **{f"externals/{k}": v for k, v in variables.externals.items()},
+                **{f"next/{k}": v for k, v in variables.nextExternals.items()},
+            },
+            "quadrature": {
+                groupElem.elemType.value: fields
+                for groupElem, fields in variables.internals.items()
+            },
         }
-        internals = {}
-        for source, fields in self.__variables.internals.items():
-            target = groups[source.elemType.value]
-            internals[target] = {
-                name: gather_e(source, values, target.Ne)
-                for name, values in fields.items()
-            }
-        nodes = partition._Get_mpi_owned_nodes()
-        ids = partition.globalNodes[nodes]
-        externals, nextExternals = (
-            {
-                name: Gather_rows(ids, values[nodes], self.mesh.Nn, comm)
-                for name, values in fields.items()
-            }
-            for fields in (self.__variables.externals, self.__variables.nextExternals)
-        )
-        if MPI_RANK == 0:
-            self.__variables = replace(
-                self.__variables,
-                internals=internals,
-                externals=externals,
-                nextExternals=nextExternals,
-            )
-
-        sources = partition.Get_list_groupElem()
+        mesh = self.mesh
+        sources = mesh.Get_list_groupElem()
         splits = np.cumsum([groupElem.Ne for groupElem in sources])[:-1]
+        parameters: list[list[tuple[_types.IntArray, np.ndarray]] | None] = []
         for owner, name in self.__Parameters():
             value = vars(owner)[name]
-            # placed only when one value per element on every rank
-            if all(Allgather(np.ndim(value) > 0 and len(value) == partition.Ne, comm)):
-                value_e = [
-                    gather_e(source, part, target.Ne)
-                    for source, target, part in zip(
-                        sources, self.mesh.Get_list_groupElem(), np.split(value, splits)
-                    )
-                ]
-                if MPI_RANK == 0:
-                    setattr(owner, name, np.concatenate(value_e))
+            # placed only when one value per element
+            if np.ndim(value) > 0 and len(value) == mesh.Ne:
+                parameters.append(
+                    [
+                        (g._globalElements[g._ownedElements], part[g._ownedElements])
+                        for g, part in zip(sources, np.split(value, splits))
+                    ]
+                )
+            else:
+                parameters.append(None)
+        return _RankPart(
+            [mesh._Owned_part() for mesh in meshes],
+            [_iterations.Share_of(layout) for layout in layouts],
+            _iterations.Owned(state, layout),
+            _iterations.Owned_memory(
+                self.__list_results, mesh.comm, lambda index: layouts[index]
+            ),
+            parameters,
+        )
+
+    def __Assemble(self, rankParts: list["_RankPart"]) -> None:
+        """Turns the simulation whole, serial, from what every rank owns of it (`__Rank_part`)."""
+        verbosity = self.mesh.verbosity
+        for i in range(self.Nmesh):
+            mesh = Mesh._Assembled([piece.meshes[i] for piece in rankParts], verbosity)
+            mesh._ResetMatrix()
+            self.__listMesh[i] = mesh
+        self.__mesh = self.__listMesh[self.__indexMesh]
+        self.Bc_Init()
+        # the geometry-derived caches describe the partition
+        clear_cached_computed_values(self)
+        self.Need_Update()
+
+        wholes = [self.__Layout(self.__Get_mesh(i)) for i in range(self.Nmesh)]
+        self.__wholeRows = {
+            i: [_iterations.Rows_in(piece.shares[i], whole) for piece in rankParts]
+            for i, whole in enumerate(wholes)
+        }
+
+        index = self.__indexMesh
+        parts = [
+            (f"rank {r}", rows, piece.state)
+            for r, (rows, piece) in enumerate(zip(self.__wholeRows[index], rankParts))
+        ]
+        state = _iterations.Placed(parts, wholes[index])
+        nodal = state["nodal"]
+        externals = {
+            k.removeprefix("externals/"): v
+            for k, v in nodal.items()
+            if k.startswith("externals/")
+        }
+        self.__Restore({**state, "scalars": {"indexMesh": index}, "nodal": externals})
+        nextExternals = {
+            k.removeprefix("next/"): v
+            for k, v in nodal.items()
+            if k.startswith("next/")
+        }
+        self.__variables = replace(self.__variables, nextExternals=nextExternals)
+
+        _iterations.Place_memory(
+            self.__list_results,
+            [piece.memory for piece in rankParts],
+            lambda i: _iterations.Pieces(wholes[i], self.__wholeRows[i]),
+        )
+
+        targets = self.mesh.Get_list_groupElem()
+        for p, (owner, name) in enumerate(self.__Parameters()):
+            values = [piece.parameters[p] for piece in rankParts]
+            if any(v is None for v in values):
+                continue
+            value_e = [
+                Place_rows([v[g] for v in values if v is not None], target.Ne)
+                for g, target in enumerate(targets)
+            ]
+            setattr(owner, name, np.concatenate(value_e))
 
     def __Parameters(self) -> list[tuple[object, str]]:
         """The parameters of the simulation and of every model it reaches through attributes, as (owner, name)."""
@@ -3816,22 +3857,48 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
             )
         path_simu = Folder.Join(folder, f"Rank{MPI_RANK}", f"{filename}.pickle")
     elif ranks > 0 and not Folder.Exists(path_simu):
-        raise ValueError(
-            f"{folder} holds a simulation saved over {ranks} ranks: load it on as many."
-        )
+        paths = [
+            Folder.Join(folder, f"Rank{r}", f"{filename}.pickle") for r in range(ranks)
+        ]
+        simus = [_Load_pickle(path, folder) for path in paths]
+        if any(simu is None for simu in simus):
+            return None  # type: ignore [return-value]
+        simus[0]._Assemble_ranks(simus)
+        return simus[0]
     assert Folder.Exists(path_simu), f"The file {path_simu} cannot be found."
 
-    try:
-        with open(path_simu, "rb") as file:
-            simu: _Simu = pickle.load(file)
-    except EOFError:
-        Terminal.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+    simu = _Load_pickle(path_simu, folder)
+    if simu is None:
         return None  # type: ignore [return-value]
-
-    simu.folder = folder
     # the same partition on the same ranks: shared again
     simu.mesh.isPartitioned = MPI_SIZE > 1
 
     if gather:
         simu._Gather()
     return simu
+
+
+def _Load_pickle(path: str, folder: str) -> _Simu:
+    """The simulation pickled to `path`, saved in `folder`; None when the file is empty."""
+    try:
+        with open(path, "rb") as file:
+            simu: _Simu = pickle.load(file)
+    except EOFError:
+        Terminal.MyPrintError(f"The file:\n{path}\nis empty or corrupted.")
+        return None  # type: ignore [return-value]
+    simu.folder = folder
+    return simu
+
+
+class _RankPart(NamedTuple):
+    """What a rank owns of a simulation, in global ids, from which `_Gather` and a serial `Load_Simu` assemble the whole one."""
+
+    meshes: list[_MeshPart]
+    shares: list[_iterations.Share]
+    """Where the rank's rows of the iterations on each mesh go."""
+    state: _iterations.Iteration
+    """The current dof fields, internal and external variables (``externals/``, ``next/``)."""
+    memory: dict[int, _iterations.Iteration]
+    """The iterations kept in memory, by index."""
+    parameters: list[list[tuple[_types.IntArray, np.ndarray]] | None]
+    """Each parameter's values per group with their element global ids, None unless one per element."""

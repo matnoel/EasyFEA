@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 
 import copy
 import pickle
-from typing import Any, Callable, Sequence, TYPE_CHECKING
+from typing import Any, Callable, NamedTuple, Sequence, TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
@@ -28,8 +28,8 @@ from ..Utilities._mpi import (
     MPI_COMM,
     MPI_RANK,
     Reduce_sum,
-    Reduce_max,
-    Gather_rows,
+    Gather,
+    Place_rows,
 )
 from ..Utilities._cache import cache_computed_values, cached_computed_values
 
@@ -49,6 +49,19 @@ from ..Geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
 
 class AmbiguousGroupError(Exception):
     """Raised when a single-group accessor (groupElem, connect, Ne, nPe, elemType) is used on a mesh that has several element groups of the same dimension. Iterate mesh.Get_list_groupElem(dim) instead."""
+
+
+class _MeshPart(NamedTuple):
+    """A rank's owned share of a mesh, in global ids."""
+
+    nodes: _types.IntArray
+    """Global ids of the nodes it holds, ghosts included."""
+    coord: _types.FloatArray
+    """Their coordinates (Nn, 3)."""
+    groups: dict[ElemType, tuple[int, _types.IntArray, _types.IntArray]]
+    """By element type: its gmsh id, the global ids of the owned elements and their connect in global node ids."""
+    orders: dict["ProblemType", int]
+    """Order of each problem type's space not isoparametric."""
 
 
 class Mesh(Observable):
@@ -449,33 +462,43 @@ class Mesh(Observable):
         return self.groupElem.connect
 
     def _Gather(self) -> "Mesh | None":
-        """The whole mesh on rank 0, from every rank's owned elements and nodes placed by global id; None on the other ranks, `self` when this rank holds it whole. Collective on `comm`."""
+        """The whole mesh on rank 0, assembled from every rank's owned part; None on the other ranks, `self` when this rank holds it whole. Collective on `comm`."""
         comm = self.comm
         if comm is None:
             return self
+        parts = Gather(self._Owned_part(), comm)
+        return None if parts is None else Mesh._Assembled(parts, self.__verbosity)
 
-        from ._group_elem import GroupElemFactory
-
+    def _Owned_part(self) -> "_MeshPart":
+        """The elements this rank owns and the nodes it holds, in global ids, from which `_Assembled` builds the whole mesh."""
         globalNodes = self.globalNodes
-        Nn = int(Reduce_max(int(globalNodes.max(initial=-1)), comm)) + 1
-        coordinates = Gather_rows(globalNodes, self.coord, Nn, comm)
-
-        dict_gathered: dict = {}
+        groups = {}
         for elemType, groupElem in self.__dict_groupElem.items():
             owned = groupElem._ownedElements
-            elements = groupElem._globalElements[owned]
-            Ne = int(Reduce_max(int(elements.max(initial=-1)), comm)) + 1
-            connect = globalNodes[groupElem.connect[owned]]
-            connect = Gather_rows(elements, connect, Ne, comm)
-            if coordinates is not None:
-                dict_gathered[elemType] = GroupElemFactory._Create(
-                    groupElem.gmshId, connect, coordinates
-                )
+            groups[elemType] = (
+                groupElem.gmshId,
+                groupElem._globalElements[owned],
+                globalNodes[groupElem.connect[owned]],
+            )
+        return _MeshPart(globalNodes, self.coord, groups, self.__Get_orders())
 
-        if coordinates is None:
-            return None
-        mesh = Mesh(dict_gathered, self.__verbosity)
-        for problemType, order in self.__Get_orders().items():
+    @staticmethod
+    def _Assembled(parts: list["_MeshPart"], verbosity: bool = False) -> "Mesh":
+        """The whole mesh, numbered by global id, from the owned parts of every rank (`_Owned_part`), those of a live run or of its saved partitions."""
+        from ._group_elem import GroupElemFactory
+
+        Nn = 1 + max(int(part.nodes.max(initial=-1)) for part in parts)
+        coordinates = Place_rows([(part.nodes, part.coord) for part in parts], Nn)
+        dict_groupElem = {}
+        for elemType, (gmshId, *_) in parts[0].groups.items():
+            rows = [part.groups[elemType][1:] for part in parts]
+            Ne = 1 + max(int(elements.max(initial=-1)) for elements, _ in rows)
+            connect = Place_rows(rows, Ne)
+            dict_groupElem[elemType] = GroupElemFactory._Create(
+                gmshId, connect, coordinates
+            )
+        mesh = Mesh(dict_groupElem, verbosity)
+        for problemType, order in parts[0].orders.items():
             mesh.__Set_FunctionSpace(problemType, order)
         return mesh
 

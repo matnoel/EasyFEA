@@ -54,6 +54,10 @@ This document describes the changes made to the project.
   per rank before (`_rank{r}` files) are no longer read; serial runs still are.
   `Mesh.Save` of a partitioned mesh writes `folder/Rank{r}/filename.pickle` (was
   `filename_rank{r}.pickle`).
+- A serial `Load_Simu` of a run saved over N ranks reads its N `Rank{r}/` folders and
+  returns the whole simulation. After `_Gather`, `Set_Iter` reads every saved iteration
+  whole, memory and folder, so `Movie_simu` works; `_Gather` and the serial read build
+  the whole mesh with one function.
 
 ## 7.3.0 (November 13, 2026):
 

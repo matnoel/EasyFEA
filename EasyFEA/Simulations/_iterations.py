@@ -132,11 +132,13 @@ class DofRows(NamedTuple):
     """The owned rows of its nodes."""
     dof_n: int
     space: _FunctionSpace
+    nodes: _types.IntArray
+    """The owned nodes, in the space's node ids."""
 
 
 @dataclass(frozen=True)
-class Partition:
-    """A rank's share of a mesh the ranks share: the rows of its arrays it owns, which a saved iteration holds, and how the others are filled back."""
+class Layout:
+    """How the arrays of a saved iteration lie on a rank's mesh: the rows it owns, which a saved iteration holds, and how the others are filled back; every row of a mesh held whole."""
 
     rank: int
     comm: Any
@@ -147,17 +149,157 @@ class Partition:
     """The space of the mesh nodes."""
     groups: dict[str, tuple[_GroupElem, ElemType]]
     """By ``elemType.value``: the group of the internal variables and the type of its mesh group, its key in a rank's mesh file."""
+    meshGroups: dict[ElemType, _GroupElem]
+    """The main-dimension mesh groups, whose elements hold the dof nodes."""
 
     @property
     def size(self) -> int:
         return self.comm.Get_size()
 
 
+class Anchors(NamedTuple):
+    """An element holding each of some nodes of a space, by which they are found on another mesh of the same elements whatever its node numbering."""
+
+    elemTypes: tuple[ElemType, ...]
+    groups: _types.IntArray
+    """The position of each node's mesh group in `elemTypes`."""
+    elements: _types.IntArray
+    """The global id of its element."""
+    columns: _types.IntArray
+    """Its column in the element's connect."""
+
+
+class Share(NamedTuple):
+    """Where a rank's owned rows of a saved iteration go in the whole mesh: a dof node by an element holding it, a mesh node and an element by global id."""
+
+    dofs: dict[str, Anchors]
+    nodes: _types.IntArray
+    elements: dict[str, _types.IntArray]
+    """By ``elemType.value``."""
+
+
+class Rows(NamedTuple):
+    """The rows of the whole mesh a rank owns, those its saved iterations hold, in their order."""
+
+    dofs: dict[str, _types.IntArray]
+    """The dof-node rows of each dof field."""
+    nodes: _types.IntArray
+    elements: dict[str, _types.IntArray]
+    """By ``elemType.value``."""
+
+
+class Pieces(NamedTuple):
+    """The whole mesh of a run saved over the ranks, and the rows each rank owns of it: how an iteration saved over the ranks reads whole."""
+
+    whole: Layout
+    rows: list[Rows]
+
+
+def Share_of(layout: Layout) -> Share:
+    """Where the rows `layout` owns go in the whole mesh."""
+    groups = layout.meshGroups
+    anchors: dict[int, Anchors] = {}
+    for d in layout.dofs.values():
+        if id(d.space) not in anchors:
+            anchors[id(d.space)] = _Anchors(d.space, groups, d.nodes)
+    return Share(
+        {name: anchors[id(d.space)] for name, d in layout.dofs.items()},
+        layout.nodeSpace.globalNodes[layout.nodes],
+        {
+            key: group._globalElements[group._ownedElements]
+            for key, (group, _) in layout.groups.items()
+        },
+    )
+
+
+def Rows_in(share: Share, whole: Layout) -> Rows:
+    """The rows of `whole`, a whole mesh, where those of `share` go."""
+    return Rows(
+        {
+            name: whole.dofs[name].space.Get_dofs(
+                _Anchored(anchors, whole.dofs[name].space, whole.meshGroups), 1
+            )
+            for name, anchors in share.dofs.items()
+        },
+        share.nodes,
+        share.elements,
+    )
+
+
+def Placed(parts: list[tuple[str, Rows, Iteration]], whole: Layout) -> Iteration:
+    """The iteration on `whole`, a whole mesh, from every rank's owned rows (`Owned`), each labelled for the error raised when its rows are not the rank's."""
+
+    def place(kind: str, size: int, rows: list, values: list) -> Any:
+        placed = np.zeros_like(values[0], shape=(size, *values[0].shape[1:]))
+        for (label, _, _), ids, values_r in zip(parts, rows, values):
+            _Check_rows(label, kind, values_r.shape[0], ids.size)
+            placed[ids] = values_r
+        return placed
+
+    first = parts[0][2]
+    dofs = {}
+    for name in first["dofs"]:
+        dof_n, space = whole.dofs[name].dof_n, whole.dofs[name].space
+        dofs[name] = place(
+            f"dof field {name}",
+            space.Nn,
+            [rows.dofs[name] for _, rows, _ in parts],
+            [owned["dofs"][name].reshape(-1, dof_n) for _, _, owned in parts],
+        ).ravel()
+    nodal = {
+        name: place(
+            f"external variable {name}",
+            whole.nodeSpace.Nn,
+            [rows.nodes for _, rows, _ in parts],
+            [owned["nodal"][name] for _, _, owned in parts],
+        )
+        for name in first["nodal"]
+    }
+    quadrature = {
+        key: {
+            name: place(
+                f"internal variable {key}/{name}",
+                whole.groups[key][0].Ne,
+                [rows.elements[key] for _, rows, _ in parts],
+                [owned["quadrature"][key][name] for _, _, owned in parts],
+            )
+            for name in fields
+        }
+        for key, fields in first["quadrature"].items()
+    }
+    return {"scalars": {}, "dofs": dofs, "nodal": nodal, "quadrature": quadrature}
+
+
+def _Anchors(
+    space: _FunctionSpace, groups: dict[ElemType, _GroupElem], nodes: _types.IntArray
+) -> Anchors:
+    group, element, column = (np.full(space.Ncoords, -1) for _ in range(3))
+    for g, groupElem in enumerate(groups.values()):
+        connect = space.Get_connect(groupElem)
+        group[connect] = g
+        element[connect] = groupElem._globalElements[:, None]
+        column[connect] = np.arange(connect.shape[1])
+    assert (group[nodes] >= 0).all(), "A dof node lies on no main-dimension element."
+    return Anchors(tuple(groups), group[nodes], element[nodes], column[nodes])
+
+
+def _Anchored(
+    anchors: Anchors, space: _FunctionSpace, groups: dict[ElemType, _GroupElem]
+) -> _types.IntArray:
+    """The node ids of `space` on the whole mesh of `groups` that `anchors` point at."""
+    nodes = np.empty(anchors.groups.size, dtype=int)
+    for g, elemType in enumerate(anchors.elemTypes):
+        isIn = anchors.groups == g
+        connect = space.Get_connect(groups[elemType])
+        nodes[isIn] = connect[anchors.elements[isIn], anchors.columns[isIn]]
+    return nodes
+
+
 def Append(
     entries: list[Entry],
     snapshot: Iteration,
     folder: str,
-    partition: Partition | None,
+    partition: Layout | None,
 ) -> None:
     """Stores `snapshot` in memory if `folder` is empty, else in a pickle there without its scalars, kept in rank 0's entry; over a partition, its owned rows in ``Rank{r}/``, collective."""
     scalars = copy.deepcopy(snapshot["scalars"])
@@ -174,7 +316,7 @@ def Write_memory(
     entries: list[Entry],
     folder: str,
     comm,
-    partition_of: Callable[[int], Partition | None],
+    partition_of: Callable[[int], Layout | None],
 ) -> None:
     """Writes the iterations kept in memory to `folder` as `Append` would have, each over the partition of its mesh index; collective on `comm`."""
     for index in range(len(entries)):
@@ -192,22 +334,33 @@ def Get(
     index: int,
     folder: str,
     scalars: dict[str, Any],
-    partition: Partition | None,
+    partition: Layout | None,
+    pieces: Pieces | None,
 ) -> Iteration:
-    """A copy of the iteration at `index` with `scalars`, read from the folder it was written in, else from `folder` for a moved run; over a partition, collective: the ghost rows from their owners."""
+    """A copy of the iteration at `index` with `scalars`, read from the folder it was written in, else from `folder` for a moved run; over a partition, collective: the ghost rows from their owners; on a whole mesh, one saved over the ranks placed from `pieces`."""
     entry = _Entry_at(entries, index)
-    ranks = None if partition is None else partition.size
-    if entry.ranks != ranks:
+    if partition is not None and entry.ranks != partition.size:
         raise ValueError(
-            f"Iteration {index} was saved over {entry.ranks or 1} rank(s) and reads on as many, here {ranks or 1}."
+            f"Iteration {index} was saved over {entry.ranks or 1} rank(s) and reads on as many or serially, here {partition.size}."
         )
     if isinstance(entry.file, dict):
+        assert partition is not None or entry.ranks is None, (
+            f"Iteration {index} holds a rank's rows in memory."
+        )
         arrays = copy.deepcopy(entry.file)
-    elif partition is None:
+    elif entry.ranks is None:
         path = _Results_path(entry.folder, entry.file)
         if not Folder.Exists(path):
             path = _Results_path(folder, entry.file)
         arrays = _Load(path)
+    elif partition is None:
+        if pieces is None or len(pieces.rows) != entry.ranks:
+            raise ValueError(
+                f"Iteration {index} was saved over {entry.ranks} ranks, whose meshes this simulation lacks: gather or load it again."
+            )
+        own = Folder.Join(_Rank_dir(entry.folder, 0), "Results", entry.file)
+        written = entry.folder if Folder.Exists(own) else folder
+        arrays = _Read_pieces(written, entry.file, pieces)
     else:
         own = Folder.Join(
             _Rank_dir(entry.folder, partition.rank), "Results", entry.file
@@ -216,6 +369,46 @@ def Get(
         written = entry.folder if all(isThere) else folder
         arrays = _Read(written, entry.file, scalars["indexMesh"], partition)
     return {**arrays, "scalars": scalars}
+
+
+def Place_memory(
+    entries: list[Entry],
+    owned: list[dict[int, Iteration]],
+    pieces_of: Callable[[int], Pieces],
+) -> None:
+    """Rank 0's entries kept in memory, each set whole from every rank's owned rows (`Owned_memory`)."""
+    for index, iteration in owned[0].items():
+        entry = _Entry_at(entries, index)
+        assert entry.scalars is not None
+        pieces = pieces_of(entry.scalars["indexMesh"])
+        parts = [
+            (f"rank {r}", rows, part[index])
+            for r, (rows, part) in enumerate(zip(pieces.rows, owned))
+        ]
+        arrays = Placed(parts, pieces.whole)
+        entries[index] = Entry("", arrays, None, entry.scalars)
+
+
+def Owned_memory(
+    entries: list[Entry], comm, layout_of: Callable[[int], Layout]
+) -> dict[int, Iteration]:
+    """The owned rows of each iteration kept in memory over the ranks, by index; collective on `comm`."""
+    owned = {}
+    for index in range(len(entries)):
+        entry = _Entry_at(entries, index)
+        if isinstance(entry.file, dict) and entry.ranks is not None:
+            layout = layout_of(Get_scalars(entries, index, comm)["indexMesh"])
+            owned[index] = Owned(entry.file, layout)
+    return owned
+
+
+def _Read_pieces(folder: str, file: str, pieces: Pieces) -> Iteration:
+    """The iteration written to ``folder/Rank{r}/Results/file`` by every rank, placed whole."""
+    parts = []
+    for r, rows in enumerate(pieces.rows):
+        path = Folder.Join(_Rank_dir(folder, r), "Results", file)
+        parts.append((path, rows, _Load(path)))
+    return Placed(parts, pieces.whole)
 
 
 def Get_scalars(entries: list[Entry], index: int, comm) -> dict[str, Any]:
@@ -229,7 +422,7 @@ def Get_scalars(entries: list[Entry], index: int, comm) -> dict[str, Any]:
 def _Entry_of(
     folder: str,
     file: "str | Iteration",
-    partition: Partition | None,
+    partition: Layout | None,
     scalars: dict[str, Any],
 ) -> Entry:
     if partition is None:
@@ -237,15 +430,19 @@ def _Entry_of(
     return Entry(folder, file, partition.size, scalars if partition.rank == 0 else None)
 
 
-def _Write(
-    arrays: Iteration, folder: str, file: str, partition: Partition | None
-) -> None:
+def _Write(arrays: Iteration, folder: str, file: str, partition: Layout | None) -> None:
     """Pickles `arrays` to ``folder/Results/file``; over a partition, the owned rows to ``folder/Rank{r}/Results/file``, then waits for every rank, raising on all if one failed."""
     if partition is None:
         _Dump(arrays, _Results_path(folder, file, mkdir=True))
         return
-    p = partition
-    owned: Iteration = {
+    path = Folder.Join(_Rank_dir(folder, partition.rank), "Results", file, mkdir=True)
+    _Collectively(partition.comm, _Dump, Owned(arrays, partition), path)
+
+
+def Owned(arrays: Iteration, layout: Layout) -> Iteration:
+    """The rows of `arrays` that `layout` owns, without scalars."""
+    p = layout
+    return {
         "scalars": {},
         "dofs": {
             name: values.reshape(-1, p.dofs[name].dof_n)[p.dofs[name].rows].ravel()
@@ -260,11 +457,9 @@ def _Write(
             for elemType, fields in arrays["quadrature"].items()
         },
     }
-    path = Folder.Join(_Rank_dir(folder, p.rank), "Results", file, mkdir=True)
-    _Collectively(p.comm, _Dump, owned, path)
 
 
-def _Read(folder: str, file: str, indexMesh: int, partition: Partition) -> Iteration:
+def _Read(folder: str, file: str, indexMesh: int, partition: Layout) -> Iteration:
     """The rank's arrays of the iteration written to ``folder/Rank{r}/Results/file``: the owned rows from its file, the ghost nodes by scatter, the ghost elements from their owners' files, found in their mesh files. Collective, raising on every rank if one cannot read its rows."""
     p = partition
     arrays = _Collectively(p.comm, _Read_rows, folder, file, indexMesh, p)
@@ -275,7 +470,7 @@ def _Read(folder: str, file: str, indexMesh: int, partition: Partition) -> Itera
     return arrays
 
 
-def _Read_rows(folder: str, file: str, indexMesh: int, p: Partition) -> Iteration:
+def _Read_rows(folder: str, file: str, indexMesh: int, p: Layout) -> Iteration:
     """The rank's arrays of the iteration, its ghost nodes still zero; raises if a file holds the rows of another partition."""
     path = Folder.Join(_Rank_dir(folder, p.rank), "Results", file)
     own: Iteration = _Load(path)
@@ -288,7 +483,7 @@ def _Read_rows(folder: str, file: str, indexMesh: int, p: Partition) -> Iteratio
 
     dofs: dict[str, _types.FloatArray] = {}
     for name, values_f in own["dofs"].items():
-        rows, dof_n, space = p.dofs[name]
+        rows, dof_n, space, _ = p.dofs[name]
         values_f = values_f.reshape(-1, dof_n)
         dofs[name] = place(f"dof field {name}", values_f, rows, space.Nn).ravel()
 

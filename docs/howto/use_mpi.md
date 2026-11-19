@@ -186,7 +186,9 @@ Iteration results will then be saved in `path/to/folder/Rank{r}/Results` as
 (`path/to/folder/Rank{r}/simulation.pickle`), each rank holding its own partition, with
 the iterations kept in memory. Under `mpirun` on as many ranks,
 {py:func}`~EasyFEA.Simulations.Load_Simu` gives each rank its partition back, so a run
-resumes where it was saved; on another rank count it raises.
+resumes where it was saved; on another rank count it raises. Serially, it reads every
+`Rank{r}/` folder and returns the whole simulation: `Result`, `Set_Iter`, Matplotlib and
+PyVista work on the whole mesh, e.g. on a laptop after a cluster run.
 
 ### Phase-field convergence
 
@@ -286,8 +288,10 @@ if MPI_RANK == 0:
 ```
 
 Rank 0 receives the current state placed by global id: u, v, a of each problem, the
-internal and nodal external variables, and the heterogeneous parameters (one value per
-element); it then runs as a serial simulation.
+internal and nodal external variables, the heterogeneous parameters (one value per
+element) and the iterations kept in memory; it then runs as a serial simulation.
+`Set_Iter` reads every saved iteration whole, those written to a folder from every
+`Rank{r}/Results/` file, so `Movie_simu` works after `_Gather`.
 
 Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for
 in-memory post-processing within the script, and to avoid spawning multiple figures or

@@ -139,16 +139,12 @@ def Gather(value, comm) -> list | None:
     return comm.gather(value, root=0)
 
 
-def Gather_rows(
-    ids: np.ndarray, values: np.ndarray, size: int, comm
-) -> np.ndarray | None:
-    """On rank 0 of `comm`, every rank's `values` at their rows `ids` of an array like them of `size` rows (rank 0's `size` counts); None on the others."""
-    parts = Gather((ids, values), comm)
-    if parts is None:
-        return None
+def Place_rows(parts: list[tuple[np.ndarray, np.ndarray]], size: int) -> np.ndarray:
+    """An array of `size` rows holding each part's values at its rows: ``[(ids, values), ...]``."""
+    values = parts[0][1]
     placed = np.zeros_like(values, shape=(size, *values.shape[1:]))
-    for ids_r, values_r in parts:
-        placed[ids_r] = values_r
+    for ids, values in parts:
+        placed[ids] = values
     return placed
 
 
