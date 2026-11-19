@@ -19,14 +19,14 @@ from ..Utilities._mpi import (
     Reduce_max,
     Reduce_sum,
 )
-from ._terms import Same_provenance
+from ._terms import Same_contributions, _Contribution
 
 
 class _Slot(NamedTuple):
-    """One assembled K, C, M or F: its csr map key, what it was folded from, the matrix."""
+    """One assembled K, C, M or F: its csr map key, its contributions, the matrix."""
 
     key: tuple
-    provenance: list
+    contributions: list[_Contribution]
     matrix: sparse.csr_matrix
 
 
@@ -66,10 +66,13 @@ class _LinearSystem:
         self.__solverStamps: tuple[int, int, int] | None = None
 
     def __getstate__(self) -> dict:
-        # PETSc objects and graph communicators do not pickle; a copy assembles into its own slots
+        # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy assembles into its own slots
         return {
             **self.__dict__,
-            "_LinearSystem__slots": dict(self.__slots),
+            "_LinearSystem__slots": {
+                slot: kept._replace(contributions=[])
+                for slot, kept in self.__slots.items()
+            },
             "_LinearSystem__exchange": None,
             "_LinearSystem__solver": None,
             "_LinearSystem__solverStamps": None,
@@ -132,15 +135,16 @@ class _LinearSystem:
         self,
         slot: str,
         key: tuple,
-        provenance: list,
+        contributions: list[_Contribution],
         assemble: Callable[[], sparse.csr_matrix],
     ) -> sparse.csr_matrix:
-        """The slot's matrix, assembled again unless folded from the same cached arrays on the same map; a new K, C or M dirties A, its pattern too on a new map."""
+        """The slot's matrix, assembled again unless a K, C or M of the same cached arrays on the same map; a new K, C or M dirties A, its pattern too on a new map."""
         old = self.__slots.get(slot)
         if (
-            old is not None
+            slot != "F"
+            and old is not None
             and old.key == key
-            and Same_provenance(old.provenance, provenance)
+            and Same_contributions(old.contributions, contributions)
         ):
             return old.matrix
         matrix = assemble()
@@ -148,7 +152,7 @@ class _LinearSystem:
             self.__valuesDirty = True
             if old is None or old.key != key:
                 self.__patternDirty = True
-        self.__slots[slot] = _Slot(key, provenance, matrix)
+        self.__slots[slot] = _Slot(key, contributions, matrix)
         return matrix
 
     def Get_K_C_M_F(

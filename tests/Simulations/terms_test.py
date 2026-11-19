@@ -50,8 +50,14 @@ def Simu() -> Simulations.Thermal:
     return Simulations.Thermal(mesh, Models.Thermal(1, 1))
 
 
-def Fold(slots: str, fn) -> dict:
+def Fold(slots: str, fn) -> list:
     return Fold_terms(Simu(), [Term(slots, fn)])
+
+
+def Array(fold: list, slot: str, block=None) -> np.ndarray:
+    """The one array of `fold` in `slot` (and `block`)."""
+    (array,) = [c.array for c in fold if c.slot == slot and block in (None, c.block)]
+    return array
 
 
 def _inclusion_mesh() -> Mesh:
@@ -266,30 +272,42 @@ def test_Fold_terms_rejects_the_reversed_order():
 def test_Fold_terms_sums_tagged_masses_to_the_whole_one():
     mesh = _inclusion_mesh()
     simu = Simulations.Thermal(mesh, Models.Thermal(1, 1))
-    groupElem = mesh.groupElem
-    pt = simu.problemType
 
     def Mass(*tags: str) -> float:
         terms = [Term("M", Operators.Bilinear.UV, tag=tag) for tag in tags]
-        return Fold_terms(simu, terms)["M"][(pt, pt)][groupElem].sum()
+        fold = Fold_terms(simu, terms)
+        return sum(c.array.sum() for c in fold if c.slot == "M")
 
     assert np.isclose(Mass("S0", "S1"), Mass(None))
     assert np.isclose(Mass(None), mesh.area)
 
 
-def test_Fold_terms_sends_an_internal_force_to_F_negated():
+def test_Fold_terms_keeps_each_array_unsummed_by_reference():
     simu = Simu()
+    arrays = {}
 
     def Force(groupElem):
-        return One_array(groupElem), np.ones((groupElem.Ne, groupElem.nPe))
+        arrays["K"], arrays["R"] = One_array(groupElem), One_vector(groupElem) + 1
+        return arrays["K"], arrays["R"]
 
     pt = simu.problemType
-    local = Fold_terms(simu, [Term("KR", Force)])
-    K_e = local["K"][(pt, pt)][simu.mesh.groupElem]
-    F_e = local["F"][pt][simu.mesh.groupElem]
+    fold = Fold_terms(simu, [Term("KR", Force)])
 
-    assert np.all(F_e == -1.0)
-    assert np.all(K_e == 0.0)
+    assert [(c.slot, c.block, c.group) for c in fold] == [
+        ("K", (pt, pt), simu.mesh.groupElem),
+        ("R", (pt, pt), simu.mesh.groupElem),
+    ]
+    assert all(c.array is arrays[c.slot] for c in fold)
+    assert all(c.coef == simu.thickness for c in fold)
+
+
+def test_Fold_terms_keeps_the_cached_array_of_a_constant_term():
+    simu = Simu()
+    term = Term("M", Operators.Bilinear.UV, constant=True)
+
+    first, again = (Array(Fold_terms(simu, [term]), "M") for _ in range(2))
+
+    assert again is first
 
 
 def test_Fold_terms_gives_a_single_slot_term_its_residual_when_nonlinear(
@@ -305,8 +323,8 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_when_nonlinear(
 
     terms = [Term("K", Operators.Bilinear.GradUGradV)]
     pt = simu.problemType
-    local = Fold_terms(simu, terms)
-    K_e, F_e = local["K"][(pt, pt)][groupElem], local["F"][pt][groupElem]
+    fold = Fold_terms(simu, terms)
+    K_e, F_e = Array(fold, "K"), Array(fold, "F", (pt, pt))
 
     u_e = groupElem.Locates_sol_e(u, 1)
     assert np.abs(F_e).max() > 0
@@ -320,8 +338,7 @@ def test_Fold_terms_hands_operators_the_group_of_the_field_space():
     simu = Simulations.Thermal(meshP2, Models.Thermal(1, 1))
     groupElem = meshP2.groupElem
 
-    pt = simu.problemType
-    K_e = Fold_terms(simu, [Term("K", One_array)])["K"][(pt, pt)][groupElem]
+    K_e = Array(Fold_terms(simu, [Term("K", One_array)]), "K")
 
     assert K_e.shape == (groupElem.Ne, 6, 6)
 
@@ -343,8 +360,8 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
 
     terms = [Term("K", Operators.Bilinear.GradUGradV)]
     pt = simu.problemType
-    local = Fold_terms(simu, terms)
-    K_e, F_e = local["K"][(pt, pt)][groupElem], local["F"][pt][groupElem]
+    fold = Fold_terms(simu, terms)
+    K_e, F_e = Array(fold, "K"), Array(fold, "F", (pt, pt))
 
     u_e = u[space.Get_assembly_e(groupElem, 1)]
     assert space.Nn < meshP1.Nn
@@ -371,9 +388,9 @@ def test_Fold_terms_keys_a_diagonal_fold_by_its_problem_type():
     simu = Simu()
     pt = simu.problemType
 
-    local = Fold_terms(simu, [Term("K", One_array)])
+    fold = Fold_terms(simu, [Term("K", One_array)])
 
-    assert list(local["K"]) == [(pt, pt)]
+    assert [c.block for c in fold] == [(pt, pt)]
 
 
 def test_Fold_terms_routes_each_array_to_its_block():
@@ -384,14 +401,17 @@ def test_Fold_terms_routes_each_array_to_its_block():
         return One_array(groupElem), One_vector(groupElem) + 1, coupling(groupElem)
 
     term = Term("KRK", Spanning, problemTypes=((D, D), D, (D, U)))
-    local = Fold_terms(simu, [term], D)
+    fold = Fold_terms(simu, [term], D)
 
-    assert list(local["K"]) == [(D, D), (D, U)]
-    assert list(local["F"]) == [D]
-    assert np.all(local["K"][(D, D)][groupElem] == 0.0)
-    assert np.all(local["F"][D][groupElem] == -1.0)
-    assert np.array_equal(local["K"][(D, U)][groupElem], coupling(groupElem))
-    assert not local["C"] and not local["M"]
+    assert [(c.slot, c.block) for c in fold] == [
+        ("K", (D, D)),
+        ("R", (D, D)),
+        ("K", (D, U)),
+    ]
+    assert all(c.group is groupElem for c in fold)
+    assert np.all(Array(fold, "K", (D, D)) == 0.0)
+    assert np.all(Array(fold, "R") == 1.0)
+    assert np.array_equal(Array(fold, "K", (D, U)), coupling(groupElem))
 
 
 def test_Fold_terms_places_a_term_in_the_rows_it_declares():
@@ -399,10 +419,10 @@ def test_Fold_terms_places_a_term_in_the_rows_it_declares():
     term = Term("K", coupling, problemTypes=((D, U),))
     groupElem = simu.mesh.groupElem
 
-    local = Fold_terms(simu, [term], U)
+    fold = Fold_terms(simu, [term], U)
 
-    assert np.array_equal(local["K"][(D, U)][groupElem], coupling(groupElem))
-    assert set(local["F"]) <= {D}
+    assert np.array_equal(Array(fold, "K", (D, U)), coupling(groupElem))
+    assert {c.block[0] for c in fold} == {D}
 
 
 def test_Fold_terms_rejects_a_swapped_block():
@@ -444,12 +464,12 @@ def test_Fold_terms_gives_a_single_slot_block_term_the_residual_of_its_column_fi
     monkeypatch.setattr(type(simu), "isNonLinear", True)
     monkeypatch.setattr(simu, "Get_u_v_a", lambda pt=None: (x[pt], None, None))
 
-    local = Fold_terms(simu, [Term("K", coupling, problemTypes=((D, U),))], D)
+    fold = Fold_terms(simu, [Term("K", coupling, problemTypes=((D, U),))], D)
 
-    K_du = local["K"][(D, U)][groupElem]
-    F_d = local["F"][D][groupElem]
+    K_du = Array(fold, "K", (D, U))
+    F_d = Array(fold, "F")
     u_e = groupElem.Locates_sol_e(x[U], 2)
-    assert list(local["F"]) == [D]
+    assert [c.block for c in fold if c.slot == "F"] == [(D, D)]
     assert np.abs(F_d).max() > 0
     assert np.allclose(F_d, -np.einsum("eij,ej->ei", K_du, u_e))
 
@@ -459,9 +479,10 @@ def test_Term_Scaled_keeps_its_blocks():
     groupElem = simu.mesh.groupElem
     term = Term("K", coupling, problemTypes=((D, U),)).Scaled(2.0)
 
-    K_du = Fold_terms(simu, [term], D)["K"][(D, U)][groupElem]
+    (c,) = Fold_terms(simu, [term], D)
 
-    assert np.array_equal(K_du, 2.0 * coupling(groupElem))
+    assert c.coef == 2.0 * simu.thickness
+    assert np.array_equal(c.array, coupling(groupElem))
 
 
 def test_Term__Cached_keys_the_blocks():

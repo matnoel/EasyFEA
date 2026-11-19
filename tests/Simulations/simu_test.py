@@ -27,6 +27,7 @@ from EasyFEA import (
 )
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
+from EasyFEA.Simulations import Fold_terms
 from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
 from EasyFEA.Utilities import MPI_SIZE
 
@@ -424,20 +425,21 @@ def test_Simu_Get_terms_of_Elastic_are_its_stiffness_mass_and_damping():
     assert [term.scale for term in simu.Get_terms()[2:]] == [0.2, 0.1]
 
 
-def test_Simu__Construct_local_matrix_system_has_one_entry_per_group():
+def test_Simu_Get_terms_folds_to_one_contribution_per_group():
     domain = Domain((0, 0), (120, 13), 6.5)
     mesh = domain.Mesh_2D([], ElemType.QUAD4)
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
 
     pt = simu.problemType
-    local = simu._Construct_local_matrix_system(pt)
-    Ks, Ms = local["K"][(pt, pt)], local["M"][(pt, pt)]
+    fold = Fold_terms(simu, simu.Get_terms(pt), pt)
+    Ks, Ms = ([c for c in fold if c.slot == slot] for slot in "KM")
 
-    assert list(Ks) == list(Ms) == mesh.Get_list_groupElem(2)
-    for groupElem in Ks:
-        n = groupElem.nPe * 2
-        assert Ks[groupElem].shape == Ms[groupElem].shape == (groupElem.Ne, n, n)
-    assert not local["C"] and not local["F"]
+    assert [c.group for c in Ks] == [c.group for c in Ms] == mesh.Get_list_groupElem(2)
+    for c in Ks + Ms:
+        n = c.group.nPe * 2
+        assert c.block == (pt, pt)
+        assert c.array.shape == (c.group.Ne, n, n)
+    assert {c.slot for c in fold} == {"K", "M"}
 
 
 def test_Simu_Save_Iter_pins_memory_or_disk_per_entry(tmp_path):
@@ -1089,6 +1091,26 @@ def test_Simu_Assembly_is_what_Get_K_C_M_F_returns():
 
     for matrix, expected in zip(assembled, simu.Get_K_C_M_F()):
         assert (matrix != expected).nnz == 0
+
+
+def test_Simu_Assembly_subtracts_an_internal_force_from_F(monkeypatch):
+    domain = Domain((0, 0), (1, 1))
+    mesh = domain.Mesh_2D()
+    simu = Simulations.Thermal(mesh, Models.Thermal(1, 1))
+
+    def Ones(groupElem):
+        K_e = np.zeros((groupElem.Ne, groupElem.nPe, groupElem.nPe))
+        return K_e, np.ones((groupElem.Ne, groupElem.nPe))
+
+    def F(slots: str) -> np.ndarray:
+        terms = [Simulations.Term(slots, Ones)]
+        monkeypatch.setattr(simu, "Get_terms", lambda problemType=None: terms)
+        return simu.Assembly(simu.problemType)[3].toarray()
+
+    load, force = F("KF"), F("KR")
+
+    assert np.abs(load).max() > 0
+    assert np.array_equal(force, -load)
 
 
 def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():

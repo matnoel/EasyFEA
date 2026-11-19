@@ -348,16 +348,19 @@ changes. So a constant term must get everything it reads through its arguments â
 operator such as `Bilinear.UV` with `coef=self.rho`, never a bound method, which `Term`
 refuses.
 
-To inspect what the fold built, read it by slot, then block, then element group:
+To inspect what the fold built, filter its flat list of contributions, one per term,
+element group and slot, unsummed:
 
 ```python
-local = simu._Construct_local_matrix_system(problemType)
-K_e = local["K"][(rows, cols)][groupElem]
-F_e = local["F"][rows][groupElem]
+from EasyFEA.Simulations import Fold_terms
+
+fold = Fold_terms(simu, simu.Get_terms(problemType), problemType)
+K_es = [c.array for c in fold if c.slot == "K" and c.block == (rows, cols)]
+coefs = [c.coef for c in fold if c.slot == "K"]
 ```
 
 `rows` and `cols` are both `problemType` unless the term's `problemTypes` says
-otherwise, and a slot no term fills is empty.
+otherwise; `c.coef` (thickness times the term's scale) is not applied to `c.array`.
 
 ```{warning}
 A **non-linear** problem needs no special handling here: put the tangent in `K`

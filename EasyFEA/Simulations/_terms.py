@@ -3,10 +3,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into ``{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`` by :func:`Fold_terms`."""
+r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into a flat list of :class:`_Contribution` by :func:`Fold_terms`."""
 
 import copy
 import inspect
+from dataclasses import dataclass
 from typing import Any, Callable, TYPE_CHECKING
 
 import numpy as np
@@ -31,22 +32,35 @@ else:
 _Block = tuple["ProblemType", "ProblemType"]
 """``(rows, cols)``: the field a contribution tests, and the field it is differentiated by."""
 
-_LocalSystem = dict[str, dict["_Block | ProblemType", dict["_GroupElem", np.ndarray]]]
-"""What :func:`Fold_terms` returns, by slot then block then group: a matrix's block is ``(rows, cols)``, a vector's its ``rows``."""
+
+@dataclass(frozen=True, slots=True, eq=False)
+class _Contribution:
+    """One unsummed array a term evaluated to, for one slot on one group."""
+
+    slot: str
+    """one of ``KCMFR``"""
+    block: _Block
+    """``(rows, cols)``; a vector's cols are its rows"""
+    group: "_GroupElem"
+    array: np.ndarray
+    """the operator's own, a cached one by reference: never written into"""
+    coef: float
+    """thickness·scale, applied by the reader"""
+    term: "Term"
+
+    def Scaled(self) -> np.ndarray:
+        """``coef·array``, negated for an ``R``: an internal force opposes the load. Always a new array."""
+        return (-self.coef if self.slot == "R" else self.coef) * self.array
 
 
-class _Folded(_LocalSystem):
-    """A :data:`_LocalSystem` with what fed each ``K``, ``C`` and ``M`` slot, in fold order: a cached array with its coefficient, block and group, or None for a non-constant term."""
-
-    def __init__(self) -> None:
-        super().__init__(K={}, C={}, M={}, F={})
-        self.provenance: dict[str, list] = {"K": [], "C": [], "M": []}
-
-
-def Same_provenance(a: list, b: list) -> bool:
-    """Whether two slots were folded from the same cached arrays, coefficients, blocks and groups, and from no non-constant term."""
+def Same_contributions(a: list[_Contribution], b: list[_Contribution]) -> bool:
+    """Whether the ``K``, ``C`` and ``M`` contributions of `a` and `b` are the same cached arrays, coefficients, blocks and groups, every term constant."""
+    a, b = ([c for c in fold if c.slot in "KCM"] for fold in (a, b))
     return len(a) == len(b) and all(
-        x is not None and y is not None and x[0] is y[0] and x[1:] == y[1:]
+        x.term.constant
+        and y.term.constant
+        and x.array is y.array
+        and (x.slot, x.block, x.group, x.coef) == (y.slot, y.block, y.group, y.coef)
         for x, y in zip(a, b)
     )
 
@@ -83,7 +97,7 @@ def _Same(a: Any, b: Any) -> bool:
 class Term:
     r"""One operator, declared: where its arrays go, what it integrates over, what it is called with.
 
-    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` accumulates into ``{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}``, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
+    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` lists, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
     ``slots`` names where the returned arrays go — one letter of ``KCMFR`` per array, in order, so an operator returning two arrays takes exactly two letters. Slots *route* arrays; they never copy one into several, so ``"KC"`` on an operator returning a single matrix is an error, not a request to damp with the stiffness::
 
@@ -345,12 +359,12 @@ def Fold_terms(
     simu: "_Simu",
     terms: list[Term],
     problemType: "ProblemType | None" = None,
-) -> _LocalSystem:
-    r"""Folds `terms` into the local matrix system ``{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}``; a slot no term fills stays empty.
+) -> list[_Contribution]:
+    r"""Every contribution of `terms`, unsummed, in term then group then slot order; filter it by slot, block or group.
 
-    Contributions **accumulate**: several terms may target one group, and each fills only the slots it declares. Every contribution is scaled by :py:attr:`_Simu.thickness`, so operators stay free of simulation-level geometry.
+    Each carries :py:attr:`_Simu.thickness` times the term's scale as its ``coef``, so operators stay free of simulation-level geometry; a vector's block is ``(rows, rows)``.
 
-    In a nonlinear simulation a **single-slot** term also contributes its own residual — :math:`-\Krm_e \, \mathrm{u}_t`, :math:`-\Crm_e \, \vrm_t`, :math:`-\Mrm_e \, \arm_t`, with the field of its columns, into its rows' ``F``. A single slot means the contribution is linear in its field, so that product *is* its residual. Multi-slot terms return their own force and are never given one.
+    In a nonlinear simulation a **single-slot** term also contributes its own residual as an ``F`` contribution — :math:`-\Krm_e \, \mathrm{u}_t`, :math:`-\Crm_e \, \vrm_t`, :math:`-\Mrm_e \, \arm_t`, with the field of its columns, into its rows. A single slot means the contribution is linear in its field, so that product *is* its residual. Multi-slot terms return their own force and are never given one.
     """
 
     if problemType is None:
@@ -374,88 +388,61 @@ def Fold_terms(
         simu.Get_dof_n(problemType),
     )
 
-    out = _Folded()
-
-    def Add(
-        slot: str,
-        block: "_Block | ProblemType",
-        groupElem: "_GroupElem",
-        contribution: np.ndarray,
-    ) -> None:
-        groups = out[slot].setdefault(block, {})
-        if groupElem in groups:
-            contribution = groups[groupElem] + contribution
-        groups[groupElem] = contribution
+    out: list[_Contribution] = []
 
     for term in terms:
         blocks = term._Get_blocks(problemType)
         isDiagonal = all(block == diagonal for block in blocks)
         fields = tuple(dict.fromkeys(field for block in blocks for field in block))
+        coef = thickness * term.scale
 
         # operators see each field's own group: P2 u on TETRA4 integrates on TETRA10
         for groupElem, *spaceGroups in term._Get_field_groups(simu, fields):
             if term.constant:
-                contributions = term._Cached(simu, groupElem, spaceGroups, blocks)
+                arrays = term._Cached(simu, groupElem, spaceGroups, blocks)
             else:
-                contributions = term._Evaluate(
+                arrays = term._Evaluate(
                     groupElem, u_t if isDiagonal else None, spaceGroups
                 )
-            if not isinstance(contributions, tuple):
-                contributions = (contributions,)
-            if len(contributions) != len(term.slots):
+            if not isinstance(arrays, tuple):
+                arrays = (arrays,)
+            if len(arrays) != len(term.slots):
                 raise ValueError(
                     f"{term!r} declares {len(term.slots)} slot(s) but the operator returned "
-                    f"{len(contributions)} array(s). One slot per returned array — slots route "
+                    f"{len(arrays)} array(s). One slot per returned array — slots route "
                     "arrays, they do not copy one into several."
                 )
 
-            own = None  # this term's own matrix contribution, for its residual
+            own = None  # this group's K, C or M, for its residual
 
-            for slot, block, contribution in zip(term.slots, blocks, contributions):
-                if contribution is None:
+            for slot, block, array in zip(term.slots, blocks, arrays):
+                if array is None:
                     continue
-                _Check_rank(term, slot, contribution)
-                _Check_shape(
-                    term,
-                    slot,
-                    block,
-                    contribution,
-                    groupElem,
-                    simu,
-                )
-                coef = thickness * term.scale
-                if slot in out.provenance:
-                    out.provenance[slot].append(
-                        (contribution, coef, block, groupElem)
-                        if term.constant
-                        else None
-                    )
-                # always allocates, so a cached `constant=True` array is never written into
-                contribution = coef * contribution
-                if slot == "R":  # an internal force opposes the right-hand side
-                    Add("F", block[0], groupElem, -contribution)
-                elif slot == "F":
-                    Add("F", block[0], groupElem, contribution)
-                else:
-                    Add(slot, block, groupElem, contribution)
-                    own = contribution
+                _Check_rank(term, slot, array)
+                _Check_shape(term, slot, block, array, groupElem, simu)
+                out.append(_Contribution(slot, block, groupElem, array, coef, term))
+                if slot in "KCM":
+                    own = out[-1]
 
-            # from `own`, never the accumulated slot: two terms may fill one slot on one group
             if isNonLinear and len(term.slots) == 1 and own is not None:
-                cols = blocks[0][1]
+                rows, cols = own.block
                 residual = _Residual(
                     term,
                     groupElem,
-                    own,
+                    own.array,
                     Iterates(cols),
                     simu._Get_FunctionSpace(cols),
                     simu.Get_dof_n(cols),
                 )
                 if residual is not None:
-                    Add("F", blocks[0][0], groupElem, residual)
+                    out.append(
+                        _Contribution(
+                            "F", (rows, rows), groupElem, residual, coef, term
+                        )
+                    )
 
             # not held through the next term's evaluation
-            del contributions, contribution, own
+            del arrays, own
 
     return out
 

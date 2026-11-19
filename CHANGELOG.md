@@ -85,6 +85,12 @@ This document describes the changes made to the project.
   the scheme class:
   `Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.HHT, alpha=0.1)`; invalid
   parameters are refused when set. `AlgoType` and `simu.algo` are removed.
+- `Fold_terms` returns a flat list of contributions, unsummed: each with its `slot`
+  (`KCMFR`), `block` `(rows, cols)`, `group`, `array` (a constant term's cached array,
+  never copied) and `coef` (thickness times the term's scale). Filter it by slot, block
+  or group; an `R` stays in `R`, negated into `F` by `Assembly`.
+- `_Construct_local_matrix_system` is removed: `Get_terms` is the only extension point
+  of assembly.
 
 ## 7.3.0 (November 13, 2026):
 

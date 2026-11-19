@@ -57,7 +57,7 @@ from ..Models import _IModel
 # simu
 from ._problem_type import ProblemType
 from . import _iterations
-from ._terms import Term, Fold_terms, _Folded, _LocalSystem
+from ._terms import Term, Fold_terms, _Contribution
 from ._linear_system import _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from .Solvers import (
@@ -405,24 +405,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             def Get_terms(self, problemType=None):
                 return [Term("K", Operators.Bilinear.GradUGradV, coef=self.thermalModel.k)]
 
-        Subclasses compose with ``super().Get_terms(problemType) + [...]``, which is also how a simulation is extended. Return ``[]`` when overriding :py:meth:`_Construct_local_matrix_system` instead, or when another problem's term fills this equation's rows.
+        Subclasses compose with ``super().Get_terms(problemType) + [...]``, the only way to extend assembly. Return ``[]`` when another problem's term fills this equation's rows.
         """
         return []
-
-    def _Construct_local_matrix_system(
-        self, problemType: ProblemType | None
-    ) -> _LocalSystem:
-        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of the given problem's equation, returned per slot, per block and per contributing group of elements `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`; a term may fill the rows of another field of the monolithic problem.
-
-        Folds :py:meth:`Get_terms` for this problem. Override it only for a simulation whose assembly is not expressible as a term list, in which case :py:meth:`Get_terms` returns ``[]``.
-
-        For a **linear** problem :math:`\Frm` is the load alone: :py:meth:`_Solver_Apply_Neumann` moves :math:`\mathrm{u}^n, \vrm^n, \arm^n` to the right-hand side with the history terms of the active time scheme.
-
-        For a **nonlinear** problem the unknown is :math:`\Delta \mathrm{u}`, so :math:`\Frm_e` is the complete residual :math:`-\Rrm_e`, inertia and damping included (:math:`-\Crm_e \, \vrm_t - \Mrm_e \, \arm_t`, with :math:`\vrm_t, \arm_t` from :py:meth:`Get_u_v_a`).
-        """
-        if problemType is None:
-            problemType = self.problemType
-        return Fold_terms(self, self.Get_terms(problemType), problemType)
 
     # Iterations
 
@@ -1360,17 +1345,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        local: _LocalSystem = {"K": {}, "C": {}, "M": {}, "F": {}}
-        provenance: dict[str, list] = {"K": [], "C": [], "M": [], "F": [None]}
+        fold: list[_Contribution] = []
         for problemType in problemTypes:
-            folded = self._Construct_local_matrix_system(problemType)
-            for slot, blocks in folded.items():
-                local[slot].update(blocks)
-            for slot in "KCM":
-                # an overridden fold says nothing of its provenance
-                provenance[slot] += (
-                    folded.provenance[slot] if isinstance(folded, _Folded) else [None]
-                )
+            fold += Fold_terms(self, self.Get_terms(problemType), problemType)
+
+        local: dict[str, dict] = {"K": {}, "C": {}, "M": {}, "F": {}}
+        for c in fold:
+            if c.slot in "FR":
+                slot, block = "F", c.block[0]
+            else:
+                slot, block = c.slot, c.block
+            array = c.Scaled()
+            groups = local[slot].setdefault(block, {})
+            groups[c.group] = groups[c.group] + array if c.group in groups else array
 
         for slot in "KCM":
             for rows, cols in local[slot]:
@@ -1410,7 +1397,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 return matrix
 
             key = (tuple(layout), Ndof, contributing)
-            assembled.append(system.Assembled(slot, key, provenance[slot], assemble))
+            contributions = [c for c in fold if c.slot == slot]
+            assembled.append(system.Assembled(slot, key, contributions, assemble))
         K, C, M, F = assembled
 
         return K, C, M, F
