@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
+import copy
 import inspect
 import pickle
 from contextlib import contextmanager
@@ -21,7 +22,6 @@ from ..__about__ import __version__
 from ..Utilities import Folder, Terminal, Tic, _params, _types
 from ..Utilities._cache import (
     cache_computed_values,
-    cached_computed_values,
     clear_cached_computed_values,
 )
 from ..Utilities._observers import Observable, _IObserver
@@ -30,13 +30,10 @@ from ..Utilities._mpi import (
     MPI_SIZE,
     Bcast,
     MPI_RANK,
-    Exchange,
     Gather,
     Place_rows,
     Reduce_sum,
-    Reduce_max,
     Owned,
-    Build_exchange,
     Scatter_forward,
 )
 
@@ -69,8 +66,6 @@ from .Solvers import (
     ResolType,
     CAN_USE_PYPARDISO,
     _Get_PETSc,
-    _PETSc_Free,
-    _Numbering,
 )
 
 
@@ -275,13 +270,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problems have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
         assert len(self._Get_monolithic_problems()) == 1, error
 
+        problem = self._Get_monolithic_problem(problemType)
         if self.needUpdate:
-            self.__K, self.__C, self.__M, self.__F = self.Assembly(
-                self._Get_monolithic_problem(problemType)
-            )
+            self.Assembly(problem)
             self.Need_Update(False)
 
-        return self.__K, self.__C, self.__M, self.__F
+        return self._Get_linear_system(problem).Get_K_C_M_F()
 
     def Calc_Energy(
         self,
@@ -360,7 +354,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         reaction = np.zeros(size, dtype=float)
         reaction[owned] = self.__Get_reaction(owned, problemType)
         # a ghost row from its owner
-        Scatter_forward(reaction, self._Get_dof_exchange(problemType))
+        self._Get_linear_system(problemType).Scatter_forward(reaction, self.mesh.comm)
 
         return reaction[dofs]
 
@@ -776,11 +770,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__pinnedFields: set[ProblemType] = set()
         """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
-        self._petscSolvers: dict[ProblemType | tuple[ProblemType, ...], tuple] = {}
-        self.__dofExchanges: dict[ProblemType | tuple[ProblemType, ...], tuple] = {}
-        """`(mesh, exchange)` per problem; not pickled."""
-        """`(ksp, matrix, numbering, A)` per problem, A the last one filled, kept between solves; not pickled."""
-
         # Solver used
         if MPI_SIZE > 1:
             if _Get_PETSc() is None:
@@ -986,7 +975,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return
 
         # rank 0 turns serial: its solvers on the world comm are freed while every rank is here
-        _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
+        self.__Free_solvers()
 
         comm = self.mesh.comm
         parts = Gather(self.__Rank_part(), comm)
@@ -1163,11 +1152,39 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """The linear system of a problem key, kept until the mesh changes."""
         system = self.__linearSystems.get(problem)
         if system is None:
-            system = self.__linearSystems[problem] = _LinearSystem()
+            owners, rank = self.__Get_dof_owners(problem)
+            globalIds = None
+            if self.mesh.comm is not None:
+                globalIds = self.__Get_dof_globalIds(problem)
+            system = _LinearSystem(owners, rank, globalIds)
+            self.__linearSystems[problem] = system
         return system
 
+    def __Get_dof_globalIds(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.IntArray:
+        """Global id of each dof of the problem's vector (its fields end to end), unique over the ranks."""
+        fields = self.__Fields(problem)
+        globalIds = []
+        for f, field in enumerate(fields):
+            space = self._Get_FunctionSpace(field)
+            dof_n = self.Get_dof_n(field)
+            nodes = space.globalNodes[space._dofNodes].astype(np.int64)
+            dofs = nodes[:, None] * dof_n + np.arange(dof_n)
+            globalIds.append((dofs * len(fields) + f).ravel())
+        return np.concatenate(globalIds)
+
+    def __Free_solvers(
+        self, problems: list[ProblemType | tuple[ProblemType, ...]] | None = None
+    ) -> None:
+        """Destroys the solvers kept by the systems of `problems`, every one by default. Collective."""
+        for problem, system in self.__linearSystems.items():
+            if problems is None or problem in problems:
+                system.Free_solver()
+
     def __Drop_linear_systems(self) -> None:
-        """Forgets every linear system: the mesh they were built on changed."""
+        """Forgets every linear system: the mesh they were built on changed. Collective."""
+        self.__Free_solvers()
         self.__linearSystems = {}
 
     def Need_Update(self, value=True):
@@ -1184,6 +1201,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             tuple[ProblemType, ProblemType] | ProblemType,
             dict["_GroupElem", np.ndarray],
         ],
+        contributing: tuple,
         layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
         Ndof: int,
         isMatrix: bool = True,
@@ -1196,6 +1214,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         dict_block_data : dict[tuple[ProblemType, ProblemType] | ProblemType, dict[_GroupElem, FeArray]]
             Per-block ``(rows, cols)`` (``rows`` for a vector), per-group local arrays. Empty dict returns an empty CSR.
+        contributing : tuple
+            ``(block, groups)`` of `dict_block_data`, the order `data` and the map follow.
         layout : tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
             ``(problemType, space, dof_n, offset)`` of each field of the system, its DOFs from `offset` on.
         Ndof : int
@@ -1206,10 +1226,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
 
-        # Fixing the block and group order here keeps `data` aligned with the map built from them.
-        contributing = tuple(
-            (block, tuple(groups)) for block, groups in dict_block_data.items()
-        )
         if not contributing:
             return sparse.csr_matrix(shape)
 
@@ -1377,12 +1393,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assembled = []
         for slot, name in zip("KCMF", ("K matrix", "C matrix", "M matrix", "F vector")):
             blocks = local[slot]
+            # the block and group order `data` and the map follow
             contributing = tuple(
                 (block, tuple(groups)) for block, groups in blocks.items()
             )
 
             def assemble() -> sparse.csr_matrix:
-                matrix = self.__Assemble_csr(blocks, tuple(layout), Ndof, slot != "F")
+                matrix = self.__Assemble_csr(
+                    blocks, contributing, tuple(layout), Ndof, slot != "F"
+                )
                 tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
                 return matrix
 
@@ -1410,12 +1429,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
         else:
             if value != SolverType.petsc:
-                _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
+                self.__Free_solvers()
             self.__solver = value
 
     def __getstate__(self) -> dict:
-        # PETSc objects do not pickle: a copy builds its own
-        return {**self.__dict__, "_petscSolvers": {}, "_Simu__dofExchanges": {}}
+        # PETSc objects do not pickle: a copy builds its own, in its own systems
+        systems = {
+            key: copy.copy(system) for key, system in self.__linearSystems.items()
+        }
+        return {**self.__dict__, "_Simu__linearSystems": systems}
 
     def _Solver_Set_TimeScheme(self, timeScheme: _TimeScheme) -> None:
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
@@ -1647,30 +1669,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             for field, space in zip(fields, spaces)
         ]
         return np.concatenate(owners), rank
-
-    def _Get_dof_exchange(
-        self, problem: ProblemType | tuple[ProblemType, ...]
-    ) -> Exchange | None:
-        """Exchange of the rows of the problem's vector (its fields end to end), None unless partitioned; kept until the mesh changes. Collective on a partitioned mesh."""
-        comm = self.mesh.comm
-        if comm is None:
-            return None
-        kept = self.__dofExchanges.get(problem)
-        if kept is not None and kept[0] is self.mesh:
-            return kept[1]
-        fields = self.__Fields(problem)
-        globalIds = []
-        for f, field in enumerate(fields):
-            space = self._Get_FunctionSpace(field)
-            dof_n = self.Get_dof_n(field)
-            nodes = space.globalNodes[space._dofNodes].astype(np.int64)
-            dofs = nodes[:, None] * dof_n + np.arange(dof_n)
-            globalIds.append((dofs * len(fields) + f).ravel())
-        owners, _ = self.__Get_dof_owners(problem)
-        assert owners is not None
-        exchange = Build_exchange(np.concatenate(globalIds), owners, comm)
-        self.__dofExchanges[problem] = (self.mesh, exchange)
-        return exchange
 
     def _Set_solutions(
         self,
@@ -1947,9 +1945,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         dofsValues = self.__Compose(problemType, self.Bc_values_Dirichlet)
 
-        # the system's last fold is the current one
-        self.Get_K_C_M_F(problemType)
-
         tic = Tic()
 
         A = self.__Get_A(problemType)
@@ -1978,6 +1973,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> sparse.csr_matrix:
         """The problem's A for the time scheme, kept by its linear system."""
+        # assembles K, C, M into the system when stale
+        self.Get_K_C_M_F(problemType)
         nodes = self.mesh.orphanNodes
         # only the orphans carrying a dof (TETRA10 mid nodes under P1 skipped)
         orphanDofs = self.__Compose(
@@ -2228,7 +2225,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if problemType is None
             else [problemType]
         )
-        _PETSc_Free(self._petscSolvers, list_problemTypes)
+        self.__Free_solvers(list_problemTypes)
         for problemType in list_problemTypes:
             self.__dict_solver_petsc4py_options[problemType] = (
                 kspType,
@@ -2293,29 +2290,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         owners, rank = self.__Get_dof_owners(problemType)
         return np.arange(self.__Get_size(problemType))[Owned(owners, rank)]
-
-    def _Solver_Get_numbering(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        known: _types.BoolArray,
-    ) -> _Numbering:
-        """The problem's reduced PETSc numbering, the owner of a dof deciding whether `known`; kept until the known dofs change on a rank or the mesh changes. Collective."""
-        numberings = cached_computed_values(self).setdefault(
-            "_Solver_Get_numbering", {}
-        )
-        numbering: _Numbering | None = numberings.get(problemType)
-        changed = numbering is None or not np.array_equal(known, numbering.known)
-        if Reduce_max(changed, self.mesh.comm) or numbering is None:
-            owned = np.zeros(known.size, dtype=bool)
-            owned[self.Get_dofs(problemType)] = True
-            numbering = _Numbering(
-                known,
-                owned,
-                self.mesh.comm,
-                lambda ids: Scatter_forward(ids, self._Get_dof_exchange(problemType)),
-            )
-            numberings[problemType] = numbering
-        return numbering
 
     # ----------------------------------------------
     # Boundary conditions

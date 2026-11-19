@@ -8,7 +8,6 @@ from scipy import sparse
 
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
-from ..Utilities._observers import Observable
 from ..Utilities._mpi import MPI_SIZE, Reduce_max, Reduce_sum
 
 # fem
@@ -16,7 +15,6 @@ from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 # models
 from .. import Models
-from ..Models import _IModel
 from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 
 # simu
@@ -205,15 +203,6 @@ class PhaseField(_Simu):
                 self.__updatedDamage = True
             initcsr = sparse.csr_matrix(self.__Kd.shape)
             return self.__Kd, initcsr, initcsr, self.__Fd
-
-    def _Update(self, observable: Observable, event: str) -> None:
-        if isinstance(observable, _IModel):
-            self.Need_Update()
-        elif isinstance(observable, Mesh):
-            self._Check_dim_mesh_material()
-            self.Need_Update()
-        else:
-            Terminal.MyPrintError("Notification not yet implemented")
 
     @property
     def needUpdate(self) -> bool:

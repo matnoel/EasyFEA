@@ -5,12 +5,7 @@
 
 """Interface module to various solvers available in Python for solving linear systems (A x = b)."""
 
-import sys
-import warnings
 from enum import Enum
-from functools import cache
-from types import ModuleType
-from typing import Callable
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -22,7 +17,9 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Exscan_sum, Reduce_sum, Scatter_forward
+from ..Utilities._mpi import MPI_SIZE, Reduce_sum
+
+from ._linear_system import _LinearSystem, _Get_PETSc
 
 # fem
 from ..FEM import LagrangeCondition
@@ -33,25 +30,6 @@ try:
     CAN_USE_PYPARDISO = True
 except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
-
-
-@cache
-def _Get_PETSc() -> ModuleType | None:
-    """Returns the initialized `petsc4py.PETSc` module, or None if petsc4py is unusable."""
-    try:
-        import petsc4py
-
-        # must precede `from petsc4py import PETSc`, which would initialize PETSc with an empty command line
-        petsc4py.init(
-            [sys.argv[0], "-options_left", "no", *sys.argv[1:]], comm=MPI_COMM
-        )
-
-        from petsc4py import PETSc
-
-        return PETSc
-
-    except Exception:
-        return None
 
 
 class ResolType(str, Enum):
@@ -94,41 +72,6 @@ class SolverType(str, Enum):
         return self.name
 
 
-class _Numbering:
-    """Reduced PETSc id of each dof of a problem: owned unknowns numbered rank after rank, a ghost its owner's id, a known dof -1 (dropped by PETSc)."""
-
-    def __init__(
-        self,
-        known: _types.BoolArray,
-        owned: _types.BoolArray,
-        comm,
-        scatter: Callable[[_types.IntArray], None],
-    ):
-        """Only the owned rows of `known` count; `scatter` copies owned rows onto ghosts. Collective on `comm`."""
-        self.known = known
-        """the known dofs it was built for"""
-        self.comm = comm
-        self.rows = np.flatnonzero(owned & ~known)
-        """the owned unknowns, in PETSc order"""
-        ids = np.full(known.size, -1, dtype=np.int64)
-        ids[self.rows] = Exscan_sum(self.rows.size, comm) + np.arange(self.rows.size)
-        scatter(ids)
-        self.ids = ids
-        """PETSc id of each dof, -1 for a known one"""
-        self.rowIds = np.where(owned, ids, -1)
-        """`ids` with the ghost rows dropped"""
-
-    @staticmethod
-    def Identity(size: int) -> "_Numbering":
-        """Every dof unknown, in place, on one process."""
-        return _Numbering(
-            np.zeros(size, dtype=bool),
-            np.ones(size, dtype=bool),
-            None,
-            lambda ids: None,
-        )
-
-
 def _Solve_Axb(
     simu: "_Simu",
     problemType: "ProblemType | tuple[ProblemType, ...]",
@@ -137,7 +80,7 @@ def _Solve_Axb(
     x0: _types.FloatArray,
     lb: _types.AnyArray | _types.Numbers,
     ub: _types.AnyArray | _types.Numbers,
-    numbering: _Numbering | None = None,
+    system: _LinearSystem | None = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -157,13 +100,13 @@ def _Solve_Axb(
         lowerBoundary of the solution
     ub : _types.AnyArra | _types.Numbers
         upperBoundary of the solution
-    numbering : _Numbering, optional
-        For PETSc, the rows and columns kept, the others dropped, by default every one (serial).
+    system : _LinearSystem, optional
+        For PETSc, the numbering and kept solver; by default every row, one process, nothing kept.
 
     Returns
     -------
     _types.FloatArray
-        comuted x solution of A x = b, through PETSc only at `numbering.rows`
+        comuted x solution of A x = b, through PETSc only at `system.rows`
     """
 
     if not isinstance(A, sparse.csr_matrix):
@@ -171,10 +114,12 @@ def _Solve_Axb(
 
     b = np.asarray(b).ravel()
 
-    # a numbering made here is new at each solve: its PETSc solver is not kept
-    oneOff = numbering is None
-    if numbering is None:
-        numbering = _Numbering.Identity(A.shape[0])
+    # a system made here is new at each solve: its PETSc solver is not kept
+    oneOff = system is None
+    comm = None if system is None else simu.mesh.comm
+    if system is None:
+        system = _LinearSystem()
+        system.Set_known(np.zeros(A.shape[0], dtype=bool), None)
 
     if len(simu.Bc_Lagrange) > 0:
         if MPI_SIZE > 1:
@@ -199,7 +144,7 @@ def _Solve_Axb(
                 solver = SolverType.petsc
     else:
         solver = simu.solver
-        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, numbering):
+        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, system, comm):
             __Check_saddle_point_solver(simu, problemType)
 
     # import matplotlib.pyplot as plt
@@ -222,19 +167,9 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        x, converged = _PETSc(
-            simu._petscSolvers,
-            problemType,
-            A,
-            b,
-            x0,
-            numbering,
-            kspType,
-            pcType,
-            solverType,
-        )
+        x, converged = system.Solve_PETSc(A, b, x0, (kspType, pcType, solverType), comm)
         if oneOff:
-            _PETSc_Free(simu._petscSolvers, [problemType])
+            system.Free_solver()
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -286,10 +221,10 @@ def _Solve_Axb(
     return np.array(x)
 
 
-def __Has_zero_diagonal(A: sparse.csr_matrix, numbering: _Numbering) -> bool:
-    """Whether a row `numbering` keeps has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
-    diagonal = A.diagonal()[numbering.rows]
-    return Reduce_sum(int(np.count_nonzero(diagonal == 0)), numbering.comm) > 0
+def __Has_zero_diagonal(A: sparse.csr_matrix, system: _LinearSystem, comm) -> bool:
+    """Whether a row the system's numbering keeps has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
+    diagonal = A.diagonal()[system.rows]
+    return Reduce_sum(int(np.count_nonzero(diagonal == 0)), comm) > 0
 
 
 def __Check_saddle_point_solver(
@@ -340,7 +275,7 @@ def Solve_simu(
         raise NotImplementedError
 
     # x is right at the owned dofs only
-    Scatter_forward(x, simu._Get_dof_exchange(problemType))
+    simu._Get_linear_system(problemType).Scatter_forward(x, simu.mesh.comm)
 
     if resolution in [ResolType.r1, ResolType.r3]:
         return x, rhsNorm
@@ -381,13 +316,15 @@ def __Solver_1(
         # PETSc drops the known rows and columns itself, numbered -1
         known = np.zeros(x.size, dtype=bool)
         known[dofsKnown] = True
-        numbering = simu._Solver_Get_numbering(problemType, known)
+        comm = simu.mesh.comm
+        system = simu._Get_linear_system(problemType)
+        system.Set_known(known, comm)
         # the known values of the ghosts from their owner
-        Scatter_forward(x, simu._Get_dof_exchange(problemType))
+        system.Scatter_forward(x, comm)
         residual = b - A @ x
         if simu.isNonLinear:
-            rhsNorm = __Residual_norm(residual[numbering.rows], numbering.comm)
-        x[numbering.rows] = _Solve_Axb(
+            rhsNorm = __Residual_norm(residual[system.rows], comm)
+        x[system.rows] = _Solve_Axb(
             simu,
             problemType,
             A,
@@ -395,7 +332,7 @@ def __Solver_1(
             x0,
             lb,
             ub,
-            numbering,
+            system,
         )
 
     else:
@@ -520,13 +457,15 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
     lb, ub = simu._Solver_Get_lb_ub(problemType)
     if simu.solver == SolverType.petsc:
         # every dof unknown, each rank its owned rows
-        numbering = simu._Solver_Get_numbering(
-            problemType, np.zeros(b.size, dtype=bool)
-        )
+        comm = simu.mesh.comm
+        system = simu._Get_linear_system(problemType)
+        system.Set_known(np.zeros(b.size, dtype=bool), comm)
         if simu.isNonLinear:
-            rhsNorm = __Residual_norm(b[numbering.rows], numbering.comm)
+            rhsNorm = __Residual_norm(b[system.rows], comm)
         x = np.zeros(b.size, dtype=float)
-        x[numbering.rows] = _Solve_Axb(
+        # A penalised copy, not the system's A: a solver of its own, freed after
+        system.Free_solver()
+        x[system.rows] = _Solve_Axb(
             simu,
             problemType,
             A,
@@ -534,8 +473,9 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
             x0,
             lb,
             ub,
-            numbering,
+            system,
         )
+        system.Free_solver()
     else:
         if simu.isNonLinear:
             rhsNorm = __Residual_norm(b, simu.mesh.comm)
@@ -553,139 +493,3 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
         return x, rhsNorm
     else:
         return x, None
-
-
-def _PETSc(
-    kept: dict,
-    problemType: "ProblemType | tuple[ProblemType, ...]",
-    A: sparse.csr_matrix,
-    b: _types.FloatArray,
-    x0: _types.FloatArray,
-    numbering: _Numbering,
-    kspType: str,
-    pcType: str,
-    solverType: str,
-) -> tuple[_types.FloatArray, bool]:
-    """PETSc interface to solve `A x = b` on the rows and columns `numbering` keeps, the others dropped (r1); in serial on one process. KSP and Mat kept in `kept[problemType]`: rebuilt on a new numbering or pattern, refilled on a new A. Collective.\n
-    KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
-
-    Parameters
-    ----------
-    kept : dict
-        `(ksp, matrix, numbering, A)` per problem, A the last one filled
-    problemType : ProblemType | tuple[ProblemType, ...]
-        key in `kept`
-    A : sparse.csr_matrix
-        sparse matrix (N, N), canonical, complete on the owned rows
-    b : _types.FloatArray
-        vector (N,)
-    x0 : _types.FloatArray
-        initial guess (N,), or empty
-    numbering : _Numbering
-        PETSc id of each row and column, -1 to drop it
-    kspType : str
-        PETSc Krylov method
-        e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
-        https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
-    pcType : str
-        PETSc preconditioner
-        e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
-        https://petsc.org/release/manualpages/PC/PCType/#pctype\n
-    solverType : str
-        PETSc Linear Solver
-        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholmod' ...\n
-        https://petsc.org/release/manual/ksp/#using-external-linear-solvers
-
-    Returns
-    -------
-    _types.FloatArray
-        x at `numbering.rows`
-    bool
-        Whether the KSP converged.
-    """
-
-    assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
-
-    PETSc = _Get_PETSc()
-    assert PETSc is not None, "petsc4py is not available"
-
-    comm = numbering.comm or PETSc.COMM_SELF
-    rows = numbering.rows
-
-    ksp, matrix, keptNumbering, keptA = kept.get(problemType, (None,) * 4)
-    relayout = (
-        ksp is None or numbering is not keptNumbering or A.indptr is not keptA.indptr
-    )
-    stale = relayout or A is not keptA
-    relayout, stale = (
-        Reduce_sum(np.array([relayout, stale], dtype=int), numbering.comm) > 0
-    )
-
-    if relayout:
-        # two factorisations never held at once
-        _PETSc_Free(kept, [problemType])
-
-        # -1 rows and columns are dropped: ghost rows, known dofs
-        rowMap = PETSc.LGMap().create(numbering.rowIds.astype(PETSc.IntType), comm=comm)
-        columnMap = PETSc.LGMap().create(numbering.ids.astype(PETSc.IntType), comm=comm)
-        matrix = PETSc.Mat().create(comm=comm)
-        matrix.setType("aij")
-        matrix.setSizes(((rows.size, None), (rows.size, None)))
-        matrix.setLGMap(rowMap, columnMap)
-        rowMap.destroy()
-        columnMap.destroy()
-        # copies: PETSc overwrites them
-        rowsCoo = np.repeat(
-            np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr)
-        )
-        matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
-
-        ksp = PETSc.KSP().create(comm=comm)
-        ksp.setOperators(matrix)
-        ksp.setType(kspType)
-        pc = ksp.getPC()
-        pc.setType(pcType)
-        pc.setFactorSolverType(solverType)
-        options = PETSc.Options()
-        if solverType == "mumps":
-            if not options.hasName("mat_mumps_icntl_20"):
-                # centralised right-hand side, see the warning; a no-op on one process
-                options.setValue("mat_mumps_icntl_20", 0)
-            elif comm.Get_size() > 1 and options.getInt("mat_mumps_icntl_20") == 10:
-                warnings.warn(
-                    "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
-                    RuntimeWarning,
-                )
-        ksp.setFromOptions()
-
-    if stale:
-        matrix.setValuesCOO(A.data)
-    kept[problemType] = (ksp, matrix, numbering, A)
-
-    x, rhs = matrix.createVecs()
-    rhs.array[:] = b[rows]
-    if len(x0) > 0:
-        x.array[:] = x0[rows]
-
-    ksp.solve(rhs, x)
-
-    values = x.array.copy()
-    x.destroy()
-    rhs.destroy()
-
-    return values, ksp.is_converged
-
-
-def _PETSc_Free(kept: dict, problemTypes: list) -> None:
-    """Destroys the KSP and Mat kept for `problemTypes`. Collective."""
-    PETSc = _Get_PETSc()
-    for problemType in problemTypes:
-        entry = kept.pop(problemType, None)
-        if entry is None:
-            continue
-        ksp, matrix, numbering, *_ = entry
-        ksp.destroy()
-        matrix.destroy()
-        # flush any remaining petsc4py reference cycles as suggested here:
-        # https://gitlab.com/petsc/petsc/-/work_items/1309
-        PETSc.garbage_cleanup(numbering.comm or PETSc.COMM_SELF)
