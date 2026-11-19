@@ -45,12 +45,14 @@ class _LinearSystem:
         self.__globalIds = globalIds
         self.__exchange: Exchange | None = None
         self.__slots: dict[str, _Slot] = {}
-        self.__valuesDirty = True
-        self.__patternDirty = True
-        self.__summed: list[tuple[float, str]] = []
-        """`(coef, slot)` A was summed from"""
-        self.__pattern: tuple = ()
+        self.__fold: list[_Contribution] = []
+        self.__folded = False
         self.__A: sparse.csr_matrix | None = None
+        self.__AKey: tuple = ()
+        """`(layout, Ndof, contributing)` of A's map"""
+        self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
+        self.__AFold: list[_Contribution] = []
+        """the K, C and M contributions A was summed from"""
         self.__stamp = 0
         self.__patternStamp = 0
         self.__known: _types.BoolArray | None = None
@@ -73,6 +75,10 @@ class _LinearSystem:
                 slot: kept._replace(contributions=[])
                 for slot, kept in self.__slots.items()
             },
+            "_LinearSystem__fold": [],
+            "_LinearSystem__folded": False,
+            "_LinearSystem__A": None,
+            "_LinearSystem__AFold": [],
             "_LinearSystem__exchange": None,
             "_LinearSystem__solver": None,
             "_LinearSystem__solverStamps": None,
@@ -138,7 +144,7 @@ class _LinearSystem:
         contributions: list[_Contribution],
         assemble: Callable[[], sparse.csr_matrix],
     ) -> sparse.csr_matrix:
-        """The slot's matrix, assembled again unless a K, C or M of the same cached arrays on the same map; a new K, C or M dirties A, its pattern too on a new map."""
+        """The slot's matrix, assembled again unless a K, C or M of the same cached arrays on the same map."""
         old = self.__slots.get(slot)
         if (
             slot != "F"
@@ -148,12 +154,18 @@ class _LinearSystem:
         ):
             return old.matrix
         matrix = assemble()
-        if slot != "F":
-            self.__valuesDirty = True
-            if old is None or old.key != key:
-                self.__patternDirty = True
         self.__slots[slot] = _Slot(key, contributions, matrix)
         return matrix
+
+    def Set_fold(self, fold: list[_Contribution]) -> None:
+        """Keeps the last fold, A's source."""
+        self.__fold = fold
+        self.__folded = True
+
+    @property
+    def folded(self) -> bool:
+        """Whether the system holds a fold: a pickled copy does not."""
+        return self.__folded
 
     def Get_K_C_M_F(
         self,
@@ -177,58 +189,64 @@ class _LinearSystem:
         rows = sum(np.diff(self.__slots[slot].matrix.indptr) for slot in "KCM")
         return rows > 0
 
-    def Get_A(self, coefs: tuple[float, float, float]) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` (K alone when the others weigh nothing); the same read-only object until a slot or a coefficient changes."""
+    def Get_A(
+        self,
+        coefs: tuple[float, float, float],
+        layout: tuple,
+        Ndof: int,
+        Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
+    ) -> sparse.csr_matrix:
+        """`coefK·K + coefC·C + coefM·M` from the last fold, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
         self.__Check_assembled()
-        slots = self.__slots
-        summed = [
-            (coef, slot)
-            for coef, slot in zip(coefs, "KCM")
-            if slot == "K" or (coef != 0 and slots[slot].matrix.nnz)
-        ]
-        if self.__A is not None and not self.__valuesDirty and summed == self.__summed:
+        fold = [c for c in self.__fold if c.slot in "KCM"]
+        sizes: dict = {}
+        for c in fold:
+            sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
+        contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
+        key = (layout, Ndof, contributing)
+        if (
+            self.__A is not None
+            and key == self.__AKey
+            and coefs == self.__ACoefs
+            and Same_contributions(self.__AFold, fold)
+        ):
             return self.__A
 
-        names = [slot for _, slot in summed]
-        if self.__patternDirty or names != [slot for _, slot in self.__summed]:
-            self.__pattern = self.__Pattern(names)
-            self.__patternDirty = False
+        if key != self.__AKey:
+            self.__AKey = key
             self.__patternStamp += 1
 
-        K = slots["K"].matrix
-        indices, indptr, positions = self.__pattern
-        if [coef for coef, _ in summed] == [1.0]:
-            A = K
+        # each (block, group)'s element entries, end to end in the map's order
+        spans = {}
+        size = 0
+        for block, groups in sizes.items():
+            for group, n in groups.items():
+                spans[block, group] = size
+                size += n
+        entries = np.zeros(size)
+        for c in fold:
+            weight = coefs["KCM".index(c.slot)]
+            if weight == 0:
+                continue
+            if np.iscomplexobj(c.array):
+                raise TypeError("Complex systems are not supported.")
+            start = spans[c.block, c.group]
+            entries[start : start + c.array.size] += (weight * c.coef) * c.array.ravel()
+
+        # an MPI rank may own no element of any contributing group
+        if size == 0:
+            A = sparse.csr_matrix((Ndof, Ndof))
         else:
-            data = np.zeros(indices.size)
-            for (coef, slot), position in zip(summed, positions):
-                data[position] += coef * slots[slot].matrix.data
-            A = sparse.csr_matrix((data, indices, indptr), shape=K.shape)
+            inv, indices, indptr, nnz = Get_map(contributing)
+            assert entries.size == inv.size, "A's map does not match its contributions."
+            data = np.bincount(inv, weights=entries, minlength=nnz)
+            A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
+        # canonical by construction: Solvers skips its fixup
         A.has_canonical_format = True
         A.data.flags.writeable = False
 
         self.__A = A
-        self.__summed = summed
-        self.__valuesDirty = False
+        self.__ACoefs = coefs
+        self.__AFold = fold
         self.__stamp += 1
         return A
-
-    def __Pattern(
-        self, names: list[str]
-    ) -> tuple[_types.IntArray, _types.IntArray, list[_types.IntArray | slice]]:
-        """Union of the slots' patterns: `(indices, indptr)`, each slot's positions in it; exact zeros stay, so A's pattern never follows its values."""
-        slots = [self.__slots[name] for name in names]
-        K = slots[0].matrix
-        if all(slot.key == slots[0].key for slot in slots):
-            return K.indices, K.indptr, [slice(None)] * len(slots)
-
-        # entries as row·n + col, sorted: the canonical CSR order
-        n = K.shape[0]
-        keys = [
-            np.repeat(np.arange(n, dtype=np.int64), np.diff(X.indptr)) * n + X.indices
-            for X in (slot.matrix for slot in slots)
-        ]
-        canon = np.unique(np.concatenate(keys))
-        union = sparse.csr_matrix((np.ones(canon.size), divmod(canon, n)), shape=(n, n))
-        positions = [np.searchsorted(canon, key) for key in keys]
-        return union.indices, union.indptr, positions

@@ -1310,21 +1310,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         return inv, matrix.indices, matrix.indptr, matrix.nnz
 
-    def Assembly(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of a problem type, or of several as one system ``[u | p | Lagrange]``. Raises on a block coupling to a field outside `problemType`."""
-        if problemType is None:
-            problemType = self.problemType
-        problemTypes = (
-            (problemType,) if isinstance(problemType, str) else tuple(problemType)
-        )
-        if len(set(problemTypes)) < len(problemTypes):
-            raise ValueError(f"A field is given twice in {problemTypes}.")
-
-        # fields side by side in the given order, every Lagrange DOF after them
+    def __Get_layout(
+        self, problemTypes: tuple[ProblemType, ...]
+    ) -> tuple[tuple[tuple[ProblemType, _FunctionSpace, int, int], ...], int]:
+        """`(problemType, space, dof_n, offset)` of each field, side by side in the given order, and Ndof, every Lagrange dof after them."""
         layout = []
         offset = 0
         for problemType in problemTypes:
@@ -1340,6 +1329,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Ndof = offset + sum(
             self._Bc_Lagrange_dim(problemType) for problemType in problemTypes
         )
+        return tuple(layout), Ndof
+
+    def Assembly(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
+        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of a problem type, or of several as one system ``[u | p | Lagrange]``. Raises on a block coupling to a field outside `problemType`."""
+        if problemType is None:
+            problemType = self.problemType
+        problemTypes = (
+            (problemType,) if isinstance(problemType, str) else tuple(problemType)
+        )
+        if len(set(problemTypes)) < len(problemTypes):
+            raise ValueError(f"A field is given twice in {problemTypes}.")
+
+        layout, Ndof = self.__Get_layout(problemTypes)
 
         fields = ", ".join(problemTypes)
 
@@ -1381,6 +1387,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         system = self._Get_linear_system(
             problemTypes[0] if len(problemTypes) == 1 else problemTypes
         )
+        system.Set_fold(fold)
         assembled = []
         for slot, name in zip("KCMF", ("K matrix", "C matrix", "M matrix", "F vector")):
             blocks = local[slot]
@@ -1391,12 +1398,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             def assemble() -> sparse.csr_matrix:
                 matrix = self.__Assemble_csr(
-                    blocks, contributing, tuple(layout), Ndof, slot != "F"
+                    blocks, contributing, layout, Ndof, slot != "F"
                 )
                 tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
                 return matrix
 
-            key = (tuple(layout), Ndof, contributing)
+            key = (layout, Ndof, contributing)
             contributions = [c for c in fold if c.slot == slot]
             assembled.append(system.Assembled(slot, key, contributions, assemble))
         K, C, M, F = assembled
@@ -1966,11 +1973,27 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Get_A(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> sparse.csr_matrix:
-        """The problem's A for the time scheme, kept by its linear system."""
-        # assembles K, C, M into the system when stale
-        self.Get_K_C_M_F(problemType)
+        """The problem's A for the time scheme, summed from its fold's contributions and kept by its linear system."""
         system = self._Get_linear_system(problemType)
-        return system.Get_A(self.timeScheme.coefs)
+        if not system.folded:
+            self.Need_Update()
+        # refolds when stale
+        self.Get_K_C_M_F(problemType)
+        layout, Ndof = self.__Get_layout(self.__Fields(problemType))
+        return system.Get_A(
+            self.timeScheme.coefs,
+            layout,
+            Ndof,
+            lambda contributing: self.__Get_csr_map(layout, True, Ndof, contributing),
+        )
+
+    def _Solver_Get_A_b(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """A and b of the monolithic problem holding `problemType`, before Dirichlet; A is the object the solve uses, never write into it."""
+        problem = self._Get_monolithic_problem(problemType)
+        b = self._Solver_Apply_Neumann(problem)
+        return self.__Get_A(problem), b
 
     def _Bc_dofs_orphan(
         self, problemType: ProblemType | tuple[ProblemType, ...]
