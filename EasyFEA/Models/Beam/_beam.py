@@ -22,11 +22,21 @@ if TYPE_CHECKING:
 
 # materials
 from .._utils import _IModel, _Format_parameter
-from ...Utilities import _params, _types, Tic
+from ...Utilities import _params, _types, Tic, Reduce_sum
 
 # ----------------------------------------------
 # Beam
 # ----------------------------------------------
+
+
+def _Integrate(section: "Mesh", f) -> float:
+    """∫_S f(x, y, z) dS over `section`, each element counted once over the ranks; collective on its comm."""
+    return float(
+        section._Sum_on_ownedElements_e(
+            [groupElem.Integrate_e(f) for groupElem in section.Get_list_groupElem(2)],
+            2,
+        )
+    )
 
 
 class _Beam(_IModel):
@@ -78,43 +88,24 @@ class _Beam(_IModel):
     @property
     def area(self) -> float:
         """cross-section area."""
-        return self.__section.area
+        return self.__area
 
     @property
     def Iy(self) -> float:
         """squared moment of the cross-section around y-axis.\n
         int_S z^2 dS"""
-        # here z is the x axis of the section thats why we use x
-        Iy: float = np.sum(
-            [
-                groupElem.Integrate_e(lambda x, y, z: x**2).sum()
-                for groupElem in self.__section.Get_list_groupElem(2)
-            ]
-        )
-        return Iy
+        return self.__Iy
 
     @property
     def Iz(self) -> float:
         """squared moment of the cross-section around z-axis.\n
         int_S y^2 dS"""
-        Iz: float = np.sum(
-            [
-                groupElem.Integrate_e(lambda x, y, z: y**2).sum()
-                for groupElem in self.__section.Get_list_groupElem(2)
-            ]
-        )
-        return Iz
+        return self.__Iz
 
     @property
     def J(self) -> float:
         """polar area moment of inertia (Iy + Iz)."""
-        J: float = np.sum(
-            [
-                groupElem.Integrate_e(lambda x, y, z: x**2 + y**2).sum()
-                for groupElem in self.__section.Get_list_groupElem(2)
-            ]
-        )
-        return J
+        return self.__J
 
     def __init__(
         self,
@@ -168,11 +159,21 @@ class _Beam(_IModel):
             "The cross-beam section must be contained in the (x,y) plane."
         )
         # make sure that the section is centered in (0,0)
-        section.Translate(*-section.center)
-        Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()
+        moments = section._Sum_on_ownedElements_e(
+            [groupElem._Get_moments_e() for groupElem in section.Get_list_groupElem(2)],
+            2,
+        )
+        section.Translate(*-moments[1:] / moments[0])
+        Iyz = _Integrate(section, lambda x, y, z: x * y)
         assert np.abs(Iyz) <= 1e-9, "The section must have at least 1 symetry axis."
         self.Need_Update()
         self.__section: Mesh = section
+        # once: collective over the ranks sharing the section, which a gathered simulation no longer is
+        self.__area = section.area
+        # here z is the x axis of the section thats why we use x
+        self.__Iy = _Integrate(section, lambda x, y, z: x**2)
+        self.__Iz = _Integrate(section, lambda x, y, z: y**2)
+        self.__J = _Integrate(section, lambda x, y, z: x**2 + y**2)
 
     @property
     def xAxis(self) -> _types.FloatArray:
@@ -338,14 +339,18 @@ class _Beam(_IModel):
         simu = Simulations.WeakForms(section, weakForms, verbosity=False)
         # Pin one DOF to remove the rigid mode (Neumann-only problem is singular).
         # Doesn't affect uᵀ·f because the source ∫_S s dS = 0 on a centered section.
-        simu.add_dirichlet(np.array([0]), [0.0], ["u"])
+        nodesPinned = np.flatnonzero(section.globalNodes == 0)
+        simu.add_dirichlet(nodesPinned, [0.0], ["u"])
         simu.Solve()
 
         # uᵀ·f  ≡  ∫_S s · φ dS  ≡  ∫_S |∇φ|² dS  (energy identity)
-        f = simu.Get_K_C_M_F()[3]
-        u = simu._Get_u_n(simu.problemType)
-        integral = (f.T @ u).item()
-        kappa = bending_inertia**2 / (section.area * integral)
+        owned = simu.Get_dofs()
+        f = simu.Get_K_C_M_F()[3][owned]
+        u = simu._Get_u_n(simu.problemType)[owned]
+        integral = Reduce_sum((f.T @ u).item(), section.comm)
+        # a section observed by its local forms would not pickle
+        section._Remove_observer(simu)
+        kappa = bending_inertia**2 / (self.area * integral)
         return kappa
 
 
@@ -397,8 +402,7 @@ class Isotropic(_Beam):
 
     def Get_D(self, useTimoshenko: bool = False) -> _types.FloatArray:
         dim = self.dim
-        section = self.section
-        A = section.area
+        A = self.area
         Iy = self.Iy
         Iz = self.Iz
         J = self.J
@@ -441,8 +445,7 @@ class Isotropic(_Beam):
 
     def Get_M(self) -> _types.FloatArray:
         dim = self.dim
-        section = self.section
-        A = section.area
+        A = self.area
 
         if dim == 1:
             # u = [u1, . . . , un]

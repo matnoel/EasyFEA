@@ -27,7 +27,9 @@ from ..Utilities._cache import (
 )
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import (
+    MPI_COMM,
     MPI_SIZE,
+    Bcast,
     MPI_RANK,
     Gather,
     Place_rows,
@@ -495,9 +497,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dof_n = self.Get_dof_n(problemType)
             dofRows = _iterations.DofRows(rows, dof_n, space, space.ownedNodes)
             dofs.update({name: dofRows for name in names})
-        groups = mesh.Get_list_groupElem(self.dim)
+        groups = mesh.Get_list_groupElem(mesh.dim)
         spaceGroups = mesh._Get_FunctionSpace(self.problemType).Get_list_groupElem(
-            self.dim
+            mesh.dim
         )
         return _iterations.Layout(
             groups[0].rank,
@@ -560,7 +562,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         groups = {
             groupElem.elemType.value: groupElem
-            for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.dim)
+            for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.mesh.dim)
         }
         self.__variables = self.__variables.Restored(iteration, groups)
         self._Iter_Restored()
@@ -972,15 +974,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Gather(self):
         """Gives rank 0 the whole mesh and the current state placed by global id: u, v, a of each problem type, the internal and nodal external variables, the heterogeneous parameters and the iterations kept in memory; rank 0 becomes a serial simulation, the other ranks keep their partition. Collective."""
-        if MPI_SIZE == 1:
+        # rank 0 already whole: every rank leaves together
+        if MPI_SIZE == 1 or Bcast(self.isGathered, MPI_COMM):
             return
 
         # rank 0 turns serial: its solvers on the world comm are freed while every rank is here
         _PETSc_Free(self._petscSolvers, list(self._petscSolvers))
 
         comm = self.mesh.comm
-        if comm is None:
-            return
         parts = Gather(self.__Rank_part(), comm)
         if parts is not None:
             self.__Assemble(parts)
@@ -3789,7 +3790,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # the rank's rows of the iterations kept in memory, in the same files as Save_Iter's
         if partition is not None:
-            # an earlier save over more ranks would read as this one's
+            # an earlier serial save would read first, one over more ranks as this one's
+            if partition.rank == 0 and Folder.Exists(
+                old := Folder.Join(folder, f"{filename}.pickle")
+            ):
+                Folder.os.remove(old)
             stale = partition.size
             while partition.rank == 0 and Folder.Exists(
                 old := Folder.Join(folder, f"Rank{stale}", f"{filename}.pickle")
@@ -3867,7 +3872,10 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
         return simus[0]
     assert Folder.Exists(path_simu), f"The file {path_simu} cannot be found."
 
-    simu = _Load_pickle(path_simu, folder)
+    if MPI_SIZE > 1:
+        simu = _iterations._Collectively(MPI_COMM, _Loaded, path_simu, folder)
+    else:
+        simu = _Load_pickle(path_simu, folder)
     if simu is None:
         return None  # type: ignore [return-value]
     # the same partition on the same ranks: shared again
@@ -3875,6 +3883,14 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
 
     if gather:
         simu._Gather()
+    return simu
+
+
+def _Loaded(path: str, folder: str) -> _Simu:
+    """:func:`_Load_pickle`, raising when the file is empty."""
+    simu = _Load_pickle(path, folder)
+    if simu is None:
+        raise ValueError(f"{path} is empty or corrupted.")
     return simu
 
 

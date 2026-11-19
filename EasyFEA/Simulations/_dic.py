@@ -56,6 +56,10 @@ class DIC(_IObserver):
 
         # mesh
         assert mesh.dim == 2, "Must be a 2D mesh."
+        if mesh.isPartitioned:
+            raise ValueError(
+                "DIC is serial: correlate on a mesh the ranks do not share, made with EASYFEA_MPI=off."
+            )
         mesh._Add_observer(self)
         self.__mesh = mesh
 

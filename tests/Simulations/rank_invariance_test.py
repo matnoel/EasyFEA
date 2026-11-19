@@ -14,8 +14,9 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 
-from EasyFEA import ElemType, Models, Simulations
-from EasyFEA.Geoms import Circle, Domain
+from EasyFEA import ElemType, Mesher, Models, Simulations
+from EasyFEA.FEM import BiLinearForm, Field, LinearForm
+from EasyFEA.Geoms import Circle, Domain, Line
 from EasyFEA.Models.InElastic import ONE, Plasticity, _Behavior
 from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardening
 from EasyFEA.Models.InElastic.Yield import VonMises
@@ -129,6 +130,104 @@ def _pinned() -> Simulations.IncompressibleHyperElastic:
     return simu
 
 
+def _exact(simu) -> None:
+    """Every problem solved by a direct LU, so that a gap to the serial solve is not an iterative tolerance."""
+    from EasyFEA.Simulations._simu import _PETSc_Has
+
+    package = "superlu_dist" if _PETSc_Has("superlu_dist") else "mumps"
+    simu._Solver_Set_PETSc4Py_Options("preonly", "lu", package)
+
+
+def _phasefield(folder: str = "") -> Simulations.PhaseField:
+    """Pulled until the damage grows around the hole, each step saved."""
+    material = Models.Elastic.Isotropic(2, E=210e3, v=0.3, planeStress=True)
+    pfm = Models.PhaseField(
+        material,
+        "Miehe",
+        "AT2",
+        2.7,
+        0.1,
+    )
+    simu = Simulations.PhaseField(_plate_with_hole(ElemType.TRI3), pfm, folder)
+    _exact(simu)
+    for step in range(1, 4):
+        simu.Bc_Init()
+        _clamped_and_pulled(simu, [4e-3 * step], ["x"])
+        simu.Solve(1e-8, 50, convOption=0)
+        simu.Save_Iter()
+    return simu
+
+
+def _thermal(folder: str = "") -> Simulations.Thermal:
+    """Heated through the hole's side, cooled at x = 2, transient."""
+    mesh = _plate_with_hole(ElemType.TRI6)
+    simu = Simulations.Thermal(mesh, Models.Thermal(1.0, 2.0), folder)
+    _exact(simu)
+    simu.rho = 1.5
+    simu.Solver_Set_Parabolic_Algorithm(0.05)
+    nodesCooled = mesh.Nodes_Conditions(lambda x, y, z: x == 2)
+    nodesHeated = mesh.Nodes_Conditions(lambda x, y, z: x < 1.1)
+    for _ in range(3):
+        simu.Bc_Init()
+        simu.add_dirichlet(nodesCooled, [0], ["t"])
+        simu.add_volumeLoad(nodesHeated, [lambda x, y, z: 10 * y], ["t"])
+        simu.Solve()
+        simu.Save_Iter()
+    return simu
+
+
+def _beam(folder: str = "") -> Simulations.Beam:
+    """Timoshenko cantilever along x under its own line load and a tip force."""
+    rectangle = Domain((-0.05, -0.1), (0.05, 0.1))
+    section = rectangle.Mesh_2D([], ElemType.TRI3)
+    line = Line((0, 0), (2, 0), 0.05)
+    beam = Models.Beam.Isotropic(
+        2,
+        line,
+        section,
+        210e3,
+        0.3,
+    )
+    mesh = Mesher().Mesh_Beams([beam], elemType=ElemType.SEG3)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, folder=folder)
+    _exact(simu)
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesTip = mesh.Nodes_Conditions(lambda x, y, z: x == 2)
+    simu.add_dirichlet(nodesClamped, [0, 0, 0], simu.Get_unknowns())
+    nodesLine = mesh.nodes
+    simu.add_lineLoad(nodesLine, [-1.0], ["y"])
+    simu.add_neumann(nodesTip, [0.5, -2.0], ["x", "y"])
+    simu.Solve()
+    simu.Save_Iter()
+    return simu
+
+
+# forms at module level, so that a saved simulation pickles them
+@BiLinearForm
+def _laplacian(u: Field, v: Field):
+    return u.grad.dot(v.grad)
+
+
+@LinearForm
+def _source(v: Field):
+    x, y, _ = v.Get_coords()
+    return (1 + x * y) * v
+
+
+def _weakforms(folder: str = "") -> Simulations.WeakForms:
+    """A Poisson problem written as forms, ∫ ∇u·∇v = ∫ f v, u = 0 at x = 0."""
+    mesh = _plate_with_hole(ElemType.QUAD4)
+    weakForms = Models.WeakForms(Field(mesh.groupElem, 1), _laplacian, computeF=_source)
+    simu = Simulations.WeakForms(mesh, weakForms, folder)
+    _exact(simu)
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    simu.add_dirichlet(nodesClamped, [0], ["u"])
+    simu.Solve()
+    simu.Save_Iter()
+    return simu
+
+
 _CASES = {
     "elastic": _elastic,
     "newmark": _newmark,
@@ -137,6 +236,10 @@ _CASES = {
     "moving": _moving,
     "monolithic": _monolithic,
     "pinned": _pinned,
+    "phasefield": _phasefield,
+    "thermal": _thermal,
+    "beam": _beam,
+    "weakforms": _weakforms,
 }
 
 
@@ -184,15 +287,16 @@ def _held(simu) -> dict[str, np.ndarray]:
     }
 
 
-def _iterations_of(simu) -> dict[str, np.ndarray]:
-    """Every array of each saved iteration a script reads: its entries, `Svm` at nodes and on elements."""
+def _iterations_of(simu, case: str) -> dict[str, np.ndarray]:
+    """Every array of each saved iteration a script reads: its entries, the case's results at nodes and on elements."""
     iterations = {}
     for i in range(simu.Niter):
         for name, value in simu.Set_Iter(i).items():
             if isinstance(value, np.ndarray):
                 iterations[f"{name.replace('/', '|')}@{i}"] = np.asarray(value)
-        iterations[f"Svm@{i}"] = simu.Result("Svm")
-        iterations[f"Svm_e@{i}"] = simu.Result("Svm", nodeValues=False)
+        for name in _RESULTS.get(case, ["Svm"]):
+            iterations[f"{name}@{i}"] = simu.Result(name)
+            iterations[f"{name}_e@{i}"] = simu.Result(name, nodeValues=False)
     return iterations
 
 
@@ -223,11 +327,16 @@ def _two_meshes(folder: str = "") -> Simulations.Elastic:
 
 
 def _saved(case: str, folder: str = ""):
-    """`case` of `_HISTORIES`, or ``two_meshes``, solved and saved step after step."""
+    """`case` of `_HISTORIES`, `_SAVED` or ``two_meshes``, solved and saved step after step."""
+    if case in _SAVED:
+        return _CASES[case](folder)
     return _two_meshes(folder) if case == "two_meshes" else _history(case, folder)
 
 
 _HISTORIES = ["plastic", "heated"]
+
+_SAVED = ["phasefield", "thermal", "beam", "weakforms"]
+"""The cases of `_CASES` saving their iterations, in `folder` if given."""
 
 
 # the results a gathered simulation gives, at nodes and on elements
@@ -239,6 +348,10 @@ _RESULTS = {
     "moving": ["displacement", "Svm"],
     "monolithic": ["displacement", "p", "Svm"],
     "pinned": ["displacement", "p"],
+    "phasefield": ["displacement", "damage", "Svm", "psiP"],
+    "thermal": ["thermal", "thermalDot"],
+    "beam": ["displacement", "Mz", "fy"],
+    "weakforms": ["u"],
 }
 
 
@@ -247,6 +360,23 @@ def _space_coord(order: int) -> np.ndarray:
     mesh = _plate_with_hole(ElemType.TRI3)
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     return mesh._Get_FunctionSpace(Simulations.Elastic.problemType).coord
+
+
+def _fields(simu) -> np.ndarray:
+    """The unknowns per node, damage after the displacement for PhaseField."""
+    mesh = simu.mesh
+    fields = [simu._Get_u_n(simu.problemType).reshape(mesh.Nn, -1)]
+    if isinstance(simu, Simulations.PhaseField):
+        fields.append(simu.damage.reshape(mesh.Nn, 1))
+    return np.hstack(fields)
+
+
+def _resultants(simu, nodes) -> list[float]:
+    """The resultant over `nodes` of each unknown of the main problem."""
+    return [
+        simu.Calc_Resultant(simu.Bc_dofs_nodes(nodes, [unknown]))
+        for unknown in simu.Get_unknowns(simu.problemType)
+    ]
 
 
 def _scalars(simu) -> np.ndarray:
@@ -258,11 +388,19 @@ def _scalars(simu) -> np.ndarray:
         simu, (Simulations.HyperElastic, Simulations.IncompressibleHyperElastic)
     ):
         return np.array([*scalars, simu.Result("W")])
-    K = simu.Get_K_C_M_F(simu.problemType)[0]
-    u = simu.displacement
-    scalars += [simu.Calc_Resultant(_pulled_dofs(simu, u_)) for u_ in ("x", "y")]
-    scalars.append(simu.Calc_Energy(K, u, simu.Get_dofs(simu.problemType)))
-    scalars.append(simu.Result("Wdef"))
+    mesh = simu.mesh
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    scalars += _resultants(simu, nodesClamped)
+    if isinstance(simu, Simulations.PhaseField):
+        scalars.append(simu.Get_results()["damageMax"])
+    if isinstance(simu, Simulations.Beam):
+        scalars += [simu.mass, *simu.center]
+    if isinstance(simu, Simulations.Elastic):
+        K = simu.Get_K_C_M_F(simu.problemType)[0]
+        u = simu.displacement
+        scalars += [simu.Calc_Resultant(_pulled_dofs(simu, u_)) for u_ in ("x", "y")]
+        scalars.append(simu.Calc_Energy(K, u, simu.Get_dofs(simu.problemType)))
+        scalars.append(simu.Result("Wdef"))
     return np.array(scalars, dtype=float)
 
 
@@ -316,7 +454,7 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     simu = _CASES[case]()
     nodes = simu.mesh._Get_mpi_owned_nodes()
     coord = simu.mesh.coord[nodes, :2]
-    u = simu.displacement.reshape(-1, 2)[nodes]
+    u = _fields(simu)[nodes]
     scalars = _scalars(simu)
 
     serial = _serial(case)
@@ -324,10 +462,15 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     rows = serial["nodes"][simu.mesh.globalNodes[nodes]]
     np.testing.assert_array_equal(rows[:, :2], coord)
     uSerial = rows[:, 2:]
-    assert np.abs(u - uSerial).max() < 1e-6 * np.abs(serial["nodes"][:, 2:]).max()
+    assert (
+        np.abs(u - uSerial).max(initial=0.0)
+        < 1e-6 * np.abs(serial["nodes"][:, 2:]).max()
+    )
     for scalarsRank in Allgather(scalars, simu.mesh.comm):
         np.testing.assert_array_equal(scalarsRank, scalars)
-    np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=1e-12)
+    # a vanishing resultant is round-off of the largest scalar
+    atol = 1e-12 * np.abs(serial["scalars"]).max(initial=1.0)
+    np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=atol)
 
 
 @pytest.mark.mpi
@@ -340,8 +483,8 @@ def test_Solve_over_the_ranks_holds_the_rank_nodes_only(case):
 
     assert mesh.Nn < whole
     assert mesh.coord.shape == (mesh.Nn, 3)
-    assert simu.displacement.shape == (mesh.Nn * 2,)
-    assert simu.Result("Svm").shape == (mesh.Nn,)
+    assert _fields(simu).shape[0] == mesh.Nn
+    assert simu.Result(_RESULTS[case][-1]).shape[0] == mesh.Nn
 
 
 @pytest.mark.mpi
@@ -365,6 +508,19 @@ def test_Gather_gives_rank_0_the_serial_results(case):
         assert np.abs(values - expected).max() < 1e-6 * scale, name
 
 
+@pytest.mark.mpi
+def test_Gather_twice_leaves_every_rank_as_the_first_did():
+    pytest.importorskip("petsc4py")
+    simu = _elastic()
+    simu._Gather()
+    displacement = simu.displacement.copy()
+
+    simu._Gather()
+
+    assert simu.mesh.isPartitioned == (simu.mesh.comm is not None)
+    np.testing.assert_array_equal(simu.displacement, displacement)
+
+
 def _globalElements(mesh) -> np.ndarray:
     """Global id of each of the rank's elements, in `Result(..., nodeValues=False)` order."""
     (groupElem,) = mesh.Get_list_groupElem(mesh.dim)
@@ -377,18 +533,77 @@ def test_Result_over_the_ranks_gives_the_serial_rows_the_rank_holds(case):
     """Ghosts included: a ghost row is its owner's, nodal averages across the partition interfaces too."""
     pytest.importorskip("petsc4py")
     simu = _CASES[case]()
-    mesh = simu.mesh
-    serial = _serial(case)
+    serial = {k.removeprefix("result/"): v for k, v in _serial(case).items()}
 
-    rows = {"": mesh.globalNodes, "_e": _globalElements(mesh)}
-    for name, values in _results(simu, case).items():
-        expected = serial[f"result/{name}"]
+    _assert_rank_rows(simu, _results(simu, case), serial)
+
+
+def _assert_rank_rows(simu, values: dict, serial: dict, suffix: str = "") -> None:
+    """`values`, by result name, are the serial rows the rank holds, ghosts included."""
+    rows = {"": simu.mesh.globalNodes, "_e": _globalElements(simu.mesh)}
+    for name, value in values.items():
+        whole = serial[f"{name}{suffix}"]
         rowsSerial = rows["_e" if name.endswith("_e") else ""]
-        expected = expected.reshape(-1, values.size // rowsSerial.size)[rowsSerial]
-        scale = max(np.abs(serial[f"result/{name}"]).max(), 1e-300)
-        assert np.abs(values.reshape(expected.shape) - expected).max() < 1e-6 * scale, (
-            name
+        expected = whole.reshape(-1, value.size // rowsSerial.size)[rowsSerial]
+        scale = max(np.abs(whole).max(), 1e-300)
+        assert np.abs(value.reshape(expected.shape) - expected).max() < 1e-6 * scale, (
+            f"{name}{suffix}"
         )
+
+
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", _SAVED)
+@pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
+def test_Set_Iter_over_the_ranks_gives_the_serial_rows_of_every_iteration(
+    case, inFolder, tmp_path
+):
+    pytest.importorskip("petsc4py")
+    folder = _shared_folder(tmp_path)
+    simu = _saved(case, folder if inFolder else "")
+    serial = _serial(f"iterations:{case}")
+
+    for i in reversed(range(simu.Niter)):
+        simu.Set_Iter(i)
+        _assert_rank_rows(simu, _results(simu, case), serial, f"@{i}")
+
+
+@pytest.mark.mpi
+def test_DIC_refuses_a_mesh_shared_by_the_ranks():
+    domain = Domain((0, 0), (20, 10), 2)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    image = np.zeros((11, 21))
+
+    with pytest.raises(ValueError, match="DIC is serial"):
+        Simulations.DIC(mesh, image)
+
+
+@pytest.mark.mpi
+def test_Beam_refuses_a_connection_over_the_ranks():
+    pytest.importorskip("petsc4py")
+    simu = _beam()
+    nodesConnected = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+
+    with pytest.raises(NotImplementedError, match="Lagrange condition"):
+        simu.add_connection_fixed(nodesConnected)
+
+
+@pytest.mark.mpi
+def test_PhaseField_refuses_BoundConstrain_over_the_ranks():
+    pytest.importorskip("petsc4py")
+    material = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+    pfm = Models.PhaseField(
+        material,
+        "Miehe",
+        "AT2",
+        2.7,
+        0.1,
+        solver=Models.PhaseField.SolverType.BoundConstrain,
+    )
+    simu = Simulations.PhaseField(_plate_with_hole(ElemType.TRI3), pfm)
+    _clamped_and_pulled(simu, [4e-3], ["x"])
+
+    with pytest.raises(NotImplementedError, match="BoundConstrain"):
+        simu.Solve()
 
 
 @pytest.mark.mpi
@@ -612,7 +827,40 @@ def test_Load_Simu_over_another_rank_count_raises(tmp_path):
 
 
 @pytest.mark.mpi
-@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes"])
+def test_Save_over_the_ranks_removes_an_earlier_serial_save(tmp_path):
+    pytest.importorskip("petsc4py")
+    folder = _shared_folder(tmp_path)
+    simu = _history("plastic", folder, steps=[1])
+    comm = simu.mesh.comm
+    if comm.Get_rank() == 0:
+        Path(folder, "simulation.pickle").write_bytes(b"serial")
+    comm.Barrier()
+
+    simu.Save(folder)
+    comm.Barrier()
+
+    assert not Path(folder, "simulation.pickle").exists()
+
+
+@pytest.mark.mpi
+def test_Load_Simu_over_the_ranks_raises_on_every_rank_when_one_file_is_empty(
+    tmp_path,
+):
+    pytest.importorskip("petsc4py")
+    folder = _shared_folder(tmp_path)
+    simu = _history("plastic", folder, steps=[1])
+    simu.Save(folder)
+    comm = simu.mesh.comm
+    if comm.Get_rank() == comm.Get_size() - 1:
+        Path(folder, f"Rank{comm.Get_rank()}", "simulation.pickle").write_bytes(b"")
+    comm.Barrier()
+
+    with pytest.raises(ValueError, match="empty"):
+        Simulations.Load_Simu(folder)
+
+
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes", *_SAVED])
 @pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
 def test_Load_Simu_serially_reads_a_run_over_the_ranks_as_the_serial_run(
     case, inFolder, tmp_path
@@ -624,13 +872,13 @@ def test_Load_Simu_serially_reads_a_run_over_the_ranks_as_the_serial_run(
     if simu.mesh.comm.Get_rank() != 0:
         return
 
-    read = _serial(f"load:{folder}")
+    read = _serial(f"load:{case}:{folder}")
 
     _assert_iterations_equal(read, _serial(f"iterations:{case}"))
 
 
 @pytest.mark.mpi
-@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes"])
+@pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes", *_SAVED])
 @pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
 def test_Set_Iter_after_Gather_gives_the_serial_iterations(case, inFolder, tmp_path):
     pytest.importorskip("petsc4py")
@@ -645,7 +893,9 @@ def test_Set_Iter_after_Gather_gives_the_serial_iterations(case, inFolder, tmp_p
 
     if comm.Get_rank() != 0:
         return
-    _assert_iterations_equal(_iterations_of(simu), serial)
+    _assert_iterations_equal(_iterations_of(simu, case), serial)
+    if "Svm" not in simu.Results_Available():
+        return
     Matplotlib.Movie_simu(simu, "Svm", folder, "movie.gif")
     assert Path(folder, "movie.gif").stat().st_size > 0
 
@@ -665,12 +915,13 @@ if __name__ == "__main__":
         np.savez(path, **iterations)
         sys.exit()
     if case.startswith("iterations:"):
-        np.savez(path, **_iterations_of(_saved(case[11:])))
+        np.savez(path, **_iterations_of(_saved(case[11:]), case[11:]))
         sys.exit()
     if case.startswith("load:"):
         # `_Heated` unpickles from this module as pytest imported it
         sys.path.insert(0, str(Path(__file__).parents[1]))
-        np.savez(path, **_iterations_of(Simulations.Load_Simu(case[5:])))
+        case, folder = case[5:].split(":", 1)
+        np.savez(path, **_iterations_of(Simulations.Load_Simu(folder), case))
         sys.exit()
     if case.startswith("saved:"):
         folder = os.path.dirname(path)
@@ -679,7 +930,7 @@ if __name__ == "__main__":
         np.savez(path, bytes=sum(f.stat().st_size for f in files))
         sys.exit()
     simu = _CASES[case]()
-    nodes = np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)])
+    nodes = np.hstack([simu.mesh.coord[:, :2], _fields(simu)])
     results = {f"result/{k}": v for k, v in _results(simu, case).items()}
     (groupElem,) = simu.mesh.Get_list_groupElem(simu.mesh.dim)
     np.savez(

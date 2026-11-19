@@ -5,6 +5,8 @@
 
 """Patch tests: on an L × H rectangle, the mass and `LinearForm(1)` sum to the area, and the stiffness of an affine field is exact."""
 
+import pickle
+
 import pytest
 import numpy as np
 
@@ -24,6 +26,27 @@ def meshes(mesh_of) -> list[Mesh]:
 MASS = BiLinearForm(lambda u, v: u.dot(v))
 ONE = LinearForm(lambda v: 1.0 * v)
 FORMS = {"BiLinearForm": (MASS, 2), "LinearForm": (ONE, 1)}
+
+
+@BiLinearForm
+def _decorated(u, v):
+    return u.dot(v)
+
+
+def _plain(v):
+    return 2.0 * v
+
+
+def test_Form_decorated_pickles_as_itself():
+    assert pickle.loads(pickle.dumps(_decorated)) is _decorated
+
+
+def test_Form_of_a_named_function_pickles_by_value():
+    form = LinearForm(_plain)
+
+    copy = pickle.loads(pickle.dumps(form))
+
+    assert copy is not form and copy._form is _plain
 
 
 def test_Form_calls_its_function():

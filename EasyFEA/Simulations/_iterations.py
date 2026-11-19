@@ -230,7 +230,7 @@ def Placed(parts: list[tuple[str, Rows, Iteration]], whole: Layout) -> Iteration
     """The iteration on `whole`, a whole mesh, from every rank's owned rows (`Owned`), each labelled for the error raised when its rows are not the rank's."""
 
     def place(kind: str, size: int, rows: list, values: list) -> Any:
-        placed = np.zeros_like(values[0], shape=(size, *values[0].shape[1:]))
+        placed = _Zeros(values[0], size)
         for (label, _, _), ids, values_r in zip(parts, rows, values):
             _Check_rows(label, kind, values_r.shape[0], ids.size)
             placed[ids] = values_r
@@ -268,6 +268,11 @@ def Placed(parts: list[tuple[str, Rows, Iteration]], whole: Layout) -> Iteration
         for key, fields in first["quadrature"].items()
     }
     return {"scalars": {}, "dofs": dofs, "nodal": nodal, "quadrature": quadrature}
+
+
+def _Zeros(like: np.ndarray, size: int) -> np.ndarray:
+    """`size` rows of zeros like those of `like`, of its type: `np.zeros_like` unwraps a FeArray whose (Ne, nPg) changes."""
+    return np.zeros((size, *like.shape[1:]), like.dtype).view(type(like))
 
 
 def _Anchors(
@@ -476,7 +481,7 @@ def _Read_rows(folder: str, file: str, indexMesh: int, p: Layout) -> Iteration:
     own: Iteration = _Load(path)
 
     def place(kind: str, values_f: np.ndarray, rows, size: int) -> np.ndarray:
-        values = np.zeros_like(values_f, shape=(size, *values_f.shape[1:]))
+        values = _Zeros(values_f, size)
         _Check_rows(path, kind, values_f.shape[0], values[rows].shape[0])
         values[rows] = values_f
         return values

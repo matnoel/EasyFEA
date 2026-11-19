@@ -6,6 +6,8 @@
 """Module containing the BiLinearForm and LinearForm classes used to construct arbitrary fem matrices."""
 
 from abc import ABC, abstractmethod
+import importlib
+import sys
 from typing import Callable, TYPE_CHECKING
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -26,6 +28,13 @@ class _Form(ABC):
     def __call__(self, *args, **kwds):
         return self._form(*args, **kwds)
 
+    def __reduce_ex__(self, protocol):
+        # a decorated form: its function's name holds the form, so pickle the form by that name
+        module, name = self._form.__module__, self._form.__qualname__
+        if getattr(sys.modules.get(module), name, None) is self:
+            return _Named, (module, name)
+        return super().__reduce_ex__(protocol)
+
     @abstractmethod
     def Integrate_e(self, field: "Field") -> np.ndarray:
         """Integrates de form with the field on elements.
@@ -44,6 +53,11 @@ class _Form(ABC):
     @abstractmethod
     def Assemble(self, field: "Field") -> csr_matrix:
         pass
+
+
+def _Named(module: str, name: str) -> _Form:
+    """The form named `name` in `module`."""
+    return getattr(importlib.import_module(module), name)
 
 
 class BiLinearForm(_Form):

@@ -9,6 +9,7 @@ import numpy as np
 
 # utilities
 from ..Utilities import Terminal, Tic, _types, _params
+from ..Utilities._mpi import MPI_SIZE, Sum_owned
 
 # fem
 if TYPE_CHECKING:
@@ -124,7 +125,8 @@ class Beam(_Simu):
 
         super().__init__(mesh, model, folder, verbosity)
 
-        self.solver = SolverType.scipy
+        if MPI_SIZE == 1:
+            self.solver = SolverType.scipy
 
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
@@ -369,6 +371,11 @@ class Beam(_Simu):
             description
         """
 
+        if self.mesh.isPartitioned:
+            raise NotImplementedError(
+                "A beam connection is a Lagrange condition, not solved over the ranks: connect the beams with EASYFEA_MPI=off."
+            )
+
         nodes = np.asarray(nodes)
 
         problemType = self.problemType
@@ -416,53 +423,36 @@ class Beam(_Simu):
             ),
         ]
 
+    def __Mass_e_pg(self) -> FeArray.FeArrayALike:
+        """rho · area · wJ at the mass rule's points of every element."""
+        mesh = self.mesh
+        wJ_e_pg = mesh.groupElem.Get_weightedJacobian_e_pg(MatrixType.mass)
+        rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
+        area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
+        for beam in self.structure.beams:
+            area_e_pg[mesh.Elements_Tags(beam.name)] = beam.area
+        return rho_e_pg * area_e_pg * wJ_e_pg
+
+    def __Sum_owned(self, values_e: np.ndarray) -> np.ndarray:
+        """Sum of `values_e` over the elements, each counted once over the ranks; collective."""
+        groupElem = self.mesh.groupElem
+        return Sum_owned(
+            values_e, groupElem._elementOwners, groupElem.rank, self.mesh.comm
+        )
+
     @property
     def mass(self) -> float:
-        matrixType = MatrixType.mass
-
-        mesh = self.mesh
-        groupElem = mesh.groupElem
-
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-
-        rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
-
-        area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
-
-        for beam in self.structure.beams:
-            elements = mesh.Elements_Tags(beam.name)
-
-            area_e_pg[elements] = beam.area
-
-        mass = float((rho_e_pg * area_e_pg * wJ_e_pg).sum(axis=(0, 1)))
-
-        return mass
+        return float(self.__Sum_owned(np.asarray(self.__Mass_e_pg()).sum(axis=1)))
 
     @property
     def center(self) -> _types.FloatArray:
         """Center of mass / barycenter / inertia center"""
-
-        matrixType = MatrixType.mass
-
         mesh = self.mesh
+        coord_e_pg = mesh.groupElem.Get_GaussCoordinates_e_pg(MatrixType.mass)
+        moments_e = np.asarray(self.__Mass_e_pg() * coord_e_pg).sum(axis=1)
+        center = self.__Sum_owned(moments_e) / self.mass
 
-        groupElem = mesh.groupElem
-
-        coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType)
-
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-
-        rho_e_p = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
-        mass = self.mass
-
-        area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
-        for beam in self.structure.beams:
-            elements = mesh.Elements_Tags(beam.name)
-            area_e_pg[elements] = beam.area
-
-        center = (rho_e_p * area_e_pg * wJ_e_pg * coordo_e_p / mass).sum(axis=(0, 1))
-
-        if not isinstance(self.rho, np.ndarray):
+        if not isinstance(self.rho, np.ndarray) and not mesh.isPartitioned:
             diff = np.linalg.norm(center - mesh.center) / np.linalg.norm(center)
             assert diff < 1e-12
 
@@ -530,10 +520,7 @@ class Beam(_Simu):
             values = self.Results_displacement_matrix()
 
         elif result in ["fx", "fy", "fz", "cx", "cy", "cz"]:
-            Kbeam = self.Get_K_C_M_F()[0]
-            Kglob = Kbeam.tocsr()[:dofs].tocsc()[:, :dofs]
-            force = Kglob @ self.displacement
-
+            force = self.Calc_Reaction(np.arange(dofs))
             force_n = space.Get_meshValues(force, dof_n)
             index = self._indexResult(result)
             values = force_n[:, index]

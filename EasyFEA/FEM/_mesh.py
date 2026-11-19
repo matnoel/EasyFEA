@@ -51,6 +51,19 @@ class AmbiguousGroupError(Exception):
     """Raised when a single-group accessor (groupElem, connect, Ne, nPe, elemType) is used on a mesh that has several element groups of the same dimension. Iterate mesh.Get_list_groupElem(dim) instead."""
 
 
+class _GroupPart(NamedTuple):
+    """A rank's owned share of a group, in global ids."""
+
+    groupClass: type
+    """A beam's, say."""
+    gmshId: int
+    elements: _types.IntArray
+    """The owned elements."""
+    connect: _types.IntArray
+    tags: dict[str, tuple[_types.IntArray, _types.IntArray]]
+    """By tag: the nodes it holds of the tag, its owned elements of the tag."""
+
+
 class _MeshPart(NamedTuple):
     """A rank's owned share of a mesh, in global ids."""
 
@@ -58,8 +71,7 @@ class _MeshPart(NamedTuple):
     """Global ids of the nodes it holds, ghosts included."""
     coord: _types.FloatArray
     """Their coordinates (Nn, 3)."""
-    groups: dict[ElemType, tuple[int, _types.IntArray, _types.IntArray]]
-    """By element type: its gmsh id, the global ids of the owned elements and their connect in global node ids."""
+    groups: dict[ElemType, _GroupPart]
     orders: dict["ProblemType", int]
     """Order of each problem type's space not isoparametric."""
 
@@ -474,29 +486,43 @@ class Mesh(Observable):
         globalNodes = self.globalNodes
         groups = {}
         for elemType, groupElem in self.__dict_groupElem.items():
-            owned = groupElem._ownedElements
-            groups[elemType] = (
+            owned = np.zeros(groupElem.Ne, dtype=bool)
+            owned[groupElem._ownedElements] = True
+            globalElements = groupElem._globalElements
+            elementTags = groupElem._dict_elements_tags
+            tags = {}
+            for tag, nodes in groupElem._dict_nodes_tags.items():
+                elements = elementTags.get(tag, np.empty(0, dtype=int))
+                elements = globalElements[elements[owned[elements]]]
+                tags[tag] = (globalNodes[nodes], elements)
+            groups[elemType] = _GroupPart(
+                type(groupElem),
                 groupElem.gmshId,
-                groupElem._globalElements[owned],
+                globalElements[owned],
                 globalNodes[groupElem.connect[owned]],
+                tags,
             )
         return _MeshPart(globalNodes, self.coord, groups, self.__Get_orders())
 
     @staticmethod
     def _Assembled(parts: list["_MeshPart"], verbosity: bool = False) -> "Mesh":
         """The whole mesh, numbered by global id, from the owned parts of every rank (`_Owned_part`), those of a live run or of its saved partitions."""
-        from ._group_elem import GroupElemFactory
-
         Nn = 1 + max(int(part.nodes.max(initial=-1)) for part in parts)
         coordinates = Place_rows([(part.nodes, part.coord) for part in parts], Nn)
         dict_groupElem = {}
-        for elemType, (gmshId, *_) in parts[0].groups.items():
-            rows = [part.groups[elemType][1:] for part in parts]
-            Ne = 1 + max(int(elements.max(initial=-1)) for elements, _ in rows)
+        for elemType, first in parts[0].groups.items():
+            groups = [part.groups[elemType] for part in parts]
+            rows = [(group.elements, group.connect) for group in groups]
+            Ne = 1 + max(int(group.elements.max(initial=-1)) for group in groups)
             connect = Place_rows(rows, Ne)
-            dict_groupElem[elemType] = GroupElemFactory._Create(
-                gmshId, connect, coordinates
-            )
+            groupElem = first.groupClass(first.gmshId, connect, coordinates)
+            for tag in first.tags:
+                nodes, elements = (
+                    np.unique(np.concatenate([group.tags[tag][i] for group in groups]))
+                    for i in (0, 1)
+                )
+                groupElem.Set_Tag(nodes, tag, elements)
+            dict_groupElem[elemType] = groupElem
         mesh = Mesh(dict_groupElem, verbosity)
         for problemType, order in parts[0].orders.items():
             mesh.__Set_FunctionSpace(problemType, order)

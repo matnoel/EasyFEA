@@ -1752,6 +1752,16 @@ def __Construct_beam_mesh(mesh: Mesh, class_map: dict) -> Mesh:
         for nodeTag in groupElem.nodeTags:
             newGroup.Set_Tag(groupElem.Get_Nodes_Tag(nodeTag), nodeTag)
 
+        if groupElem._nodeOwners is not None:
+            newGroup._Set_partition(
+                groupElem._globalElements,
+                groupElem._elementOwners,
+                groupElem._globalNodes,
+                groupElem._nodeOwners,
+                groupElem.rank,
+            )
+        newGroup.isPartitioned = groupElem.isPartitioned
+
         newDict_groupElem[elemType] = newGroup
 
     return Mesh(newDict_groupElem)

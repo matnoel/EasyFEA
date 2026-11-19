@@ -58,6 +58,21 @@ This document describes the changes made to the project.
   returns the whole simulation. After `_Gather`, `Set_Iter` reads every saved iteration
   whole, memory and folder, so `Movie_simu` works; `_Gather` and the serial read build
   the whole mesh with one function.
+- Every simulation solves over the ranks as in serial: PhaseField, Thermal, Beam and
+  WeakForms join Elastic, HyperElastic and InElastic. A beam section meshed under mpirun
+  is shared by the ranks: its area, inertias and shear factor are summed over them,
+  once, when the beam is made. DIC refuses a mesh shared by the ranks, beam connections
+  (Lagrange conditions) refuse one too, as PhaseField's `BoundConstrain`.
+- `_Gather` and a serial read of a run over the ranks keep the element tags and node
+  tags and the group classes (beam elements), and the internal variables stay `FeArray`s
+  (PhaseField's `psiP` was wrong after `_Gather`).
+
+### Simulations
+
+- A Beam can be saved: its section is no longer observed by the simulation computing its
+  shear factors.
+- A form made with `@BiLinearForm` or `@LinearForm` at module level pickles, so a
+  WeakForms simulation using one can be saved.
 
 ## 7.3.0 (November 13, 2026):
 

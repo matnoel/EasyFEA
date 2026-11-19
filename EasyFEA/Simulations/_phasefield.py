@@ -387,7 +387,7 @@ class PhaseField(_Simu):
             Niter=Niter,
             timeIter=timeIter,
             convIter=convIter,
-            damageMax=float(self.damage.max()),
+            damageMax=Reduce_max(float(self.damage[ownedD].max(initial=0.0)), comm),
         )
 
         return u_np1, d_np1, converged
