@@ -2376,25 +2376,73 @@ def test_Simu_Results_Get_Bc_Summary_is_empty_by_default():
     assert simu.Results_Get_Bc_Summary() == ""
 
 
-def test_Simu_Results_Reshape_values_moves_values_between_nodes_and_elements():
-    """On 16 elements and 27 nodes, so that no node size is an element one."""
+def _bar_quad4() -> Simulations.Elastic:
     domain = Domain((0, 0), (L, H), H / 2)
     mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    simu = _elastic_bar(mesh=mesh)
-    x_n = mesh.coord[:, 0]
+    return _elastic_bar(mesh=mesh)
 
-    assert (
-        rel_error(simu.Results_Reshape_values(np.full(mesh.Ne, 5.0), True), 5.0) < 1e-15
+
+def _hexa27() -> Simulations.Elastic:
+    """One HEXA27: 27 nodes, one element, so that every node size is an element one."""
+    domain = Domain((0, 0), (1, 1), 1)
+    mesh = domain.Mesh_Extrude(
+        [],
+        [0, 0, 1],
+        [1],
+        ElemType.HEXA27,
+        isOrganised=True,
     )
-    x_e = simu.Results_Reshape_values(x_n, False)
+    return Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E, v))
+
+
+def test_Simu_Results_Reshape_values_n_averages_node_values_over_each_element():
+    simu = _bar_quad4()
+    mesh = simu.mesh
+
+    x_e = simu.Results_Reshape_values_n(mesh.coord[:, 0], False)
     assert rel_error(x_e, mesh.coord[mesh.connect, 0].mean(1)) < 1e-15
-    pairs = simu.Results_Reshape_values(np.ones((mesh.Ne, 2)), True)
-    assert pairs.shape == (mesh.Nn, 2)
-    assert simu.Results_Reshape_values(np.ones(mesh.Nn * 2), False).shape == (
+    assert simu.Results_Reshape_values_n(np.ones(mesh.Nn * 2), False).shape == (
         mesh.Ne * 2,
     )
-    with pytest.raises(Exception, match="Unexpected"):
-        simu.Results_Reshape_values(np.ones(mesh.Nn * mesh.Ne + 1), False)
+    assert simu.Results_Reshape_values_n(np.ones((mesh.Nn, 2)), True).shape == (
+        mesh.Nn,
+        2,
+    )
+    with pytest.raises(ValueError, match="nodes"):
+        simu.Results_Reshape_values_n(np.ones(mesh.Nn + 1), False)
+
+
+def test_Simu_Results_Reshape_values_n_reads_node_values_when_sizes_coincide():
+    simu = _hexa27()
+
+    values_e = simu.Results_Reshape_values_n(simu.mesh.coord[:, 0], False)
+
+    np.testing.assert_allclose(values_e, [0.5])
+
+
+def test_Simu_Results_Reshape_values_e_averages_element_values_at_nodes():
+    simu = _bar_quad4()
+    mesh = simu.mesh
+
+    values_n = simu.Results_Reshape_values_e(np.full(mesh.Ne, 5.0), True)
+    assert rel_error(values_n, 5.0) < 1e-15
+    assert simu.Results_Reshape_values_e(np.ones((mesh.Ne, 2)), True).shape == (
+        mesh.Nn,
+        2,
+    )
+    assert simu.Results_Reshape_values_e(np.ones(mesh.Ne * 2), False).shape == (
+        mesh.Ne * 2,
+    )
+    with pytest.raises(ValueError, match="elements"):
+        simu.Results_Reshape_values_e(np.ones(mesh.Ne + 1), True)
+
+
+def test_Simu_Results_Reshape_values_e_reads_element_values_when_sizes_coincide():
+    simu = _hexa27()
+
+    values_n = simu.Results_Reshape_values_e(np.ones((1, 27)), True)
+
+    np.testing.assert_allclose(values_n, np.ones((simu.mesh.Nn, 27)))
 
 
 # ----------------------------------------------

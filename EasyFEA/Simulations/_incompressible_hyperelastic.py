@@ -294,25 +294,29 @@ class IncompressibleHyperElastic(_Simu):
         elif result == "W":
             return self._Calc_W()
         elif result == "W_e":
-            values = self._Calc_W(False)
+            values_e = np.asarray(self._Calc_W(False))
+            return self.Results_Reshape_values_e(values_e, nodeValues)
         elif result == "J":
-            values = self._Calc_J()
+            values_e = self._Calc_J()
+            return self.Results_Reshape_values_e(values_e, nodeValues)
         elif result in ("Green-Lagrange", "Piola-Kirchhoff"):
             field = (
                 self._Calc_GreenLagrange()
                 if result == "Green-Lagrange"
                 else self._Calc_SecondPiolaKirchhoff()
             )
-            values = Result_strain_or_stress_field_e(field, result)
+            values_e = Result_strain_or_stress_field_e(field, result)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
         else:
             field = (
                 self._Calc_SecondPiolaKirchhoff()
                 if result[0] == "S"
                 else self._Calc_GreenLagrange()
             )
-            values = Result_strain_or_stress_field_e(field, result[-2:])
+            values_e = Result_strain_or_stress_field_e(field, result[-2:])
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def __Solved_kinematics(
         self, groupElem: _GroupElem, matrixType: MatrixType | None = None

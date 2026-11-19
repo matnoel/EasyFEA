@@ -328,10 +328,12 @@ class HyperElastic(_Simu):
             return self._Calc_W()
 
         elif result == "W_e":
-            values = self._Calc_W(False)
+            values_e = self._Calc_W(False)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result == "J":
-            values = self._Calc_J()
+            values_e = self._Calc_J()
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result in ["Green-Lagrange", "Piola-Kirchhoff"] or (
             ("S" in result or "E" in result) and ("_norm" not in result)
@@ -352,7 +354,8 @@ class HyperElastic(_Simu):
                 if isStress
                 else self._Calc_GreenLagrange()
             )
-            values = Result_strain_or_stress_field_e(field, res)
+            values_e = Result_strain_or_stress_field_e(field, res)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -360,7 +363,7 @@ class HyperElastic(_Simu):
 
         # end cases ----------------------------------------------------
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
         r"""Computes the hyperelastic strain energy.

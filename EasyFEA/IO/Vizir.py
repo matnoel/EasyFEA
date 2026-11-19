@@ -16,6 +16,7 @@ from ..Utilities._mpi import rank0_only
 from ..FEM._group_elem import GroupElemFactory
 from ..FEM._utils import ElemType
 from . import Medit
+from ._utils import _Check_gathered
 
 from ..Geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
@@ -514,7 +515,7 @@ def Save_simu(
         A command string for visualizing the saved results using vizir.
     """
 
-    # assert isinstance(simu, "_Simu")
+    _Check_gathered(simu, "Vizir.Save_simu")
 
     if len(types) != len(results):
         raise ValueError("types must give one solution type per result.")

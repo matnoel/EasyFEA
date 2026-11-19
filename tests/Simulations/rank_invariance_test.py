@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -272,6 +273,71 @@ def test_Gather_gives_rank_0_the_serial_results(case):
         assert np.abs(values - expected).max() < 1e-6 * scale, name
 
 
+def _globalElements(mesh) -> np.ndarray:
+    """Global id of each of the rank's elements, in `Result(..., nodeValues=False)` order."""
+    (groupElem,) = mesh.Get_list_groupElem(mesh.dim)
+    return groupElem._globalElements
+
+
+@pytest.mark.mpi
+@pytest.mark.parametrize("case", _CASES)
+def test_Result_over_the_ranks_gives_the_serial_rows_the_rank_holds(case):
+    """Ghosts included: a ghost row is its owner's, nodal averages across the partition interfaces too."""
+    pytest.importorskip("petsc4py")
+    simu = _CASES[case]()
+    mesh = simu.mesh
+    serial = _serial(case)
+
+    rows = {"": mesh.globalNodes, "_e": _globalElements(mesh)}
+    for name, values in _results(simu, case).items():
+        expected = serial[f"result/{name}"]
+        rowsSerial = rows["_e" if name.endswith("_e") else ""]
+        expected = expected.reshape(-1, values.size // rowsSerial.size)[rowsSerial]
+        scale = max(np.abs(serial[f"result/{name}"]).max(), 1e-300)
+        assert np.abs(values.reshape(expected.shape) - expected).max() < 1e-6 * scale, (
+            name
+        )
+
+
+@pytest.mark.mpi
+def test_Paraview_pieces_over_the_ranks_give_back_the_serial_fields(tmp_path):
+    """The owned cells, their points by GlobalPointIds, hold the serial fields once; a point in several pieces carries one value."""
+    pytest.importorskip("petsc4py")
+    pv = pytest.importorskip("pyvista")
+    from EasyFEA import IO
+
+    simu = _elastic()
+    simu.Save_Iter()
+    comm = simu.mesh.comm
+    folder = comm.bcast(str(tmp_path), root=0)
+    pvdFile = IO.Paraview.Save_simu(simu, folder, results=["Svm"])
+    serial = _serial("elastic")
+    comm.Barrier()
+    if comm.Get_rank() != 0:
+        return
+
+    u = serial["result/displacement"].reshape(-1, 2)
+    svm_n = serial["result/Svm"]
+    cellsSerial = {tuple(sorted(c)): e for e, c in enumerate(serial["connect"])}
+    pieces = sorted(Path(pvdFile).parent.glob("Rank*/solution_0.vtu"))
+    assert len(pieces) == comm.Get_size()
+    svm = np.full(len(cellsSerial), np.nan)
+    for piece in pieces:
+        grid = pv.read(piece)
+        gids = grid.point_data["GlobalPointIds"].astype(int)
+        np.testing.assert_allclose(grid.points[:, :2], serial["nodes"][gids, :2])
+        displacement = grid.point_data["displacement"][:, :2]
+        assert np.abs(displacement - u[gids]).max() < 1e-6 * np.abs(u).max()
+        assert np.abs(grid.point_data["Svm"] - svm_n[gids]).max() < 1e-6 * svm_n.max()
+        owned = grid.cell_data["vtkGhostType"] == 0
+        for c in np.flatnonzero(owned):
+            e = cellsSerial[tuple(sorted(gids[grid.get_cell(c).point_ids]))]
+            assert np.isnan(svm[e]), "an owned cell in two pieces"
+            svm[e] = grid.cell_data["Svm"][c]
+    expected = serial["result/Svm_e"]
+    assert np.abs(svm - expected).max() < 1e-6 * np.abs(expected).max()
+
+
 if __name__ == "__main__":
     case, path = sys.argv[1:]
     if case.startswith("space"):
@@ -280,4 +346,11 @@ if __name__ == "__main__":
     simu = _CASES[case]()
     nodes = np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)])
     results = {f"result/{k}": v for k, v in _results(simu, case).items()}
-    np.savez(path, nodes=nodes, scalars=_scalars(simu), **results)
+    (groupElem,) = simu.mesh.Get_list_groupElem(simu.mesh.dim)
+    np.savez(
+        path,
+        nodes=nodes,
+        scalars=_scalars(simu),
+        connect=groupElem.connect,
+        **results,
+    )

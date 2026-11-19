@@ -34,6 +34,14 @@ def _Get_space_coord(
     return spaceCoord
 
 
+def _Check_gathered(simu: _Simu, name: str) -> None:
+    """Raises unless ``simu`` holds the whole mesh: run by rank 0 alone, ``name`` would hang on the collectives of a partitioned simulation's results."""
+    if not simu.isGathered:
+        raise ValueError(
+            f"Under MPI, {name} needs the gathered simulation: call `simu._Gather()` first."
+        )
+
+
 @singledispatch
 def _Init_obj(
     obj: _Simu | Mesh | _GroupElem, deformFactor: float = 0.0

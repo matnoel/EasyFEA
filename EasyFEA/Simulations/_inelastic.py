@@ -237,25 +237,27 @@ class InElastic(_Simu):
             values = self.__Solved_externals()[result]
 
         elif result in self.__Scalar_states():
-            values = np.concatenate(
+            values_e = np.concatenate(
                 [
                     np.mean(self.__Internal_e_pg(g)[result], axis=1)
                     for g in self.__Groups()
                 ]
             )
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif ("S" in result or "E" in result) and "_norm" not in result:
             isStress = "S" in result and result != "Strain"
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values = Result_strain_or_stress_field_e(field, res)
+            values_e = Result_strain_or_stress_field_e(field, res)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore[return-value]
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def Results_Iter_Summary(
         self,

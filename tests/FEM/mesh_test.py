@@ -99,7 +99,7 @@ def test_Mesh_orphanNodes_are_used_by_no_element(capsys):
 
     mesh = Mesh({ElemType.SEG2: groupElem}, verbosity=True)
 
-    assert mesh.orphanNodes == [1]
+    assert mesh.orphanNodes.tolist() == [1]
     assert "Orphan nodes" in capsys.readouterr().out
 
 

@@ -557,7 +557,7 @@ class Beam(_Simu):
                 if result == "Tz":
                     idx = 2  # My row → Tz
 
-                values = -shear_np[:, :, idx].mean(axis=1)
+                values_e = -shear_np[:, :, idx].mean(axis=1)
             elif result in ["Ty", "Tz"] and self.useTimoshenko:
                 # Selective reduced integration: γ is physical only at the
                 # reduced Gauss points (MatrixType.beam_shear).  Evaluate Ty/Tz
@@ -570,27 +570,32 @@ class Beam(_Simu):
                 )
                 forces_red = self.structure.Compute_InternalForces(kinematics)
                 index = self._indexResult(result)
-                values = np.asarray(forces_red)[:, :, index].mean(axis=1)
+                values_e = np.asarray(forces_red)[:, :, index].mean(axis=1)
             else:
                 kinematics = Kinematics(groupElem, self.displacement, MatrixType.beam)
                 internalForces_e_pg = self.structure.Compute_InternalForces(kinematics)
                 forces_np = np.asarray(internalForces_e_pg)
                 index = self._indexResult(result)
-                values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
+                values_e = forces_np[:, :, index].mean(axis=1)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
             Sigma_e = np.asarray(self._Calc_Sigma()).mean(1)
-            values = Sigma_e[:, _STRESSES[dof_n].index(result)]
+            values_e = Sigma_e[:, _STRESSES[dof_n].index(result)]
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result == "Stress":
-            values = np.asarray(self._Calc_Sigma()).mean(1)
+            values_e = np.asarray(self._Calc_Sigma()).mean(1)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
             Epsilon_e = np.asarray(self._Calc_Epsilon()).mean(1)
-            values = Epsilon_e[:, _STRAINS[dof_n].index(result)]
+            values_e = Epsilon_e[:, _STRAINS[dof_n].index(result)]
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result == "Strain":
-            values = np.asarray(self._Calc_Epsilon()).mean(1)
+            values_e = np.asarray(self._Calc_Epsilon()).mean(1)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -598,7 +603,7 @@ class Beam(_Simu):
 
         # end cases ----------------------------------------------------
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def _Calc_Epsilon(
         self, matrixType: MatrixType = MatrixType.beam

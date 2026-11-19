@@ -3,6 +3,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import pytest
+
 from EasyFEA import IO, Simulations
 
 from _signatures import assert_spelled_as
@@ -62,3 +64,18 @@ def test_SimuSaver_Save_simu_leaves_the_simulation_where_it_is(
             module.Save_simu(simu, folder, results=["ux"], **options)
 
             assert_same_state(live_state(simu), live)
+
+
+def test_SimuSaver_rank0_only_needs_the_gathered_simulation(
+    bar_simu, monkeypatch, subtests, tmp_path
+):
+    """Rank 0 alone reading a partitioned simulation's results would hang on their collectives."""
+    monkeypatch.setattr(type(bar_simu), "isGathered", property(lambda self: False))
+    for module, kwargs in (
+        (IO.GLTF, {}),
+        (IO.USD, {}),
+        (IO.Vizir, {"results": ["ux"], "types": [1]}),
+    ):
+        with subtests.test(module=module.__name__):
+            with pytest.raises(ValueError, match="_Gather"):
+                module.Save_simu(bar_simu, str(tmp_path), **kwargs)

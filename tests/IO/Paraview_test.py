@@ -68,6 +68,16 @@ def test_Save_simu_samples_at_most_N_iterations_first_and_last_included(
         np.testing.assert_allclose(vtu.point_data["ux"], bar_simu.Result("ux"))
 
 
+def test_Save_simu_timesteps_are_the_iteration_indices(
+    bar_simu: Simulations.Elastic, tmp_path
+):
+    pvdFile = IO.Paraview.Save_simu(bar_simu, str(tmp_path), N=2)
+
+    dataSets = ET.parse(pvdFile).getroot().iter("DataSet")
+
+    assert [int(d.attrib["timestep"]) for d in dataSets] == [0, len(LOADS) - 1]
+
+
 def test_Save_simu_raises_naming_an_unavailable_field(
     bar_simu: Simulations.Elastic, tmp_path
 ):

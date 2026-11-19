@@ -2246,7 +2246,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         _types.IntArray, _types.IntArray, list[_types.IntArray | slice], _types.IntArray
     ]:
         """Union of the patterns of `matrices` and of the orphan diagonal, kept while their patterns are: `(indices, indptr)`, each matrix's slots in it, the diagonal's; exact zeros stay, so A's pattern never follows its values."""
-        nodes = np.asarray(self.mesh.orphanNodes, dtype=int)
+        nodes = self.mesh.orphanNodes
         # only the orphans carrying a dof (TETRA10 mid nodes under P1 skipped)
         orphanDofs = self.__Compose(
             problemType,
@@ -3624,69 +3624,48 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns the simulation loading summary, empty when the simulation specifies none."""
         return ""
 
-    def Results_Reshape_values(
-        self, values: _types.FloatArray, nodeValues: bool
+    def Results_Reshape_values_n(
+        self, values_n: _types.FloatArray, nodeValues: bool
     ) -> _types.FloatArray:
-        """Reshapes input values based on whether they are stored at nodes or elements.
-
-        Parameters
-        ----------
-        values : _types.FloatArray
-            Input values to reshape.
-        nodeValues : bool
-            If True, the output will represent values at nodes; if False, values on elements will be derived.
-
-        Returns
-        -------
-        _types.FloatArray
-            Reshaped values on nodes or elements.
-
-        Raises
-        ------
-        Exception
-            Raised if unexpected conditions occur during the calculation.
-        """
+        """Node values ``(Nn, ...)`` or raveled, at nodes or averaged over each element's nodes."""
         mesh = self.mesh
         Nn = mesh.Nn
-        Ne = mesh.Ne
-
-        is1d = values.ndim == 1
+        if values_n.size % Nn != 0:
+            raise ValueError(f"{values_n.size} values cannot be at the {Nn} nodes.")
+        is1d = values_n.ndim == 1
+        values_n = values_n.reshape(Nn, -1)
 
         if nodeValues:
-            shape = -1 if is1d else (Nn, -1)
-            if values.size % Nn == 0:
-                # values stored at nodes
-                if is1d:
-                    return values.ravel()
-                else:
-                    return values.reshape(Nn, -1)
-            elif values.size % Ne == 0:
-                # values stored at elements
-                values_e = values.reshape(Ne, -1)
-                # get node values from element values, exact on the owned rows only
-                values_n = self.mesh.Get_Node_Values(values_e)
-                space = self.mesh._Get_FunctionSpace()
-                space.Scatter_forward(values_n, values_e.shape[1])
-                return values_n.reshape(shape)
-        else:
-            shape = -1 if is1d else (Ne, -1)
-            if values.size % Ne == 0:
-                return values.reshape(shape)
-            elif values.size % Nn == 0:
-                # get values stored at nodes (Nn, i)
-                values_n = values.reshape(Nn, -1)
-                # average over each element's nodes, group by group (element
-                # order matches Get_list_groupElem(dim) / Get_Node_Values)
-                values_e = np.concatenate(
-                    [
-                        np.mean(values_n[groupElem.connect], axis=1)
-                        for groupElem in mesh.Get_list_groupElem(mesh.dim)
-                    ]
-                )
-                return values_e.reshape(shape)
+            return values_n.ravel() if is1d else values_n
 
-        # We should never reach this line of code if no unexpected conditions occurs
-        raise Exception("Unexpected conditions occurred during the calculation.")
+        # element order matches Get_list_groupElem(dim) / Get_Node_Values
+        values_e = np.concatenate(
+            [
+                np.mean(values_n[groupElem.connect], axis=1)
+                for groupElem in mesh.Get_list_groupElem(mesh.dim)
+            ]
+        )
+        return values_e.ravel() if is1d else values_e
+
+    def Results_Reshape_values_e(
+        self, values_e: _types.FloatArray, nodeValues: bool
+    ) -> _types.FloatArray:
+        """Element values ``(Ne, ...)`` or raveled, on elements or averaged at nodes; at nodes collective on a partitioned mesh, the ghost rows their owners'."""
+        mesh = self.mesh
+        Ne = mesh.Ne
+        if values_e.size % Ne != 0:
+            raise ValueError(f"{values_e.size} values cannot be on the {Ne} elements.")
+        is1d = values_e.ndim == 1
+        values_e = values_e.reshape(Ne, -1)
+
+        if not nodeValues:
+            return values_e.ravel() if is1d else values_e
+
+        # exact on the owned rows only
+        values_n = mesh.Get_Node_Values(values_e)
+        space = mesh._Get_FunctionSpace()
+        space.Scatter_forward(values_n, values_e.shape[1])
+        return values_n.ravel() if is1d else values_n
 
     def Save(
         self,

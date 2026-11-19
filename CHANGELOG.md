@@ -35,6 +35,16 @@ This document describes the changes made to the project.
   `_Solver_Set_PETSc4Py_Options` is called again.
 - Assembled `K`, `C`, `M` are read-only; `Assembly` returns the previous matrix while
   its `constant=True` terms are unchanged.
+- `Result` on a rank gives its rows, ghosts included, equal to the serial ones: nodal
+  averages of element values are exact at the partition interfaces.
+  `Results_Reshape_values` split into `Results_Reshape_values_n` and
+  `Results_Reshape_values_e`, the caller stating where the values are: no longer guessed
+  from their size, which could pick elements for node values (one HEXA27).
+- `Movie_simu` (Matplotlib, PyVista) and `Save_simu` of GLTF, USD and Vizir need a
+  gathered simulation, as `Plot_Energy`: rank 0 alone would hang on the results'
+  collectives.
+- Paraview `.pvd` timesteps are the iteration indices, also when `N` samples them (was
+  the file position).
 
 ## 7.3.0 (November 13, 2026):
 

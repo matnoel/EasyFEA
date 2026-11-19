@@ -610,12 +610,13 @@ class PhaseField(_Simu):
         elif result == "psiP":
             # group by group, in Get_list_groupElem order, so the (Ne,) result lines up with
             # Get_Node_Values on meshes carrying several element groups
-            values = np.concatenate(
+            values_e = np.concatenate(
                 [
                     np.asarray(self.__Calc_H_e_pg(groupElem)).mean(1)
                     for groupElem in self.__Displacement_groups()
                 ]
             )
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result == "damage":
             values = d_n
@@ -638,7 +639,8 @@ class PhaseField(_Simu):
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values = Result_strain_or_stress_field_e(field, res)  # type: ignore [assignment]
+            values_e = Result_strain_or_stress_field_e(field, res)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -646,7 +648,7 @@ class PhaseField(_Simu):
 
         # end cases ----------------------------------------------------
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def __indexResult(self, result: str) -> int:
         if len(result) <= 2:

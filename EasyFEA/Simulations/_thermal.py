@@ -167,7 +167,7 @@ class Thermal(_Simu):
 
         # end cases ----------------------------------------------------
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def Results_Iter_Summary(
         self,

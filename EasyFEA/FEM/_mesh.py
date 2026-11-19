@@ -91,13 +91,12 @@ class Mesh(Observable):
             print(self)
 
         # check orphan nodes (a node is used if any group references it), among the rank's own
-        usedNodes: set[int] = set()
+        used = np.zeros(self.Nn, dtype=bool)
         for groupElem in self.dict_groupElem.values():
-            usedNodes.update(groupElem.connect.ravel().astype(int).tolist())
-        nodes = set(range(self.Nn))
-        orphanNodes = list(nodes - usedNodes)
-        self.__orphanNodes: list[int] = orphanNodes
-        if len(orphanNodes) > 0 and verbosity:
+            used[groupElem.connect.ravel()] = True
+        orphanNodes = np.flatnonzero(~used)
+        self.__orphanNodes: _types.IntArray = orphanNodes
+        if orphanNodes.size > 0 and verbosity:
             Terminal.MyPrintError(
                 "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
             )
@@ -146,7 +145,7 @@ class Mesh(Observable):
         return list_groupElem
 
     @property
-    def orphanNodes(self) -> list[int]:
+    def orphanNodes(self) -> _types.IntArray:
         """nodes of this rank no mesh element uses"""
         return self.__orphanNodes
 

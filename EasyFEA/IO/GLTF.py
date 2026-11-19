@@ -21,7 +21,7 @@ import numpy as np
 
 from ..Utilities._requires import Create_requires_decorator
 from ..Utilities._mpi import rank0_only
-from ._utils import _Init_obj
+from ._utils import _Check_gathered, _Init_obj
 from ._colors import _Get_colors_for_values, _Save_colorbar
 from .PyVista import Surface_reconstruction
 
@@ -321,6 +321,8 @@ def Save_simu(
     if simu is None:
         Terminal.MyPrintError("Must give a simulation.")
         return None
+
+    _Check_gathered(simu, "GLTF.Save_simu")
 
     updatedMesh = simu.Nmesh > 1
     reconstructSurface = len(mesh.Get_list_groupElem(2)) == 0

@@ -236,13 +236,15 @@ class Elastic(_Simu):
             return self._Calc_Psi_Elas()
 
         elif result == "Wdef_e":
-            values = self._Calc_Psi_Elas(returnScalar=False)
+            values_e = self._Calc_Psi_Elas(returnScalar=False)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif result == "ZZ1":
             return self._Calc_ZZ1()[0]
 
         elif result == "ZZ1_e":
-            values = self._Calc_ZZ1()[1]
+            values_e = self._Calc_ZZ1()[1]
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and Stress calculation part
@@ -255,7 +257,8 @@ class Elastic(_Simu):
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values = Result_strain_or_stress_field_e(field, res)
+            values_e = Result_strain_or_stress_field_e(field, res)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -263,7 +266,7 @@ class Elastic(_Simu):
 
         # end cases ----------------------------------------------------
 
-        return self.Results_Reshape_values(values, nodeValues)
+        return self.Results_Reshape_values_n(values, nodeValues)
 
     def _Calc_Psi_Elas(
         self,

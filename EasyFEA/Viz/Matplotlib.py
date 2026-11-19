@@ -13,7 +13,7 @@ import re
 from ..Utilities import Folder, Tic, _types
 from ..Utilities._mpi import rank0_only
 from ..Utilities.Terminal import MyPrint, MyPrintError
-from ..IO._utils import _Init_obj, _Get_values, _Get_space_coord
+from ..IO._utils import _Check_gathered, _Init_obj, _Get_values, _Get_space_coord
 from ._utils import tab10_colors as tab10_colors  # public
 from ._utils import tab20_colors as tab20_colors  # public
 from ._utils import (
@@ -1551,10 +1551,7 @@ def Plot_Energy(
 
     simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
-    if not simu.isGathered:
-        raise ValueError(
-            "Under MPI, Plot_Energy needs the gathered simulation: call `simu._Gather()` first."
-        )
+    _Check_gathered(simu, "Plot_Energy")
 
     # First we check whether the simulation can calculate energies
     if len(simu.Results_dict_Energy()) == 0:
@@ -1862,6 +1859,8 @@ def Movie_simu(
     if simu is None:
         MyPrintError("Must give a simulation.")
         return
+
+    _Check_gathered(simu, "Movie_simu")
 
     Niter = simu.Niter
     N = np.min([Niter, N])

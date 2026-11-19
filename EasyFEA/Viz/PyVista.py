@@ -13,7 +13,7 @@ from functools import singledispatch
 
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _types
-from ..IO._utils import _Init_obj, _Get_values, _Get_space_coord
+from ..IO._utils import _Check_gathered, _Init_obj, _Get_values, _Get_space_coord
 from ..IO import PyVista as _pvIO
 from ._utils import (
     _Get_arrow_tails,
@@ -1143,6 +1143,8 @@ def Movie_simu(
     if simu is None:
         Terminal.MyPrintError("Must give a simulation.")
         return
+
+    _Check_gathered(simu, "Movie_simu")
 
     Niter = simu.Niter
     N = np.min([Niter, N])

@@ -999,7 +999,7 @@ def test_Mesher__Mesh_Get_Meshes_pieces_are_their_partition_in_local_ids(
 def test_Mesher__Mesh_Get_Meshes_pieces_have_no_orphan_nodes(partitions, subtests):
     for elemType, (_, pieces) in partitions.items():
         with subtests.test(elemType=str(elemType)):
-            assert [piece.orphanNodes for piece in pieces] == [[]] * NPROC
+            assert [piece.orphanNodes.size for piece in pieces] == [0] * NPROC
 
 
 def test_Mesher__Mesh_Get_Meshes_ghost_elements_are_owned_elsewhere(

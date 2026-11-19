@@ -517,6 +517,14 @@ def test_Movie_simu_needs_a_simulation(bar_simu, tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_Movie_simu_needs_the_gathered_simulation(bar_simu, monkeypatch, tmp_path):
+    """Rank 0 alone reading a partitioned simulation's results would hang on their collectives."""
+    monkeypatch.setattr(type(bar_simu), "isGathered", property(lambda self: False))
+
+    with pytest.raises(ValueError, match="_Gather"):
+        PyVista.Movie_simu(bar_simu, "Svm", str(tmp_path))
+
+
 def test_Movie_func_calls_func_once_per_frame(tmp_path):
     calls = []
 

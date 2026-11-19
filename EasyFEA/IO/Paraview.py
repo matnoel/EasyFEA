@@ -145,7 +145,7 @@ def Save_simu(
 
     pvdFile = Folder.os.path.join(folder, "simulation")
     if MPI_RANK == 0:
-        __Make_pvd(pvdFile, pvFiles)
+        __Make_pvd(pvdFile, pvFiles, iterations.tolist())
 
     tic.Tac("Paraview", "Make pvd", False)
 
@@ -210,7 +210,7 @@ def _Save_mesh(
     tic = Tic()
 
     if MPI_RANK == 0:
-        __Make_pvd(Folder.os.path.join(folder, "simulation"), pvFiles)
+        __Make_pvd(Folder.os.path.join(folder, "simulation"), pvFiles, list(range(N)))
 
     tic.Tac("Paraview", "Make pvd", False)
 
@@ -467,8 +467,8 @@ def __Make_vtu(
         return filename
 
 
-def __Make_pvd(filename: str, pvFiles: list[str] = []):
-    """Makes .pvd file to link the .vtu or .pvtu files."""
+def __Make_pvd(filename: str, pvFiles: list[str], timesteps: list[int]):
+    """Makes .pvd file to link the .vtu or .pvtu files, each at its iteration index."""
 
     tic = Tic()
 
@@ -485,7 +485,7 @@ def __Make_pvd(filename: str, pvFiles: list[str] = []):
         )
         file.write("\t<Collection>\n")
 
-        for t, pvFile in enumerate(pvFiles):
+        for t, pvFile in zip(timesteps, pvFiles):
             pvFile = pvFile.replace(dir, ".")
             file.write(
                 f'\t\t<DataSet timestep="{t}" group="" part="1" file="{pvFile}"/>\n'
