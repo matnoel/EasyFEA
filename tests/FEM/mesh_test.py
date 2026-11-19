@@ -93,17 +93,6 @@ def test_Mesh_Get_list_groupElem_filters_by_dimension(grid: Mesh):
     assert grid.Get_list_groupElem(3) == []
 
 
-def test_Mesh_orphanNodes_are_used_by_no_element(capsys):
-    groupElem = GroupElemFactory.Create(
-        ElemType.SEG2, np.array([[0, 2]]), np.zeros((3, 3))
-    )
-
-    mesh = Mesh({ElemType.SEG2: groupElem}, verbosity=True)
-
-    assert mesh.orphanNodes.tolist() == [1]
-    assert "Orphan nodes" in capsys.readouterr().out
-
-
 def test_Mesh_dict_groupElem_holds_every_dimension(grid: Mesh):
     assert set(grid.dict_groupElem) == {ElemType.POINT, ElemType.SEG2, ElemType.QUAD4}
 

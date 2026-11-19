@@ -84,9 +84,4 @@ if __name__ == "__main__":
             additionalLines=radials,
         )
 
-    if len(mesh.orphanNodes) > 0:
-        plotter = PyVista.Plot_Nodes(mesh, mesh.orphanNodes)
-        plotter.add_title("Orphan nodes detected")
-        plotter.show()
-
     PyVista.Plot_Mesh(mesh).show()

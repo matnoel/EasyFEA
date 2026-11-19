@@ -116,17 +116,6 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
 
-        # check orphan nodes (a node is used if any group references it), among the rank's own
-        used = np.zeros(self.Nn, dtype=bool)
-        for groupElem in self.dict_groupElem.values():
-            used[groupElem.connect.ravel()] = True
-        orphanNodes = np.flatnonzero(~used)
-        self.__orphanNodes: _types.IntArray = orphanNodes
-        if orphanNodes.size > 0 and verbosity:
-            Terminal.MyPrintError(
-                "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
-            )
-
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]  # type: ignore [func-returns-value]
@@ -169,11 +158,6 @@ class Mesh(Observable):
         list_groupElem.reverse()  # stable order (consumers index into this list)
 
         return list_groupElem
-
-    @property
-    def orphanNodes(self) -> _types.IntArray:
-        """nodes of this rank no mesh element uses"""
-        return self.__orphanNodes
 
     @property
     def dict_groupElem(self) -> dict[ElemType, "_GroupElem"]:

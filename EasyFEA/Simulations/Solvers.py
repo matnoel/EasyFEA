@@ -407,6 +407,14 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
 
     dofs_Dirichlet = simu.Bc_dofs_Dirichlet(problemType)
     values_Dirichlet = simu.Bc_values_Dirichlet(problemType)
+    # each orphan not under Dirichlet held at 0 by a Lagrange row appended after Ndof
+    orphans = np.setdiff1d(simu._Bc_dofs_orphan(problemType), dofs_Dirichlet)
+    Ndof = A.shape[0]
+    A.resize((Ndof + orphans.size, Ndof + orphans.size))
+    b = np.append(b, np.zeros(orphans.size))
+    linesOrphan = np.arange(Ndof, Ndof + orphans.size)
+    A[linesOrphan, orphans] = alpha
+    A[orphans, linesOrphan] = alpha
 
     list_Bc_Lagrange = simu.Bc_Lagrange
 
@@ -415,7 +423,7 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
     nCol = nLagrange + nDirichlet
 
     x0 = simu.Get_x0(problemType)
-    x0 = np.append(x0, np.zeros(nCol))
+    x0 = np.append(x0, np.zeros(nCol + orphans.size))
 
     linesDirichlet = np.arange(size, size + nDirichlet)
 
@@ -458,7 +466,7 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
 
     # We don't send back reaction forces
     sol = x[:size]
-    lagrange = x[size:]
+    lagrange = x[size:Ndof]
 
     return sol, lagrange
 

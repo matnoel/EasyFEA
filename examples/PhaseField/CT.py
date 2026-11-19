@@ -146,7 +146,6 @@ if __name__ == "__main__":
         )
 
     # PyVista.Plot_Mesh(mesh).show()
-    # PyVista.Plot_Nodes(mesh, mesh.orphanNodes).show()
 
     nodes_1 = mesh.Nodes_Cylinder(circle1)
     nodes_2 = mesh.Nodes_Cylinder(circle2)

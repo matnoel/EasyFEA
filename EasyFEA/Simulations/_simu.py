@@ -771,6 +771,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__pinnedFields: set[ProblemType] = set()
         """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
+        self.__orphanWarned = False
+        """The current solve already warned about conditions on orphan dofs."""
+
         # Solver used
         if MPI_SIZE > 1:
             if _Get_PETSc() is None:
@@ -1713,6 +1716,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if isinstance(problem, tuple):
             self.__Check_monolithic(problem)
         self.__pinnedFields = set()
+        self.__orphanWarned = False
 
         if self.isNonLinear:
             u, newtonIter, timeIter, list_norm_r = self._Solver_Solve_Newton_Raphson(
@@ -1949,6 +1953,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         A = self.__Get_A(problemType)
+        self.__Warn_orphan_conditions(problemType)
 
         tic.Tac("Solver", f"Construct A ({problemType})", self._verbosity)
 
@@ -1976,19 +1981,44 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """The problem's A for the time scheme, kept by its linear system."""
         # assembles K, C, M into the system when stale
         self.Get_K_C_M_F(problemType)
-        nodes = self.mesh.orphanNodes
-        # only the orphans carrying a dof (TETRA10 mid nodes under P1 skipped)
-        orphanDofs = self.__Compose(
+        system = self._Get_linear_system(problemType)
+        return system.Get_A(self.timeScheme.coefs)
+
+    def _Bc_dofs_orphan(
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.IntArray:
+        """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
+        self.Get_K_C_M_F(problemType)
+        size = self.__Get_size(problemType)
+        connected = self._Get_linear_system(problemType).Assembled_rows()[:size]
+        lagrange = self.__Compose(
             problemType,
-            lambda field: self.Bc_dofs_nodes(
-                self._Get_FunctionSpace(field).Get_dof_nodes(nodes),
-                self.Get_unknowns(field),
-                field,
-            ),
+            lambda field: BoundaryCondition.Get_dofs(field, self.__Bc_Lagrange),  # type: ignore [arg-type]
             isDofs=True,
         )
-        system = self._Get_linear_system(problemType)
-        return system.Get_A(self.timeScheme.coefs, orphanDofs)
+        connected[np.asarray(lagrange, dtype=int)] = True
+        return np.flatnonzero(~connected)
+
+    def __Warn_orphan_conditions(
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> None:
+        """Warns once per solve when a load or a Dirichlet condition touches an orphan dof. Collective on `mesh.comm`."""
+        if self.__orphanWarned:
+            return
+        self.__orphanWarned = True
+        conditions = [
+            self.__Compose(problemType, Bc_dofs, isDofs=True)
+            for Bc_dofs in (self.Bc_dofs_Neumann, self.Bc_dofs_Dirichlet)
+        ]
+        orphans = np.intersect1d(
+            self._Bc_dofs_orphan(problemType), self.Get_dofs(problemType)
+        )
+        touched = np.isin(orphans, np.concatenate(conditions)).sum()
+        touched = Reduce_sum(int(touched), self.mesh.comm)
+        if touched > 0:
+            Terminal.MyPrintError(
+                f"WARNING: {touched} dofs in no element carry a load or a Dirichlet condition: they stay at 0 (or the Dirichlet value), their loads dropped."
+            )
 
     def __Solver_Get_Dirichlet_A_x(
         self,
@@ -2031,6 +2061,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return A, x
 
         elif resolution == ResolType.r3:
+            orphans = np.setdiff1d(self._Bc_dofs_orphan(problemType), dofs)
+            dofs = np.concatenate([dofs, orphans])
+            dofsValues = np.concatenate([dofsValues, np.zeros(orphans.size)])
             # Zero constrained rows on a copy: A may be the assembled K
             A = A.copy()
             row_of_data = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
@@ -2414,6 +2447,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         mask = np.ones(nDof, dtype=bool)
         mask[dofsKnown] = False  # handles duplicates implicitly
+        mask[self._Bc_dofs_orphan(problemType)] = False
         if isinstance(problemType, tuple):
             mask[self.__Bc_dofs_pinned(problemType, mask)] = False
         dofsKnown = np.where(~mask)[0]  # unique, sorted

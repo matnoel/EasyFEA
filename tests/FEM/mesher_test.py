@@ -997,10 +997,14 @@ def test_Mesher__Mesh_Get_Meshes_pieces_are_their_partition_in_local_ids(
                     assert np.array_equal(globalNodes[groupElem.connect], connect)
 
 
-def test_Mesher__Mesh_Get_Meshes_pieces_have_no_orphan_nodes(partitions, subtests):
+def test_Mesher__Mesh_Get_Meshes_pieces_use_every_node(partitions, subtests):
     for elemType, (_, pieces) in partitions.items():
         with subtests.test(elemType=str(elemType)):
-            assert [piece.orphanNodes.size for piece in pieces] == [0] * NPROC
+            for piece in pieces:
+                used = np.zeros(piece.Nn, dtype=bool)
+                for groupElem in piece.dict_groupElem.values():
+                    used[groupElem.connect.ravel()] = True
+                assert used.all()
 
 
 def test_Mesher__Mesh_Get_Meshes_ghost_elements_are_owned_elsewhere(

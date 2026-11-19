@@ -167,10 +167,14 @@ class _LinearSystem:
                 "Nothing assembled for this problem: a `Get_K_C_M_F` override must assemble through `Assembly`."
             )
 
-    def Get_A(
-        self, coefs: tuple[float, float, float], orphanDofs: _types.IntArray
-    ) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` (K alone when the others weigh nothing), a unit diagonal at `orphanDofs`; the same read-only object until a slot or a coefficient changes."""
+    def Assembled_rows(self) -> _types.BoolArray:
+        """Rows K, C or M hold an entry in, ghost elements included."""
+        self.__Check_assembled()
+        rows = sum(np.diff(self.__slots[slot].matrix.indptr) for slot in "KCM")
+        return rows > 0
+
+    def Get_A(self, coefs: tuple[float, float, float]) -> sparse.csr_matrix:
+        """`coefK·K + coefC·C + coefM·M` (K alone when the others weigh nothing); the same read-only object until a slot or a coefficient changes."""
         self.__Check_assembled()
         slots = self.__slots
         summed = [
@@ -183,19 +187,18 @@ class _LinearSystem:
 
         names = [slot for _, slot in summed]
         if self.__patternDirty or names != [slot for _, slot in self.__summed]:
-            self.__pattern = self.__Pattern(names, orphanDofs)
+            self.__pattern = self.__Pattern(names)
             self.__patternDirty = False
             self.__patternStamp += 1
 
         K = slots["K"].matrix
-        indices, indptr, positions, diagonal = self.__pattern
-        if [coef for coef, _ in summed] == [1.0] and diagonal.size == 0:
+        indices, indptr, positions = self.__pattern
+        if [coef for coef, _ in summed] == [1.0]:
             A = K
         else:
             data = np.zeros(indices.size)
             for (coef, slot), position in zip(summed, positions):
                 data[position] += coef * slots[slot].matrix.data
-            data[diagonal] += 1.0
             A = sparse.csr_matrix((data, indices, indptr), shape=K.shape)
         A.has_canonical_format = True
         A.data.flags.writeable = False
@@ -207,15 +210,13 @@ class _LinearSystem:
         return A
 
     def __Pattern(
-        self, names: list[str], orphanDofs: _types.IntArray
-    ) -> tuple[
-        _types.IntArray, _types.IntArray, list[_types.IntArray | slice], _types.IntArray
-    ]:
-        """Union of the slots' patterns and the orphan diagonal: `(indices, indptr)`, each slot's positions in it, the diagonal's; exact zeros stay, so A's pattern never follows its values."""
+        self, names: list[str]
+    ) -> tuple[_types.IntArray, _types.IntArray, list[_types.IntArray | slice]]:
+        """Union of the slots' patterns: `(indices, indptr)`, each slot's positions in it; exact zeros stay, so A's pattern never follows its values."""
         slots = [self.__slots[name] for name in names]
         K = slots[0].matrix
-        if orphanDofs.size == 0 and all(slot.key == slots[0].key for slot in slots):
-            return K.indices, K.indptr, [slice(None)] * len(slots), orphanDofs
+        if all(slot.key == slots[0].key for slot in slots):
+            return K.indices, K.indptr, [slice(None)] * len(slots)
 
         # entries as row·n + col, sorted: the canonical CSR order
         n = K.shape[0]
@@ -223,8 +224,7 @@ class _LinearSystem:
             np.repeat(np.arange(n, dtype=np.int64), np.diff(X.indptr)) * n + X.indices
             for X in (slot.matrix for slot in slots)
         ]
-        keys.append(orphanDofs.astype(np.int64) * (n + 1))
         canon = np.unique(np.concatenate(keys))
         union = sparse.csr_matrix((np.ones(canon.size), divmod(canon, n)), shape=(n, n))
         positions = [np.searchsorted(canon, key) for key in keys]
-        return union.indices, union.indptr, positions[:-1], positions[-1]
+        return union.indices, union.indptr, positions
