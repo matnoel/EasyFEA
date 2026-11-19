@@ -56,7 +56,6 @@ Set with {py:func}`~EasyFEA.Simulations._Simu.Solver_Set_Parabolic_Algorithm`.
 
 | Method         | α   | Order | Stability              |
 | -------------- | --- | ----- | ---------------------- |
-| Forward Euler  | 0   | 1st   | Conditionally stable   |
 | Crank–Nicolson | 0.5 | 2nd   | Unconditionally stable |
 | Backward Euler | 1   | 1st   | Unconditionally stable |
 
@@ -68,13 +67,16 @@ $$ (hyperbolic)
 
 Set with {py:func}`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`.
 
-| Method         | `AlgoType`                                                      | Order | Stability                         | Notes                                                             |
-| -------------- | --------------------------------------------------------------- | ----- | --------------------------------- | ----------------------------------------------------------------- |
-| Newmark β      | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.newmark`        | 2nd   | Unconditionally stable            | Default; energy-conserving for **linear** problems (β=1/4, γ=1/2) |
-| Midpoint       | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint`       | 2nd   | Unconditionally stable            | Energy-conserving for **linear** problems                         |
-| HHT-α          | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.hht`            | 2nd   | Unconditionally stable            | Numerical damping (α ∈ \[0, 1\[)                                  |
-| Euler implicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_implicit` | 1st   | Unconditionally stable            | Dissipative                                                       |
-| Euler explicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_explicit` | 1st   | Conditionally stable (dt < h_e/c) | Linear only                                                       |
+| Method         | `TimeSchemes.Hyperbolic`                                  | Order | Stability                         | Notes                                                             |
+| -------------- | --------------------------------------------------------- | ----- | --------------------------------- | ----------------------------------------------------------------- |
+| Newmark β      | {py:class}`~EasyFEA.TimeSchemes.Hyperbolic.Newmark`       | 2nd   | Unconditionally stable            | Default; energy-conserving for **linear** problems (β=1/4, γ=1/2) |
+| Midpoint       | {py:class}`~EasyFEA.TimeSchemes.Hyperbolic.Midpoint`      | 2nd   | Unconditionally stable            | Energy-conserving for **linear** problems                         |
+| HHT-α          | {py:class}`~EasyFEA.TimeSchemes.Hyperbolic.HHT`           | 2nd   | Unconditionally stable            | Numerical damping (α ∈ [0, 1/3]), β and γ derived                 |
+| Euler implicit | {py:class}`~EasyFEA.TimeSchemes.Hyperbolic.EulerImplicit` | 1st   | Unconditionally stable            | Dissipative                                                       |
+| Euler explicit | {py:class}`~EasyFEA.TimeSchemes.Hyperbolic.EulerExplicit` | 1st   | Conditionally stable (dt < h_e/c) | Linear only                                                       |
+
+A new scheme subclasses {py:class}`~EasyFEA.TimeSchemes._TimeScheme` (or
+`TimeSchemes.Hyperbolic._Hyperbolic`) and implements `Evaluate` and `Evaluate_np1`.
 
 (simulations-inelastic)=
 
@@ -225,15 +227,21 @@ can serve as a good starting point.
     :imported-members:
 ```
 
+## TimeSchemes API
+
+```{eval-rst}
+.. automodule:: EasyFEA.TimeSchemes
+   :members:
+
+.. automodule:: EasyFEA.TimeSchemes.Hyperbolic
+   :members:
+```
+
 ## Solvers API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Simulations.Solvers
    :no-members:
-
-.. autoclass:: EasyFEA.Simulations.Solvers.AlgoType
-   :members:
-   :undoc-members:
 
 .. autoclass:: EasyFEA.Simulations.Solvers.ResolType
    :members:

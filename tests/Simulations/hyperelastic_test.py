@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-from EasyFEA import AlgoType, ElemType, Mesh, Models, Simulations
+from EasyFEA import ElemType, Mesh, Models, Simulations, TimeSchemes
 from EasyFEA.FEM import FeArray, Kinematics, MatrixType, Operators
 from EasyFEA.Geoms import Domain
 
@@ -121,7 +121,7 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     material = Models.HyperElastic.NeoHookean(2, K=5.0e4)
     material.eta = eta
     simu = Simulations.HyperElastic(mesh, material)
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, TimeSchemes.Hyperbolic.Midpoint)
 
     # any configuration with a non-zero velocity will do; equilibrium is not needed
     problemType = simu.problemType
@@ -149,7 +149,7 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     ]
     material.eta = eta
 
-    u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u_np1)
+    u_t, v_t, _ = simu.Get_u_v_a(problemType)
     kinematics = Kinematics(groupElem, u_t, MatrixType.rigi)
     _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(material, kinematics, v_t)
 

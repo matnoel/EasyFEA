@@ -23,7 +23,8 @@ if TYPE_CHECKING:
 
 # simu
 from ..FEM import _GroupElem
-from ._simu import _Simu, AlgoType
+from ._simu import _Simu
+from .TimeSchemes import Hyperbolic
 from ._terms import Term
 from ._problem_type import ProblemType
 
@@ -186,7 +187,7 @@ class HyperElastic(_Simu):
 
         terms = [Term("KRC", self.__Stress, v_t=v_t)]
 
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
+        if isinstance(self.timeScheme, Hyperbolic._Hyperbolic):
             terms.append(
                 Term(
                     "M",
@@ -255,7 +256,7 @@ class HyperElastic(_Simu):
         results.extend(["displacement", "displacement_norm", "displacement_matrix"])
         # only under a time scheme: a static solve has no velocity to report, and
         # `Results_nodeFields_elementFields` gates them the same way
-        isDynamic = self.algo in AlgoType.Get_Hyperbolic_Types()
+        isDynamic = isinstance(self.timeScheme, Hyperbolic._Hyperbolic)
         if isDynamic:
             results.extend(["speed", "speed_norm"])
             results.extend(["accel", "accel_norm"])
@@ -467,6 +468,6 @@ class HyperElastic(_Simu):
             elementsField = ["Green-Lagrange", "Piola-Kirchhoff"]
         else:
             elementsField = ["Piola-Kirchhoff"]
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
+        if isinstance(self.timeScheme, Hyperbolic._Hyperbolic):
             nodesField.extend(["speed", "accel"])
         return nodesField, elementsField

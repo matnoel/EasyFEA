@@ -20,13 +20,13 @@ except ModuleNotFoundError:
 import meshio
 
 from EasyFEA import (
-    AlgoType,
     Folder,
     MatrixType,
     Mesher,
     Models,
     PyVista,
     Simulations,
+    TimeSchemes,
 )
 from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
 from EasyFEA.Simulations import ProblemType, Term
@@ -592,7 +592,7 @@ class _Ventricle(Simulations.HyperElastic):
     ):
         super().__init__(mesh, material, folder=folder)
         self.matrixType = _Get_rule(mesh, matrixType)
-        self.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
+        self.Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.Midpoint)
         self.rho = 1000
         self.alpha_top, self.alpha_epi = alpha_top, alpha_epi
         self.beta_top, self.beta_epi = beta_top, beta_epi

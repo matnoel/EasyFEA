@@ -179,7 +179,7 @@ def ActiveStressTensor(
     material
         Hyperelastic constitutive law — supplies ``active_stress`` and ``Compute_active_stress(kinematics)``.
     kinematics
-        Hyperelastic kinematics at the evaluation point of the time scheme (the midpoint kinematics ``ū`` for :attr:`~EasyFEA.AlgoType.midpoint`), owning the mesh and that displacement.
+        Hyperelastic kinematics at the evaluation point of the time scheme (the midpoint kinematics ``ū`` for :class:`~EasyFEA.TimeSchemes.Hyperbolic.Midpoint`), owning the mesh and that displacement.
 
     Returns
     -------

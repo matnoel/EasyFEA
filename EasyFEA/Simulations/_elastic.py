@@ -22,7 +22,7 @@ from ..Models.Elastic._laws import _Elastic
 from ._simu import _Simu
 from ._terms import Term
 from ._problem_type import ProblemType
-from .Solvers import AlgoType
+from .TimeSchemes import Hyperbolic
 
 
 class Elastic(_Simu):
@@ -87,7 +87,7 @@ class Elastic(_Simu):
             elementsField = ["Svm", "Stress", "Strain"]
         else:
             elementsField = ["Svm", "Stress"]
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
+        if isinstance(self.timeScheme, Hyperbolic._Hyperbolic):
             nodesField.extend(["speed", "accel"])
         return nodesField, elementsField
 

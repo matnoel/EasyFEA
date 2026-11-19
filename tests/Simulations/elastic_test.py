@@ -8,7 +8,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from EasyFEA import AlgoType, ElemType, Mesh, Models, Simulations
+from EasyFEA import ElemType, Mesh, Models, Simulations, TimeSchemes
 from EasyFEA.Geoms import Circle, Domain
 
 from _numerics import rel_error
@@ -320,7 +320,7 @@ def test_Elastic_Results_nodeFields_elementFields_adds_speed_and_accel_when_dyna
     simu = Simulations.Elastic(make_mesh_2D(), Models.Elastic.Isotropic(2))
     static = simu.Results_nodeFields_elementFields(details=True)
 
-    simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.midpoint)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1, TimeSchemes.Hyperbolic.Midpoint)
 
     assert static == (["displacement"], ["Svm", "Stress", "Strain"])
     assert simu.Results_nodeFields_elementFields()[0] == [

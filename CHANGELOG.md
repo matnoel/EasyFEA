@@ -74,6 +74,18 @@ This document describes the changes made to the project.
 - A form made with `@BiLinearForm` or `@LinearForm` at module level pickles, so a
   WeakForms simulation using one can be saved.
 
+### Linear system (#74)
+
+- `TimeSchemes` package: `Elliptic`, `Parabolic(dt, alpha)` and `Hyperbolic.Newmark`,
+  `HHT`, `Midpoint`, `EulerImplicit`, `EulerExplicit`; a scheme is a subclass
+  implementing `Evaluate` and `Evaluate_np1`. `simu.timeScheme` reads the one set. `HHT`
+  is the former `AlgoType.hht_newmark` (Doyen, Ern & Piperno 2011, α ∈ [0, 1/3], β and γ
+  derived from α): the former `AlgoType.hht`, which shifted u, v and a with Newmark's β
+  and γ, damped nothing. `Solver_Set_Hyperbolic_Algorithm(dt, scheme, **params)` takes
+  the scheme class:
+  `Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.HHT, alpha=0.1)`; invalid
+  parameters are refused when set. `AlgoType` and `simu.algo` are removed.
+
 ## 7.3.0 (November 13, 2026):
 
 ### MPI

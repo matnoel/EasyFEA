@@ -3,7 +3,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from .._utils import _TimeScheme, _Interval
+from ....Utilities import _params
+from .._utils import _TimeScheme
 
 
 class _Hyperbolic(_TimeScheme):
@@ -11,7 +12,7 @@ class _Hyperbolic(_TimeScheme):
 
     roles = ("u", "v", "a")
 
-    dt: float = _Interval(0.0, closedInf=False, message="Time increment must be > 0")
+    dt: float = _params.StrictlyPositiveScalarParameter()
     """time increment"""
 
     def __init__(self, dt: float):

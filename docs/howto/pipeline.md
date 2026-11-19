@@ -61,7 +61,7 @@ according to the time scheme:
 $$\Arm = \alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$$
 
 where $(\alpha_\Krm, \alpha_\Crm, \alpha_\Mrm)$ are the scheme-dependent weights for the
-active `AlgoType` (Newmark, HHT, midpoint, …); a static problem uses
+active time scheme's `coefs` (Newmark, HHT, midpoint, …); a static problem uses
 $\alpha_\Crm = \alpha_\Mrm = 0$.
 
 (howto-pipeline-nonlinear-operators)=

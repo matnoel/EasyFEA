@@ -8,7 +8,6 @@
 from ._hyperbolic import _Hyperbolic
 from ._newmark import Newmark
 from ._hht import HHT
-from ._hht_newmark import HHTNewmark
 from ._midpoint import Midpoint
 from ._euler_implicit import EulerImplicit
 from ._euler_explicit import EulerExplicit

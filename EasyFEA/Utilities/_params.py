@@ -98,6 +98,22 @@ def _CheckIsInIntervalcc(value: float | Iterable, inf, sup) -> None:
         raise TypeError("Unknown type.")
 
 
+def _CheckIsInIntervalco(value: float | Iterable, inf, sup) -> None:
+    """Checks whether the value is in [inf, sup["""
+    assert inf < sup
+    errorText = f"Must be in [{inf}, {sup}["
+    values = np.asarray(value)
+    assert np.all((inf <= values) & (values < sup)), errorText
+
+
+def _CheckIsInIntervaloc(value: float | Iterable, inf, sup) -> None:
+    """Checks whether the value is in ]inf, sup]"""
+    assert inf < sup
+    errorText = f"Must be in ]{inf}, {sup}]"
+    values = np.asarray(value)
+    assert np.all((inf < values) & (values <= sup)), errorText
+
+
 def _CheckIsInValues(value, values: Iterable) -> None:
     """Checks whether the value is in [inf, sup]"""
     errorText = f"{value} Must be in {values}"
@@ -224,6 +240,42 @@ class IntervalccParameter(_Parameter):
 
     def _checker(self, value):
         _CheckIsInIntervalcc(value, inf=self.__inf, sup=self.__sup)
+
+
+class IntervalccScalarParameter(IntervalccParameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        super()._checker(value)
+
+
+class IntervalcoParameter(_Parameter):
+    def __init__(self, inf: float, sup: float):
+        self.__inf = inf
+        self.__sup = sup
+
+    def _checker(self, value):
+        _CheckIsInIntervalco(value, inf=self.__inf, sup=self.__sup)
+
+
+class IntervalcoScalarParameter(IntervalcoParameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        super()._checker(value)
+
+
+class IntervalocParameter(_Parameter):
+    def __init__(self, inf: float, sup: float):
+        self.__inf = inf
+        self.__sup = sup
+
+    def _checker(self, value):
+        _CheckIsInIntervaloc(value, inf=self.__inf, sup=self.__sup)
+
+
+class IntervalocScalarParameter(IntervalocParameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        super()._checker(value)
 
 
 class VectorParameter(_Parameter):

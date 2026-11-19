@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from .._utils import _Interval
+from ....Utilities import _params
 from ._hyperbolic import _Hyperbolic
 
 
@@ -12,8 +12,8 @@ class Newmark(_Hyperbolic):
 
     Predictor :math:`\tilde{\urm} = \urm^n + \dt\vrm^n + \dt^2/2\,(1-2\beta)\arm^n`, update :math:`\arm^{n+1} = (\urm^{n+1} - \tilde{\urm})/(\beta\dt^2)`, :math:`\vrm^{n+1} = \vrm^n + \dt[(1-\gamma)\arm^n + \gamma\arm^{n+1}]`."""
 
-    beta: float = _Interval(0.0, closedInf=False)
-    gamma: float = _Interval(0.0)
+    beta: float = _params.StrictlyPositiveScalarParameter()
+    gamma: float = _params.PositiveScalarParameter()
 
     def __init__(self, dt: float, beta: float = 1 / 4, gamma: float = 1 / 2):
         super().__init__(dt)

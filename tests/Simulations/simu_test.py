@@ -16,7 +16,15 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
+from EasyFEA import (
+    ElemType,
+    Mesh,
+    Mesher,
+    Models,
+    Simulations,
+    SolverType,
+    TimeSchemes,
+)
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
@@ -984,16 +992,16 @@ def test_Simu_problemType_is_the_first_problem_type():
     assert _elastic_bar().problemType == "displacement"
 
 
-def test_Simu_algo_follows_the_solver_setters():
+def test_Simu_timeScheme_follows_the_solver_setters():
     simu = _thermal()
-    assert simu.algo == AlgoType.elliptic
+    assert simu.timeScheme == TimeSchemes.Elliptic()
 
     simu.Solver_Set_Parabolic_Algorithm(0.1)
-    assert simu.algo == AlgoType.parabolic
-    simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.hht)
-    assert simu.algo == AlgoType.hht
+    assert simu.timeScheme == TimeSchemes.Parabolic(0.1)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1, Hyperbolic.HHT, alpha=0.2)
+    assert simu.timeScheme == Hyperbolic.HHT(0.1, alpha=0.2)
     simu.Solver_Set_Elliptic_Algorithm()
-    assert simu.algo == AlgoType.elliptic
+    assert simu.timeScheme == TimeSchemes.Elliptic()
 
 
 def test_Simu_inDim_is_the_space_the_unknowns_live_in():
@@ -1224,17 +1232,28 @@ def test_Simu_Solver_Set_Parabolic_Algorithm_heats_an_insulated_body_exactly(
 
 
 def test_Simu_Solver_Set_Parabolic_Algorithm_rejects_a_non_positive_step():
-    with pytest.raises(AssertionError, match="Time increment"):
+    with pytest.raises(AssertionError, match="> 0"):
         _thermal().Solver_Set_Parabolic_Algorithm(0.0)
 
 
+Hyperbolic = TimeSchemes.Hyperbolic
+HYPERBOLIC: dict[type[Hyperbolic._Hyperbolic], dict[str, float]] = {
+    Hyperbolic.Newmark: {},
+    Hyperbolic.Midpoint: {},
+    Hyperbolic.HHT: {"alpha": 0.1},
+    Hyperbolic.EulerImplicit: {},
+    Hyperbolic.EulerExplicit: {},
+}
+"""Every hyperbolic scheme, with the parameters the tests set it with."""
+
+
 def test_Simu_Solver_Set_Hyperbolic_Algorithm_keeps_an_equilibrium_at_rest(subtests):
-    for algo in AlgoType.Get_Hyperbolic_Types():
-        with subtests.test(algo=str(algo)):
+    for scheme, params in HYPERBOLIC.items():
+        with subtests.test(scheme=scheme.__name__):
             simu = _elastic_bar()
             static = simu.Solve().copy()
 
-            simu.Solver_Set_Hyperbolic_Algorithm(0.1, algo, alpha=0.1)
+            simu.Solver_Set_Hyperbolic_Algorithm(0.1, scheme, **params)
             simu.Solve()
 
             assert rel_error(simu.displacement, static) < 1e-10
@@ -1244,12 +1263,11 @@ def test_Simu_Solver_Set_Hyperbolic_Algorithm_keeps_an_equilibrium_at_rest(subte
 DT, G = 0.1, -3.0
 EXACT = lambda n: (G * (n * DT) ** 2 / 2, G * n * DT, G)  # noqa: E731
 FREE_FALLS = {
-    AlgoType.newmark: EXACT,
-    AlgoType.midpoint: EXACT,
-    AlgoType.hht: EXACT,
-    AlgoType.hht_newmark: EXACT,
-    AlgoType.euler_implicit: lambda n: (G * DT**2 * n * (n + 1) / 2, G * n * DT, G),
-    AlgoType.euler_explicit: lambda n: (G * DT**2 * n * (n - 1) / 2, G * n * DT, G),
+    Hyperbolic.Newmark: EXACT,
+    Hyperbolic.Midpoint: EXACT,
+    Hyperbolic.HHT: EXACT,
+    Hyperbolic.EulerImplicit: lambda n: (G * DT**2 * n * (n + 1) / 2, G * n * DT, G),
+    Hyperbolic.EulerExplicit: lambda n: (G * DT**2 * n * (n - 1) / 2, G * n * DT, G),
 }
 
 
@@ -1257,12 +1275,12 @@ def test_Simu_Solver_Set_Hyperbolic_Algorithm_free_fall_follows_the_scheme(subte
     """An unsupported body under a uniform body force, from rest with its acceleration: second-order schemes are exact on a quadratic motion, the Euler ones follow their own recurrence."""
     mesh = _bar()
     zeros = np.zeros(mesh.Nn * 2)
-    for algo, exact in FREE_FALLS.items():
-        with subtests.test(algo=str(algo)):
+    for scheme, exact in FREE_FALLS.items():
+        with subtests.test(scheme=scheme.__name__):
             simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2, E, v))
             simu.rho = 2.0
             simu.solver = SolverType.scipy
-            simu.Solver_Set_Hyperbolic_Algorithm(DT, algo, alpha=0.1)
+            simu.Solver_Set_Hyperbolic_Algorithm(DT, scheme, **HYPERBOLIC[scheme])
             simu.add_volumeLoad(mesh.nodes, [2.0 * G], ["y"])
             accel0 = np.tile([0, G], mesh.Nn)
             simu._Set_solutions(simu.problemType, zeros, zeros, accel0)
@@ -1278,17 +1296,15 @@ def test_Simu_Solver_Set_Hyperbolic_Algorithm_free_fall_follows_the_scheme(subte
 
 def test_Simu_Solver_Set_Hyperbolic_Algorithm_rejects_what_its_schemes_cannot_do():
     simu = _elastic_bar()
-    with pytest.raises(AssertionError, match="algo"):
-        simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.parabolic)
-    with pytest.raises(AssertionError, match="Time increment"):
+    with pytest.raises(TypeError, match="Hyperbolic"):
+        simu.Solver_Set_Hyperbolic_Algorithm(0.1, TimeSchemes.Parabolic)  # type: ignore [arg-type]
+    with pytest.raises(AssertionError, match="> 0"):
         simu.Solver_Set_Hyperbolic_Algorithm(0.0)
-    with pytest.raises(AssertionError, match="1/3"):
-        simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.hht_newmark, alpha=0.5)
-    with pytest.raises(AssertionError):
-        simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.hht, alpha=1.0)
+    with pytest.raises(AssertionError, match="0.333"):
+        simu.Solver_Set_Hyperbolic_Algorithm(0.1, Hyperbolic.HHT, alpha=0.5)
     with pytest.raises(AssertionError, match="linear"):
         _hyperelastic(False).Solver_Set_Hyperbolic_Algorithm(
-            0.1, AlgoType.euler_explicit
+            0.1, Hyperbolic.EulerExplicit
         )
 
 
@@ -1312,7 +1328,7 @@ def test_Simu_Get_u_v_a_evaluates_the_newton_iterate_at_the_scheme_point(
     monkeypatch,
 ):
     simu = _hyperelastic(False)
-    simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.midpoint)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1, Hyperbolic.Midpoint)
     u_n, v_n, a_n, u_np1 = _states(simu)
     monkeypatch.setattr(
         simu,
@@ -1325,12 +1341,10 @@ def test_Simu_Get_u_v_a_evaluates_the_newton_iterate_at_the_scheme_point(
     assert rel_error(u_t, (u_n + u_np1) / 2) < 1e-15
 
 
-def test_Simu__Solver_Evaluate_u_v_a_for_time_scheme_midpoint_averages():
-    simu = _elastic_bar()
-    simu.Solver_Set_Hyperbolic_Algorithm(DT, AlgoType.midpoint)
-    u_n, v_n, a_n, u_np1 = _states(simu)
+def test_TimeSchemes_Midpoint_Evaluate_averages():
+    u_n, v_n, a_n, u_np1 = np.random.default_rng(0).standard_normal((4, 6))
 
-    u_t, v_t, a_t = simu._Solver_Evaluate_u_v_a_for_time_scheme(simu.problemType, u_np1)
+    u_t, v_t, a_t = Hyperbolic.Midpoint(DT).Evaluate(u_np1, u_n, v_n, a_n)
 
     v_np1 = 2 / DT * (u_np1 - u_n) - v_n
     a_np1 = 2 / DT * (v_np1 - v_n) - a_n
@@ -1339,72 +1353,73 @@ def test_Simu__Solver_Evaluate_u_v_a_for_time_scheme_midpoint_averages():
     assert rel_error(a_t, (a_n + a_np1) / 2) < 1e-14
 
 
-def test_Simu__Solver_Evaluate_u_v_a_for_time_scheme_hht_shifts_every_field():
+def test_TimeSchemes_HHT_Evaluate_shifts_the_displacement_only():
     alpha = 0.2
-    simu = _elastic_bar()
-    simu.Solver_Set_Hyperbolic_Algorithm(DT, AlgoType.hht, alpha=alpha)
-    u_n, v_n, a_n, u_np1 = _states(simu)
+    scheme = Hyperbolic.HHT(DT, alpha=alpha)
+    u_n, v_n, a_n, u_np1 = np.random.default_rng(0).standard_normal((4, 6))
 
-    u_t, v_t, a_t = simu._Solver_Evaluate_u_v_a_for_time_scheme(simu.problemType, u_np1)
-    _, v_np1, a_np1 = simu._Solver_Update_solutions(simu.problemType, u_np1)
+    u_t, v_t, a_t = scheme.Evaluate(u_np1, u_n, v_n, a_n)
+    _, v_np1, a_np1 = scheme.Evaluate_np1(u_np1, u_n, v_n, a_n)
 
     assert rel_error(u_t, (1 - alpha) * u_np1 + alpha * u_n) < 1e-14
-    assert rel_error(v_t, (1 - alpha) * v_np1 + alpha * v_n) < 1e-14
-    assert rel_error(a_t, (1 - alpha) * a_np1 + alpha * a_n) < 1e-14
+    assert np.array_equal(v_t, v_np1) and np.array_equal(a_t, a_np1)
 
 
-def test_Simu__Solver_Evaluate_u_v_a_for_time_scheme_needs_a_time_scheme():
-    simu = _elastic_bar()
+def _spectral_radius(scheme: Hyperbolic._Hyperbolic, omega: float) -> float:
+    """Spectral radius of `scheme`'s step on the undamped spring ``a + omega² u = 0``."""
 
-    with pytest.raises(AssertionError, match="algo"):
-        simu._Solver_Evaluate_u_v_a_for_time_scheme(simu.problemType, simu.displacement)
+    def step(u_n: float, v_n: float, a_n: float) -> np.ndarray:
+        state = [np.array([value]) for value in (u_n, v_n, a_n)]
+        residual = lambda x: sum(  # noqa: E731
+            c * f for c, f in zip((omega**2, 0, 1), scheme.Evaluate(x, *state))
+        )
+        r0, r1 = residual(np.zeros(1)), residual(np.ones(1))
+        x = -r0 / (r1 - r0)
+        return np.concatenate(scheme.Evaluate_np1(x, *state))
+
+    amplification = np.column_stack([step(*row) for row in np.eye(3)])
+    return float(np.abs(np.linalg.eigvals(amplification)).max())
+
+
+def test_TimeSchemes_HHT_damps_the_high_frequencies():
+    omega = 1000 / DT
+
+    assert _spectral_radius(Hyperbolic.Newmark(DT), omega) > 1 - 1e-9
+    assert _spectral_radius(Hyperbolic.HHT(DT, alpha=1 / 6), omega) < 0.9
+
+
+def test_TimeSchemes_Elliptic_Evaluate_is_the_unknown_alone():
+    x = np.arange(3.0)
+
+    assert TimeSchemes.Elliptic().Evaluate(x, 0, 0, 0) == (x, None, None)
 
 
 BETA, GAMMA = 0.25, 0.5
-ALPHA_HHT, ALPHA_DOYEN = 0.1, 1 / 6
-BETA_DOYEN, GAMMA_DOYEN = (1 + ALPHA_DOYEN) ** 2 / 4, 0.5 + ALPHA_DOYEN
+ALPHA_HHT = 1 / 6
+BETA_HHT, GAMMA_HHT = (1 + ALPHA_HHT) ** 2 / 4, 0.5 + ALPHA_HHT
 COEFS = {
-    "newmark": (AlgoType.newmark, 0.0, (1, GAMMA / (BETA * DT), 1 / (BETA * DT**2))),
+    "newmark": (Hyperbolic.Newmark, {}, (1, GAMMA / (BETA * DT), 1 / (BETA * DT**2))),
     "hht": (
-        AlgoType.hht,
-        ALPHA_HHT,
-        tuple(
-            (1 - ALPHA_HHT) * c for c in (1, GAMMA / (BETA * DT), 1 / (BETA * DT**2))
-        ),
+        Hyperbolic.HHT,
+        {"alpha": ALPHA_HHT},
+        (1 - ALPHA_HHT, GAMMA_HHT / (BETA_HHT * DT), 1 / (BETA_HHT * DT**2)),
     ),
-    "midpoint": (AlgoType.midpoint, 0.0, (0.5, 1 / DT, 2 / DT**2)),
-    "hht_newmark": (
-        AlgoType.hht_newmark,
-        ALPHA_DOYEN,
-        (
-            1 - ALPHA_DOYEN,
-            GAMMA_DOYEN / (BETA_DOYEN * DT),
-            1 / (BETA_DOYEN * DT**2),
-        ),
-    ),
-    "euler_implicit": (AlgoType.euler_implicit, 0.0, (1, 1 / DT, 1 / DT**2)),
-    "euler_explicit": (AlgoType.euler_explicit, 0.0, (0, 0, 1)),
+    "midpoint": (Hyperbolic.Midpoint, {}, (0.5, 1 / DT, 2 / DT**2)),
+    "euler_implicit": (Hyperbolic.EulerImplicit, {}, (1, 1 / DT, 1 / DT**2)),
+    "euler_explicit": (Hyperbolic.EulerExplicit, {}, (0, 0, 1)),
 }
 
 
-def test_Simu__Solver_Get_K_C_M_coefs_for_time_scheme_are_the_chain_rule_factors(
-    subtests,
-):
-    simu = _elastic_bar()
-    for name, (algo, alpha, expected) in COEFS.items():
-        with subtests.test(algo=name):
-            simu.Solver_Set_Hyperbolic_Algorithm(DT, algo, alpha=alpha)
-
-            coefs = simu._Solver_Get_K_C_M_coefs_for_time_scheme()
+def test_TimeSchemes_coefs_are_the_chain_rule_factors(subtests):
+    for name, (scheme, params, expected) in COEFS.items():
+        with subtests.test(scheme=name):
+            coefs = scheme(DT, **params).coefs
 
             assert np.allclose(coefs, expected, rtol=1e-14)
 
 
-def test_Simu__Solver_Get_K_C_M_coefs_for_time_scheme_of_the_parabolic_scheme():
-    simu = _thermal()
-    simu.Solver_Set_Parabolic_Algorithm(DT, alpha=0.5)
-
-    assert simu._Solver_Get_K_C_M_coefs_for_time_scheme() == (1, 1 / (0.5 * DT), 0)
+def test_TimeSchemes_Parabolic_coefs():
+    assert TimeSchemes.Parabolic(DT, alpha=0.5).coefs == (1, 1 / (0.5 * DT), 0)
 
 
 def test_Simu__Solver_Set_Newton_Raphson_Algorithm_solves_a_linear_problem():
@@ -1469,12 +1484,10 @@ def test_Simu__Solver_Solve_problemType_solves_one_problem():
     assert np.all(simu.damage == 0)
 
 
-def test_Simu__Solver_Update_solutions_applies_the_newmark_corrector():
-    simu = _elastic_bar()
-    simu.Solver_Set_Hyperbolic_Algorithm(DT)
-    u_n, v_n, a_n, u_np1 = _states(simu)
+def test_TimeSchemes_Newmark_Evaluate_np1_applies_the_corrector():
+    u_n, v_n, a_n, u_np1 = np.random.default_rng(0).standard_normal((4, 6))
 
-    u, speed, accel = simu._Solver_Update_solutions(simu.problemType, u_np1)
+    u, speed, accel = Hyperbolic.Newmark(DT).Evaluate_np1(u_np1, u_n, v_n, a_n)
 
     predictor = u_n + DT * v_n + DT**2 / 2 * (1 - 2 * BETA) * a_n
     expected_a = (u_np1 - predictor) / (BETA * DT**2)
@@ -1484,13 +1497,8 @@ def test_Simu__Solver_Update_solutions_applies_the_newmark_corrector():
     assert rel_error(speed, expected_v) < 1e-12
 
 
-def test_Simu__Solver_Update_solutions_leaves_v_and_a_when_static():
-    simu = _elastic_bar()
-
-    assert simu._Solver_Update_solutions(simu.problemType, np.zeros(1))[1:] == (
-        None,
-        None,
-    )
+def test_TimeSchemes_Elliptic_Evaluate_np1_leaves_v_and_a():
+    assert TimeSchemes.Elliptic().Evaluate_np1(np.zeros(1), 0, 0, 0)[1:] == (None, None)
 
 
 def test_Simu__Solver_Get_Newton_Raphson_current_solution_is_the_last_iterate():

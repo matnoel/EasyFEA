@@ -8,36 +8,10 @@ r"""Time schemes of :math:`\Krm \, \urm_t + \Crm \, \vrm_t + \Mrm \, \arm_t = \F
 from abc import ABC, abstractmethod
 from typing import Any
 
-import numpy as np
-
 from ...Utilities import _params
 
 _Field = Any
 """A dof vector, or a scalar: a scheme is affine and evaluated on both."""
-
-
-class _Interval(_params._Parameter):
-    """A scalar in an interval, its bounds open or closed."""
-
-    def __init__(
-        self,
-        inf: float,
-        sup: float = np.inf,
-        closedInf: bool = True,
-        closedSup: bool = False,
-        message: str = "",
-    ):
-        self.__bounds = (inf, sup, closedInf, closedSup)
-        left = "[" if closedInf else "]"
-        right = "]" if closedSup else "["
-        self.__message = message or f"must be in {left}{inf}, {sup}{right}"
-
-    def _checker(self, value):
-        inf, sup, closedInf, closedSup = self.__bounds
-        assert isinstance(value, (int, float)), "must be a scalar value"
-        aboveInf = inf <= value if closedInf else inf < value
-        belowSup = value <= sup if closedSup else value < sup
-        assert aboveInf and belowSup, self.__message
 
 
 class _TimeScheme(ABC):
@@ -94,10 +68,10 @@ class Parabolic(_TimeScheme):
 
     roles = ("u", "v")
 
-    dt: float = _Interval(0.0, closedInf=False, message="Time increment must be > 0")
+    dt: float = _params.StrictlyPositiveScalarParameter()
     """time increment"""
 
-    alpha: float = _Interval(0.0, 1.0, closedInf=False, closedSup=True)
+    alpha: float = _params.IntervalocScalarParameter(0.0, 1.0)
     """weight of the end of the step in the speed"""
 
     def __init__(self, dt: float, alpha: float = 1 / 2):
