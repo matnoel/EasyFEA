@@ -66,6 +66,7 @@ from .Solvers import (
     ResolType,
     CAN_USE_PYPARDISO,
     _Get_PETSc,
+    _PETSc_Free,
 )
 
 
@@ -1180,7 +1181,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Destroys the solvers kept by the systems of `problems`, every one by default. Collective."""
         for problem, system in self.__linearSystems.items():
             if problems is None or problem in problems:
-                system.Free_solver()
+                _PETSc_Free(system)
 
     def __Drop_linear_systems(self) -> None:
         """Forgets every linear system: the mesh they were built on changed. Collective."""

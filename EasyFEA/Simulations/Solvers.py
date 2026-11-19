@@ -5,7 +5,11 @@
 
 """Interface module to various solvers available in Python for solving linear systems (A x = b)."""
 
+import sys
+import warnings
 from enum import Enum
+from functools import cache
+from types import ModuleType
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -17,9 +21,9 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
-from ..Utilities._mpi import MPI_SIZE, Reduce_sum
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Reduce_sum
 
-from ._linear_system import _LinearSystem, _Get_PETSc
+from ._linear_system import _LinearSystem
 
 # fem
 from ..FEM import LagrangeCondition
@@ -30,6 +34,25 @@ try:
     CAN_USE_PYPARDISO = True
 except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
+
+
+@cache
+def _Get_PETSc() -> ModuleType | None:
+    """Returns the initialized `petsc4py.PETSc` module, or None if petsc4py is unusable."""
+    try:
+        import petsc4py
+
+        # must precede `from petsc4py import PETSc`, which would initialize PETSc with an empty command line
+        petsc4py.init(
+            [sys.argv[0], "-options_left", "no", *sys.argv[1:]], comm=MPI_COMM
+        )
+
+        from petsc4py import PETSc
+
+        return PETSc
+
+    except Exception:
+        return None
 
 
 class ResolType(str, Enum):
@@ -167,9 +190,9 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        x, converged = system.Solve_PETSc(A, b, x0, (kspType, pcType, solverType), comm)
+        x, converged = _PETSc(system, A, b, x0, (kspType, pcType, solverType), comm)
         if oneOff:
-            system.Free_solver()
+            _PETSc_Free(system)
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -464,7 +487,7 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
             rhsNorm = __Residual_norm(b[system.rows], comm)
         x = np.zeros(b.size, dtype=float)
         # A penalised copy, not the system's A: a solver of its own, freed after
-        system.Free_solver()
+        _PETSc_Free(system)
         x[system.rows] = _Solve_Axb(
             simu,
             problemType,
@@ -475,7 +498,7 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
             ub,
             system,
         )
-        system.Free_solver()
+        _PETSc_Free(system)
     else:
         if simu.isNonLinear:
             rhsNorm = __Residual_norm(b, simu.mesh.comm)
@@ -493,3 +516,100 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
         return x, rhsNorm
     else:
         return x, None
+
+
+def _PETSc(
+    system: _LinearSystem,
+    A: sparse.csr_matrix,
+    b: _types.FloatArray,
+    x0: _types.FloatArray,
+    options: tuple[str, str, str],
+    comm,
+) -> tuple[_types.FloatArray, bool]:
+    """x at `system.rows` of `A x = b` and whether PETSc converged, through the solver the system keeps. Collective on `comm`."""
+    PETSc = _Get_PETSc()
+    assert PETSc is not None, "petsc4py is not available"
+
+    relayout, refill = system.Solver_update(comm)
+    if relayout:
+        # two factorisations never held at once
+        _PETSc_Free(system)
+        solver = __Create_PETSc(system, PETSc, A, options, comm)
+    else:
+        solver = system.solver
+    ksp, matrix = solver
+    if refill:
+        matrix.setValuesCOO(A.data)
+    system.Set_solver(solver)
+
+    x, rhs = matrix.createVecs()
+    rhs.array[:] = b[system.rows]
+    if len(x0) > 0:
+        x.array[:] = x0[system.rows]
+
+    ksp.solve(rhs, x)
+
+    values = x.array.copy()
+    x.destroy()
+    rhs.destroy()
+
+    return values, ksp.is_converged
+
+
+def __Create_PETSc(
+    system: _LinearSystem,
+    PETSc: ModuleType,
+    A: sparse.csr_matrix,
+    options: tuple[str, str, str],
+    comm,
+) -> tuple:
+    """KSP and Mat laid out on A's pattern and the system's numbering, unfilled."""
+    kspType, pcType, solverType = options
+    comm = comm or PETSc.COMM_SELF
+    # -1 rows and columns are dropped: ghost rows, known dofs
+    rowMap = PETSc.LGMap().create(system.rowIds.astype(PETSc.IntType), comm=comm)
+    columnMap = PETSc.LGMap().create(system.ids.astype(PETSc.IntType), comm=comm)
+    matrix = PETSc.Mat().create(comm=comm)
+    matrix.setType("aij")
+    matrix.setSizes(((system.rows.size, None), (system.rows.size, None)))
+    matrix.setLGMap(rowMap, columnMap)
+    rowMap.destroy()
+    columnMap.destroy()
+    # copies: PETSc overwrites them
+    rowsCoo = np.repeat(np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr))
+    matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
+
+    ksp = PETSc.KSP().create(comm=comm)
+    ksp.setOperators(matrix)
+    ksp.setType(kspType)
+    pc = ksp.getPC()
+    pc.setType(pcType)
+    pc.setFactorSolverType(solverType)
+    petscOptions = PETSc.Options()
+    if solverType == "mumps":
+        if not petscOptions.hasName("mat_mumps_icntl_20"):
+            # centralised right-hand side, see the warning; a no-op on one process
+            petscOptions.setValue("mat_mumps_icntl_20", 0)
+        elif comm.Get_size() > 1 and petscOptions.getInt("mat_mumps_icntl_20") == 10:
+            warnings.warn(
+                "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
+                RuntimeWarning,
+            )
+    ksp.setFromOptions()
+    return ksp, matrix
+
+
+def _PETSc_Free(system: _LinearSystem) -> None:
+    """Destroys the KSP and Mat the system kept. Collective on their communicator."""
+    solver = system.Take_solver()
+    if solver is None:
+        return
+    ksp, matrix = solver
+    comm = ksp.getComm()
+    ksp.destroy()
+    matrix.destroy()
+    # flush any remaining petsc4py reference cycles as suggested here:
+    # https://gitlab.com/petsc/petsc/-/work_items/1309
+    PETSc = _Get_PETSc()
+    assert PETSc is not None
+    PETSc.garbage_cleanup(comm)

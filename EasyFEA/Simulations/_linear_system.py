@@ -4,10 +4,6 @@
 
 """Linear system `A x = b` of one problem."""
 
-import sys
-import warnings
-from functools import cache
-from types import ModuleType
 from typing import Callable, NamedTuple
 
 import numpy as np
@@ -15,7 +11,6 @@ from scipy import sparse
 
 from ..Utilities import _types
 from ..Utilities._mpi import (
-    MPI_COMM,
     Exchange,
     Owned,
     Build_exchange,
@@ -25,25 +20,6 @@ from ..Utilities._mpi import (
     Reduce_sum,
 )
 from ._terms import Same_provenance
-
-
-@cache
-def _Get_PETSc() -> ModuleType | None:
-    """Returns the initialized `petsc4py.PETSc` module, or None if petsc4py is unusable."""
-    try:
-        import petsc4py
-
-        # must precede `from petsc4py import PETSc`, which would initialize PETSc with an empty command line
-        petsc4py.init(
-            [sys.argv[0], "-options_left", "no", *sys.argv[1:]], comm=MPI_COMM
-        )
-
-        from petsc4py import PETSc
-
-        return PETSc
-
-    except Exception:
-        return None
 
 
 class _Slot(NamedTuple):
@@ -80,9 +56,9 @@ class _LinearSystem:
         self.__known: _types.BoolArray | None = None
         self.rows: _types.IntArray = np.empty(0, dtype=int)
         """the owned unknowns, in PETSc order"""
-        self.__ids: _types.IntArray = np.empty(0, dtype=np.int64)
+        self.ids: _types.IntArray = np.empty(0, dtype=np.int64)
         """PETSc id of each dof, -1 for a known one"""
-        self.__rowIds: _types.IntArray = np.empty(0, dtype=np.int64)
+        self.rowIds: _types.IntArray = np.empty(0, dtype=np.int64)
         """`ids`, -1 at the ghost rows"""
         self.__numberingStamp = 0
         self.__solver: tuple | None = None
@@ -122,112 +98,35 @@ class _LinearSystem:
         ids = np.full(known.size, -1, dtype=np.int64)
         ids[self.rows] = Exscan_sum(self.rows.size, comm) + np.arange(self.rows.size)
         self.Scatter_forward(ids, comm)
-        self.__ids = ids
-        self.__rowIds = np.where(owned, ids, -1)
+        self.ids = ids
+        self.rowIds = np.where(owned, ids, -1)
         self.__numberingStamp += 1
 
-    def Solve_PETSc(
-        self,
-        A: sparse.csr_matrix,
-        b: _types.FloatArray,
-        x0: _types.FloatArray,
-        options: tuple[str, str, str],
-        comm,
-    ) -> tuple[_types.FloatArray, bool]:
-        """x at `rows` of `A x = b` and whether PETSc converged; the kept solver laid out again on a new pattern or numbering, refilled on a new A. Collective on `comm`."""
-        PETSc = _Get_PETSc()
-        assert PETSc is not None, "petsc4py is not available"
+    @property
+    def solver(self) -> tuple | None:
+        """The kept PETSc `(ksp, matrix)`."""
+        return self.__solver
 
+    def Solver_update(self, comm) -> tuple[bool, bool]:
+        """Whether the kept solver must be laid out again (new pattern of A or numbering) and refilled (new A). Collective on `comm`."""
         stamps = (self.__patternStamp, self.__numberingStamp, self.__stamp)
         kept = self.__solverStamps
         relayout = self.__solver is None or kept is None or stamps[:2] != kept[:2]
         refill = relayout or kept is None or stamps[2] != kept[2]
         relayout, refill = Reduce_sum(np.array([relayout, refill], dtype=int), comm)
+        return bool(relayout), bool(refill)
 
-        if relayout:
-            # two factorisations never held at once
-            self.Free_solver()
-            self.__solver = self.__Create_solver(PETSc, A, options, comm)
-        assert self.__solver is not None
-        ksp, matrix = self.__solver
-        if refill:
-            matrix.setValuesCOO(A.data)
-        self.__solverStamps = stamps
+    def Set_solver(self, solver: tuple) -> None:
+        """Keeps `(ksp, matrix)`, laid out on the current pattern and numbering, filled with the current A."""
+        self.__solver = solver
+        self.__solverStamps = (self.__patternStamp, self.__numberingStamp, self.__stamp)
 
-        x, rhs = matrix.createVecs()
-        rhs.array[:] = b[self.rows]
-        if len(x0) > 0:
-            x.array[:] = x0[self.rows]
-
-        ksp.solve(rhs, x)
-
-        values = x.array.copy()
-        x.destroy()
-        rhs.destroy()
-
-        return values, ksp.is_converged
-
-    def __Create_solver(
-        self,
-        PETSc: ModuleType,
-        A: sparse.csr_matrix,
-        options: tuple[str, str, str],
-        comm,
-    ) -> tuple:
-        """KSP and Mat laid out on A's pattern and the numbering, unfilled."""
-        kspType, pcType, solverType = options
-        comm = comm or PETSc.COMM_SELF
-        # -1 rows and columns are dropped: ghost rows, known dofs
-        rowMap = PETSc.LGMap().create(self.__rowIds.astype(PETSc.IntType), comm=comm)
-        columnMap = PETSc.LGMap().create(self.__ids.astype(PETSc.IntType), comm=comm)
-        matrix = PETSc.Mat().create(comm=comm)
-        matrix.setType("aij")
-        matrix.setSizes(((self.rows.size, None), (self.rows.size, None)))
-        matrix.setLGMap(rowMap, columnMap)
-        rowMap.destroy()
-        columnMap.destroy()
-        # copies: PETSc overwrites them
-        rowsCoo = np.repeat(
-            np.arange(A.shape[0], dtype=PETSc.IntType), np.diff(A.indptr)
-        )
-        matrix.setPreallocationCOOLocal(rowsCoo, A.indices.astype(PETSc.IntType))
-
-        ksp = PETSc.KSP().create(comm=comm)
-        ksp.setOperators(matrix)
-        ksp.setType(kspType)
-        pc = ksp.getPC()
-        pc.setType(pcType)
-        pc.setFactorSolverType(solverType)
-        petscOptions = PETSc.Options()
-        if solverType == "mumps":
-            if not petscOptions.hasName("mat_mumps_icntl_20"):
-                # centralised right-hand side, see the warning; a no-op on one process
-                petscOptions.setValue("mat_mumps_icntl_20", 0)
-            elif (
-                comm.Get_size() > 1 and petscOptions.getInt("mat_mumps_icntl_20") == 10
-            ):
-                warnings.warn(
-                    "mat_mumps_icntl_20 10 (distributed right-hand side) gave wrong solutions with Mumps 5.8.2 and 5.9.1 over several processes: set it to 0.",
-                    RuntimeWarning,
-                )
-        ksp.setFromOptions()
-        return ksp, matrix
-
-    def Free_solver(self) -> None:
-        """Destroys the kept KSP and Mat. Collective on their communicator."""
-        if self.__solver is None:
-            return
-        ksp, matrix = self.__solver
+    def Take_solver(self) -> tuple | None:
+        """The kept solver, no longer kept."""
+        solver = self.__solver
         self.__solver = None
         self.__solverStamps = None
-        comm = ksp.getComm()
-        ksp.destroy()
-        matrix.destroy()
-        # flush any remaining petsc4py reference cycles as suggested here:
-        # https://gitlab.com/petsc/petsc/-/work_items/1309
-        PETSc = _Get_PETSc()
-        assert PETSc is not None
-        PETSc.garbage_cleanup(comm)
+        return solver
 
     def Assembled(
         self,
