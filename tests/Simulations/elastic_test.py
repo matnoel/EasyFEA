@@ -40,7 +40,7 @@ def test_Elastic_stiffness_holds_the_rigid_motions(make_mesh_2D):
         "rotation": np.column_stack([-y, x]),
     }
 
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
 
     scale = abs(K).max() * np.abs(mesh.coord).max()
     for u in rigid.values():
@@ -50,7 +50,7 @@ def test_Elastic_stiffness_holds_the_rigid_motions(make_mesh_2D):
 def test_Elastic_stiffness_stores_half_E_eps2_V_in_a_pulled_bar(make_mesh_2D):
     simu = _pulled_bar(_quad4_bar(make_mesh_2D))
     length = simu.mesh.coord[:, 0].max()
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
 
     energy = simu.displacement @ K @ simu.displacement / 2
 
@@ -194,7 +194,7 @@ def test_Elastic_material_rejected_change_does_not_flag_reassembly(
         with subtests.test(change=case):
             material = _isotropic()
             simu = Simulations.Elastic(mesh, material)
-            simu.Get_K_C_M_F()
+            simu.Assembly()
             assert not simu.needUpdate
 
             with pytest.raises(AssertionError):
@@ -206,11 +206,11 @@ def test_Elastic_material_rejected_change_does_not_flag_reassembly(
 def test_Elastic_Set_Rayleigh_Damping_Coefs_builds_C_from_K_and_M(make_mesh_2D):
     simu = Simulations.Elastic(make_mesh_2D(), Models.Elastic.Isotropic(2))
     simu.rho = 7.8
-    K, C, M, _ = simu.Get_K_C_M_F()
-    assert C.nnz == 0
+    K, C, M, _ = simu.Assembly()
+    assert not C.data.any()
 
     simu.Set_Rayleigh_Damping_Coefs(coefM=0.3, coefK=2e-3)
-    K, C, M, _ = simu.Get_K_C_M_F()
+    K, C, M, _ = simu.Assembly()
 
     expected = 2e-3 * K + 0.3 * M
     assert rel_error(C.toarray(), expected.toarray()) < 1e-14
@@ -379,7 +379,7 @@ def _patch_error(mesh: Mesh, isBoundary: Callable) -> float:
     nodesBoundary = mesh.Nodes_Conditions(isBoundary, problemType=ELASTIC)
     dofsBoundary = simu.Bc_dofs_nodes(nodesBoundary, ["x", "y", "z"], ELASTIC)
     u = (space.Get_mesh().coord @ G.T).ravel()
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
     free = np.setdiff1d(np.arange(u.size), dofsBoundary)
     assert free.size > 0
     return np.abs(K[free] @ u).max() / (np.abs(K).max() * np.abs(u).max())
@@ -398,7 +398,7 @@ def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10(unit_box):
     iso = _stretched(unit_box(ElemType.TETRA10))
     dofs = _dofs_at(simu, iso)
 
-    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+    K, K_iso = simu.Assembly()[0], iso.Assembly()[0][dofs][:, dofs]
 
     assert rel_error(K.toarray(), K_iso.toarray()) < 1e-12
     Svm = simu.Result("Svm", nodeValues=False)
@@ -410,7 +410,7 @@ def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4(unit_box):
     iso = _stretched(unit_box(ElemType.TETRA4))
     dofs = _dofs_at(simu, iso)
 
-    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+    K, K_iso = simu.Assembly()[0], iso.Assembly()[0][dofs][:, dofs]
 
     # the partner TETRA4 group integrates as the TETRA4 mesh does
     assert np.array_equal(K.toarray(), K_iso.toarray())

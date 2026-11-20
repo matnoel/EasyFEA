@@ -345,9 +345,9 @@ class _Beam(_IModel):
 
         # uᵀ·f  ≡  ∫_S s · φ dS  ≡  ∫_S |∇φ|² dS  (energy identity)
         owned = simu.Get_dofs()
-        f = simu.Get_K_C_M_F()[3][owned]
+        f = simu.Assembly()[3][owned]
         u = simu._Get_u_n(simu.problemType)[owned]
-        integral = Reduce_sum((f.T @ u).item(), section.comm)
+        integral = Reduce_sum(float(f @ u), section.comm)
         # a section observed by its local forms would not pickle
         section._Remove_observer(simu)
         kappa = bending_inertia**2 / (self.area * integral)

@@ -14,7 +14,7 @@ FlagsReassembly = Callable[[_Simu, Callable[[], None]], None]
 
 def _assert_change_flags_reassembly(simu: _Simu, change: Callable[[], None]) -> None:
     for problemType in simu.problemTypes:
-        simu.Get_K_C_M_F(problemType)
+        simu.Assembly(problemType)
     assert not simu.needUpdate
 
     change()

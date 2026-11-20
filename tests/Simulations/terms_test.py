@@ -508,7 +508,7 @@ class Sprung(Heated):
 
 def _UV() -> np.ndarray:
     """One unit of the `Counted` term, assembled: `Stiffened`'s stiffness over conduction alone."""
-    return (Stiffened().Get_K_C_M_F()[0] - Heated().Get_K_C_M_F()[0]).toarray()
+    return (Stiffened().Assembly()[0] - Heated().Assembly()[0]).toarray()
 
 
 def test_Term_reads_its_arguments_at_every_assembly():
@@ -534,10 +534,10 @@ def test_Term_constant_integrates_once_while_its_arguments_are_unchanged():
 
 def test_Term_constant_integrates_again_when_an_argument_changes():
     simu = Stiffened()
-    K_once = simu.Get_K_C_M_F()[0]
+    K_once = simu.Assembly()[0]
 
     simu.stiffness = 2.0
-    K_twice = simu.Get_K_C_M_F()[0]
+    K_twice = simu.Assembly()[0]
 
     assert simu.operator.calls == 2
     np.testing.assert_allclose((K_twice - K_once).toarray(), _UV(), atol=1e-14)
@@ -545,24 +545,24 @@ def test_Term_constant_integrates_again_when_an_argument_changes():
 
 def test_Term_Scaled_copies_of_a_constant_term_share_one_integration():
     simu = Sprung()
-    K, C = simu.Get_K_C_M_F()[:2]
+    K, C = simu.Assembly()[:2]
 
     assert simu.operator.calls == 1
-    K_conduction, C_capacity = Heated().Get_K_C_M_F()[:2]
+    K_conduction, C_capacity = Heated().Assembly()[:2]
     np.testing.assert_allclose((K - K_conduction).toarray(), 2.0 * _UV(), atol=1e-14)
     np.testing.assert_allclose((C - C_capacity).toarray(), 3.0 * _UV(), atol=1e-14)
 
 
 def test_Term_scale_reaches_the_matrix_without_integrating_again():
     simu = Sprung()
-    simu.Get_K_C_M_F()
+    simu.Assembly()
 
     simu.alpha = 5.0
     simu.Need_Update()
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
 
     assert simu.operator.calls == 1
-    K_conduction = Heated().Get_K_C_M_F()[0]
+    K_conduction = Heated().Assembly()[0]
     np.testing.assert_allclose((K - K_conduction).toarray(), 5.0 * _UV(), atol=1e-14)
 
 
@@ -598,7 +598,7 @@ def _material(E: float = 210000.0) -> Models.Elastic.Isotropic:
 
 
 def _K(simu) -> np.ndarray:
-    return simu.Get_K_C_M_F()[0].toarray()
+    return simu.Assembly()[0].toarray()
 
 
 def test_Term_groupElem_terms_with_one_model_equal_one_term():

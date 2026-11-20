@@ -4,7 +4,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import numpy as np
-from scipy import sparse
 
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
@@ -181,40 +180,6 @@ class PhaseField(_Simu):
         [di, ...]"""
         return self._Get_u_n(self.D)
 
-    def Get_K_C_M_F(
-        self, problemType=None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        if problemType is None:
-            problemType = self.U
-
-        # here always update to the last state
-        if problemType == self.U:
-            if not self.__updatedDisplacement:  # type: ignore [has-type]
-                self.__Ku, _, _, _ = self.Assembly(self.U)
-                self.__updatedDisplacement = True
-            initcsr = sparse.csr_matrix(self.__Ku.shape)
-            initvec = sparse.csr_matrix((self.__Ku.shape[0], 1))
-            return self.__Ku, initcsr, initcsr, initvec
-        else:
-            if not self.__updatedDamage:  # type: ignore [has-type]
-                self.__Kd, _, _, self.__Fd = self.Assembly(self.D)
-                self.__updatedDamage = True
-            initcsr = sparse.csr_matrix(self.__Kd.shape)
-            return self.__Kd, initcsr, initcsr, self.__Fd
-
-    @property
-    def needUpdate(self) -> bool:
-        return not self.__updatedDamage or not self.__updatedDisplacement
-
-    def Need_Update(self, value=True) -> None:
-        # the following functions help you avoid having to assemble matrices too often
-        self.__updatedDamage = not value
-        """The matrix system associated with the damage problem is updated."""
-        self.__updatedDisplacement = not value
-        """The matrix system associated with the displacement problem is updated."""
-
     def Get_x0(self, problemType=None):
         if problemType == self.D:
             size = self._Get_FunctionSpace(problemType).Nn
@@ -301,12 +266,12 @@ class PhaseField(_Simu):
             # Compute damage field
             d_np1 = self.__Solve_damage()
             # new damage -> new displacement matrices
-            self.__updatedDisplacement = False
+            self.Need_Update(self.U)
 
             # Compute displacement field
             u_np1 = self.__Solve_elastic()
             # new displacement -> new damage matrices
-            self.__updatedDamage = False
+            self.Need_Update(self.D)
 
             # over the owned rows, so that every rank takes the same branch
             comm = self.mesh.comm
@@ -656,8 +621,6 @@ class PhaseField(_Simu):
         """Computes of the kinematically admissible damaged deformation energy.\n
         Psi_Elas = 1/2 int_Ω Sig : Eps dΩ"""
 
-        Ku = self.Get_K_C_M_F(self.U)[0]
-
         tic = Tic()
 
         u = self.displacement
@@ -669,7 +632,7 @@ class PhaseField(_Simu):
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 # the degraded stiffness can overflow where the damage saturates
-                Psi_Elas = self.Calc_Energy(Ku, u, dofs)
+                Psi_Elas = self.Calc_Energy("K", u, self.U, dofs)
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -678,13 +641,11 @@ class PhaseField(_Simu):
     def _Calc_Psi_Crack(self) -> float:
         """Computes crack's energy."""
 
-        Kd = self.Get_K_C_M_F(self.D)[0]
-
         tic = Tic()
 
         d = self.damage
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-            Psi_Crack = self.Calc_Energy(Kd, d, self.Get_dofs(problemType=self.D))
+            Psi_Crack = self.Calc_Energy("K", d, self.D, self.Get_dofs(self.D))
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 

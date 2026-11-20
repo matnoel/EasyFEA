@@ -44,7 +44,7 @@ def test_Thermal_conduction_of_a_slab_stores_half_k_gradient2_V():
     k = 3.0
     simu = _held_slab(k)
     t = simu.thermal
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
 
     energy = t @ K @ t / 2
 
@@ -64,7 +64,7 @@ def test_Thermal_flux_through_a_slab_does_not_depend_on_the_thickness(subtests):
             simu = Simulations.Thermal(mesh, Models.Thermal(k, thickness=thickness))
             simu.add_dirichlet(nodesX0, [0], ["t"])
             simu.add_surfLoad(nodesXL, [q], ["t"])
-            K = simu.Get_K_C_M_F()[0]
+            K = simu.Assembly()[0]
 
             residual = K @ t - simu.Bc_vector_Neumann()
 
@@ -85,9 +85,9 @@ def test_Thermal_thermalDot_vanishes_on_a_steady_slab():
     """The steady temperature balances the parabolic system with a zero rate."""
     simu = _held_slab()
     simu.Solver_Set_Parabolic_Algorithm(dt=0.1)
-    K, C, _, F = simu.Get_K_C_M_F()
+    K, C, _, F = simu.Assembly()
 
-    residual = K @ simu.thermal + C @ simu.thermalDot - F.toarray().ravel()
+    residual = K @ simu.thermal + C @ simu.thermalDot - F
 
     assert np.all(simu.thermalDot == 0)
     assert rel_error(residual[_free(simu)], 0.0, scale=TL - T0) < 1e-12
@@ -103,7 +103,7 @@ def test_Thermal_thermalDot_of_an_insulated_heated_body_is_r_over_rho_c():
     simu.add_volumeLoad(mesh.nodes, [r], ["t"])
     rate = np.full(mesh.Nn, r / (rho * c))
     simu._Set_solutions(simu.problemType, np.zeros(mesh.Nn), rate)
-    C = simu.Get_K_C_M_F()[1]
+    C = simu.Assembly()[1]
 
     assert rel_error(C @ simu.thermalDot, simu.Bc_vector_Neumann()) < 1e-12
 

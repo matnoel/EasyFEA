@@ -259,8 +259,7 @@ already, and {py:meth}`~EasyFEA.Simulations._Simu.Calc_Resultant` for the force 
 boundary; {py:meth}`~EasyFEA.Simulations._Simu.Calc_Reaction` gives the rank's rows:
 
 ```python
-K, _, M, _ = simu.Get_K_C_M_F()
-energy = simu.Calc_Energy(K, u) + simu.Calc_Energy(M, v)
+energy = simu.Calc_Energy("K", u) + simu.Calc_Energy("M", v)
 force = simu.Calc_Resultant(dofsUpper)   # not np.sum(simu.Calc_Reaction(dofsUpper))
 ```
 

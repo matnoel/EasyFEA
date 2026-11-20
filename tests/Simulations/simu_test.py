@@ -312,36 +312,26 @@ def test_Simu_Get_dof_n_counts_the_unknowns(subtests):
                 assert dof_n == len(simu.Get_unknowns(problemType))
 
 
-def test_Simu_Get_K_C_M_F_of_conduction_conserves_constants_and_heat():
+def test_Simu_Assembly_of_conduction_conserves_constants_and_heat():
     simu = _thermal()
     simu.rho = 2.0
 
-    K, C, M, F = simu.Get_K_C_M_F()
+    K, C, M, F = simu.Assembly()
 
     assert rel_error(K @ np.ones(simu.mesh.Nn), 0.0, scale=1.0) < 1e-12
     assert rel_error(C.sum(), 2.0 * L * H) < 1e-12
-    assert M.nnz == 0 and F.nnz == 0
-
-
-def test_Simu_Get_K_C_M_F_clears_the_update_flag_and_returns_the_assembled_matrices():
-    simu = _thermal()
-
-    K = simu.Get_K_C_M_F()[0]
-
-    assert not simu.needUpdate
-    assert simu.Get_K_C_M_F()[0] is K
+    assert not M.data.any() and not F.any()
 
 
 def test_Simu_Calc_Energy_of_the_stiffness_is_the_strain_energy():
     """Half E·eps² over the bar, for its exact displacement."""
     simu = _elastic_bar()
     u = _bar_displacement(simu)
-    K = simu.Get_K_C_M_F()[0]
 
-    energy = simu.Calc_Energy(K, u)
+    energy = simu.Calc_Energy("K", u)
 
     assert rel_error(energy, E * (UD / L) ** 2 / 2 * L * H) < 1e-12
-    assert energy == simu.Calc_Energy(K, u, simu.Get_dofs())
+    assert energy == simu.Calc_Energy("K", u, dofs=simu.Get_dofs())
 
 
 def _reaction_at_x_L(simu: Simulations._Simu, unknown: str) -> float:
@@ -1024,7 +1014,7 @@ def test_Simu_mesh_transform_flags_reassembly(subtests):
     for name, transform in TRANSFORMS.items():
         with subtests.test(transform=name):
             simu = _thermal()
-            simu.Get_K_C_M_F()
+            simu.Assembly()
 
             transform(simu.mesh)
 
@@ -1033,7 +1023,7 @@ def test_Simu_mesh_transform_flags_reassembly(subtests):
 
 def test_Simu_mesh_change_resets_the_conditions_and_the_solution():
     simu = _injected("Thermal")
-    simu.Get_K_C_M_F()
+    simu.Assembly()
 
     simu.mesh = _box()
 
@@ -1084,16 +1074,9 @@ def test_Simu_thickness_scales_only_plane_problems():
     assert _beam(2).thickness == 1.0
 
 
-def test_Simu_Assembly_is_what_Get_K_C_M_F_returns():
-    simu = _elastic_bar()
-
-    assembled = simu.Assembly(simu.problemType)
-
-    for matrix, expected in zip(assembled, simu.Get_K_C_M_F()):
-        assert (matrix != expected).nnz == 0
-
-
-def test_Simu_Assembly_subtracts_an_internal_force_from_F(monkeypatch):
+def test_Simu__Solver_Get_A_b_subtracts_an_internal_force_Assembly_leaves_out(
+    monkeypatch,
+):
     domain = Domain((0, 0), (1, 1))
     mesh = domain.Mesh_2D()
     simu = Simulations.Thermal(mesh, Models.Thermal(1, 1))
@@ -1102,15 +1085,24 @@ def test_Simu_Assembly_subtracts_an_internal_force_from_F(monkeypatch):
         K_e = np.zeros((groupElem.Ne, groupElem.nPe, groupElem.nPe))
         return K_e, np.ones((groupElem.Ne, groupElem.nPe))
 
-    def F(slots: str) -> np.ndarray:
+    def F_b(slots: str) -> tuple[np.ndarray, np.ndarray]:
         terms = [Simulations.Term(slots, Ones)]
         monkeypatch.setattr(simu, "Get_terms", lambda problemType=None: terms)
-        return simu.Assembly(simu.problemType)[3].toarray()
+        simu.Need_Update()
+        return simu.Assembly()[3], simu._Solver_Get_A_b()[1]
 
-    load, force = F("KF"), F("KR")
+    monkeypatch.setattr(type(simu), "isNonLinear", True)
+    monkeypatch.setattr(
+        simu,
+        "_Solver_Get_Newton_Raphson_current_solution",
+        lambda problemType=None: np.zeros(mesh.Nn),
+    )
+    (load, b_load), (F, b_force) = F_b("KF"), F_b("KR")
 
     assert np.abs(load).max() > 0
-    assert np.array_equal(force, -load)
+    assert np.array_equal(b_load, load)
+    assert not F.any()
+    assert np.array_equal(b_force, -load)
 
 
 def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():
@@ -1138,7 +1130,7 @@ def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():
     assert np.allclose(dense[Nu:, Nu:], K_d.toarray())
     assert np.allclose(dense[Nu:, :Nu], K_du.toarray())
     assert not dense[:Nu, Nu:].any()
-    assert np.allclose(F.toarray(), sparse.vstack([F_u, F_d]).toarray())
+    assert np.allclose(F, np.concatenate([F_u, F_d]))
 
 
 def test_Simu_Assembly_raises_on_a_block_outside_its_fields():
@@ -1205,13 +1197,11 @@ def test_Simu__Solver_Apply_Neumann_reads_a_block_term_on_its_column_field(monke
     )
 
     K, _, _, F = simu.Assembly((U, D))
-    # PhaseField's override refolds U or D alone, never the pair
-    monkeypatch.setattr(simu, "Get_K_C_M_F", lambda problemType=None: None)
     b = simu._Solver_Apply_Neumann((U, D))
 
     x_ud = np.concatenate([x[U], x[D]])
     assert np.abs(K[2 * mesh.Nn :, : 2 * mesh.Nn] @ x[U]).max() > 0
-    assert np.allclose(b, F.toarray().ravel() - K @ x_ud)
+    assert np.allclose(b, F - K @ x_ud)
 
 
 def test_Simu_in_parallel_requires_petsc4py(monkeypatch: pytest.MonkeyPatch):
@@ -1631,7 +1621,7 @@ def test_Simu__Solver_Apply_Dirichlet_holds_the_known_values():
 
     A, x = simu._Solver_Apply_Dirichlet(simu.problemType, b, "r1")
 
-    assert (A != simu.Get_K_C_M_F()[0]).nnz == 0
+    assert (A != simu.Assembly()[0]).nnz == 0
     assert np.array_equal(x, simu.Bc_vector_Dirichlet())
 
 
@@ -1804,7 +1794,7 @@ def test_Simu_Solve_runs_one_newton_over_coupled_fields(subtests):
             assert np.array_equal(u, simu.displacement)
             assert np.abs(u - expected.ravel()).max() < 1e-12
             assert np.abs(p - 2 * (stretch**-2 - I1 / 3)).max() < 1e-12
-            assert simu.Get_K_C_M_F()[0].shape == (u.size + p.size,) * 2
+            assert simu.Assembly()[0].shape == (u.size + p.size,) * 2
 
 
 def test_Simu_Solve_pins_a_field_left_free_up_to_a_constant(subtests):
@@ -2029,7 +2019,7 @@ def _slab_corners(simu: Simulations._Simu) -> np.ndarray:
 def test_Simu__Bc_Add_Lagrange_ties_two_temperatures():
     simu = _thermal()
     nodes = _slab_corners(simu)
-    simu.Get_K_C_M_F()
+    simu.Assembly()
 
     simu._Bc_Add_Lagrange(_tie(simu, nodes, "t"))
     simu.Solve()

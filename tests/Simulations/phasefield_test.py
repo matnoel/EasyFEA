@@ -63,10 +63,10 @@ def test_PhaseField_uniform_history_drives_a_uniform_damage(subtests, make_mesh_
     for regularization in Models.PhaseField.ReguType:
         with subtests.test(regularization=str(regularization)):
             simu = _simu(mesh, regularization=regularization)
-            Kd, _, _, Fd = simu.Get_K_C_M_F(simu.D)
+            Kd, _, _, Fd = simu.Assembly(simu.D)
 
             d = _reference.homogeneous_damage(psiP, GC, L0, regularization)
-            residual = Kd @ np.full(mesh.Nn, d) - Fd.toarray().ravel()
+            residual = Kd @ np.full(mesh.Nn, d) - Fd
 
             history = simu.Result("psiP", nodeValues=False)
             assert rel_error(history, psiP) < 1e-12
@@ -155,9 +155,9 @@ def test_PhaseField_needUpdate_until_both_problems_are_assembled(make_mesh_2D):
     pfm = Models.PhaseField(Models.Elastic.Isotropic(2), "He", "AT1", 1, 0.01)
     simu = Simulations.PhaseField(make_mesh_2D(), pfm)
 
-    simu.Get_K_C_M_F("displacement")
+    simu.Assembly("displacement")
     assert simu.needUpdate
-    simu.Get_K_C_M_F("damage")
+    simu.Assembly("damage")
     assert not simu.needUpdate
 
 
@@ -241,11 +241,11 @@ def test_PhaseField_Q2_on_QUAD4_is_the_straight_QUAD9(make_mesh_2D):
     coord = simu.mesh._Get_FunctionSpace(simu.D).Get_mesh().coord
     rows = np.argmin(np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1)
 
-    Kd, _, _, Fd = simu.Get_K_C_M_F(simu.D)
-    Kd_iso, _, _, Fd_iso = iso.Get_K_C_M_F(iso.D)
+    Kd, _, _, Fd = simu.Assembly(simu.D)
+    Kd_iso, _, _, Fd_iso = iso.Assembly(iso.D)
 
     assert rel_error(Kd.toarray(), Kd_iso[rows][:, rows].toarray()) < 1e-12
-    assert rel_error(Fd.toarray(), Fd_iso[rows].toarray()) < 1e-12
+    assert rel_error(Fd, Fd_iso[rows]) < 1e-12
     assert rel_error(simu._Calc_Psi_Elas(), iso._Calc_Psi_Elas()) < 1e-12
     assert rel_error(simu._Calc_Psi_Crack(), iso._Calc_Psi_Crack()) < 1e-12
     Sxx, Sxx_iso = (s.Result("Sxx", nodeValues=False) for s in (simu, iso))

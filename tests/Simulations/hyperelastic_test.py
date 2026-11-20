@@ -75,8 +75,9 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
             "_Solver_Get_Newton_Raphson_current_solution",
             lambda problemType=None: u,
         )
-        K, _, _, F = simu.Get_K_C_M_F()
-        return K.toarray(), F.toarray()
+        K = simu.Assembly()[0]
+        b = simu._Solver_Get_A_b()[1]
+        return K.toarray(), b
 
     K_autodiff, F_autodiff = assembled(
         Models.HyperElastic.AutoDiff(3, ciarlet_geymonat)
@@ -96,7 +97,7 @@ def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatc
         "_Solver_Get_Newton_Raphson_current_solution",
         lambda problemType=None: simu.displacement,
     )
-    simu.Get_K_C_M_F()
+    simu.Assembly()
     assert not simu.needUpdate
     assert simu.matrixType == MatrixType.rigi
 
@@ -311,7 +312,7 @@ def test_HyperElastic_P2_on_TETRA4_is_the_straight_TETRA10():
     rows = np.argmin(np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1)
     dofs = (rows[:, None] * 3 + np.arange(3)).ravel()
 
-    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+    K, K_iso = simu.Assembly()[0], iso.Assembly()[0][dofs][:, dofs]
 
     assert rel_error(K.toarray(), K_iso.toarray()) < 1e-12
     Svm = simu.Result("Svm", nodeValues=False)
@@ -331,7 +332,7 @@ def test_HyperElastic_K_per_element_reaches_the_assembly(subtests, monkeypatch):
             "_Solver_Get_Newton_Raphson_current_solution",
             lambda problemType=None: u,
         )
-        return simu.Get_K_C_M_F()[0].toarray()
+        return simu.Assembly()[0].toarray()
 
     with subtests.test("a uniform array is the scalar"):
         assert np.array_equal(tangent(np.array([3.0, 3.0])), tangent(3.0))

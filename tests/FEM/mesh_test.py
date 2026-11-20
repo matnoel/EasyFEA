@@ -871,7 +871,7 @@ def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original(unit_b
     mesh = unit_box(ElemType.TETRA4)
     simu = _elastic(mesh)
     space = mesh._Get_FunctionSpace(ELASTIC)
-    K = simu.Get_K_C_M_F()[0]
+    K = simu.Assembly()[0]
 
     meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
     meshP2.Translate(1.0)
@@ -880,7 +880,7 @@ def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original(unit_b
     assert mesh._Get_FunctionSpace(ELASTIC) is space and space.Nn == mesh.Nn
     assert np.array_equal(mesh.coord, unit_box(ElemType.TETRA4).coord)
     simu.Need_Update()
-    assert simu.mesh is mesh and (simu.Get_K_C_M_F()[0] != K).nnz == 0
+    assert simu.mesh is mesh and (simu.Assembly()[0] != K).nnz == 0
 
 
 def test_Mesh__With_FunctionSpace_is_the_complete_partner_of_each_group(

@@ -4,7 +4,7 @@
 
 """Linear system `A x = b` of one problem."""
 
-from typing import Callable, NamedTuple
+from typing import Callable
 
 import numpy as np
 from scipy import sparse
@@ -22,16 +22,8 @@ from ..Utilities._mpi import (
 from ._terms import Same_contributions, _Contribution
 
 
-class _Slot(NamedTuple):
-    """One assembled K, C, M or F: its csr map key, its contributions, the matrix."""
-
-    key: tuple
-    contributions: list[_Contribution]
-    matrix: sparse.csr_matrix
-
-
 class _LinearSystem:
-    """`A x = b` of one problem key, dropped with the mesh: K, C, M, F, A, PETSc numbering, dof exchange and kept solver; `comm` is passed in, never stored."""
+    """`A x = b` of one problem key, dropped with the mesh: last fold, A, PETSc numbering, dof exchange and kept solver; `comm` is passed in, never stored."""
 
     def __init__(
         self,
@@ -44,9 +36,7 @@ class _LinearSystem:
         self.__rank = rank
         self.__globalIds = globalIds
         self.__exchange: Exchange | None = None
-        self.__slots: dict[str, _Slot] = {}
         self.__fold: list[_Contribution] = []
-        self.__folded = False
         self.__A: sparse.csr_matrix | None = None
         self.__AKey: tuple = ()
         """`(layout, Ndof, contributing)` of A's map"""
@@ -68,15 +58,10 @@ class _LinearSystem:
         self.__solverStamps: tuple[int, int, int] | None = None
 
     def __getstate__(self) -> dict:
-        # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy assembles into its own slots
+        # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy refolds
         return {
             **self.__dict__,
-            "_LinearSystem__slots": {
-                slot: kept._replace(contributions=[])
-                for slot, kept in self.__slots.items()
-            },
             "_LinearSystem__fold": [],
-            "_LinearSystem__folded": False,
             "_LinearSystem__A": None,
             "_LinearSystem__AFold": [],
             "_LinearSystem__exchange": None,
@@ -137,57 +122,17 @@ class _LinearSystem:
         self.__solverStamps = None
         return solver
 
-    def Assembled(
-        self,
-        slot: str,
-        key: tuple,
-        contributions: list[_Contribution],
-        assemble: Callable[[], sparse.csr_matrix],
-    ) -> sparse.csr_matrix:
-        """The slot's matrix, assembled again unless a K, C or M of the same cached arrays on the same map."""
-        old = self.__slots.get(slot)
-        if (
-            slot != "F"
-            and old is not None
-            and old.key == key
-            and Same_contributions(old.contributions, contributions)
-        ):
-            return old.matrix
-        matrix = assemble()
-        self.__slots[slot] = _Slot(key, contributions, matrix)
-        return matrix
-
     def Set_fold(self, fold: list[_Contribution]) -> None:
         """Keeps the last fold, A's source."""
         self.__fold = fold
-        self.__folded = True
 
-    @property
-    def folded(self) -> bool:
-        """Whether the system holds a fold: a pickled copy does not."""
-        return self.__folded
-
-    def Get_K_C_M_F(
-        self,
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        """The last assembled K, C, M, F, read-only."""
-        self.__Check_assembled()
-        K, C, M, F = (self.__slots[slot].matrix for slot in "KCMF")
-        return K, C, M, F
-
-    def __Check_assembled(self) -> None:
-        if "K" not in self.__slots:
-            raise RuntimeError(
-                "Nothing assembled for this problem: a `Get_K_C_M_F` override must assemble through `Assembly`."
-            )
-
-    def Assembled_rows(self) -> _types.BoolArray:
-        """Rows K, C or M hold an entry in, ghost elements included."""
-        self.__Check_assembled()
-        rows = sum(np.diff(self.__slots[slot].matrix.indptr) for slot in "KCM")
-        return rows > 0
+    def Connected_rows(self, layout: tuple, Ndof: int) -> _types.BoolArray:
+        """Rows a K, C or M contribution of the last fold fills, ghost elements included."""
+        rows = np.zeros(Ndof, dtype=bool)
+        for c in self.__fold:
+            if c.slot in "KCM":
+                rows[_Dofs_e(layout, c.block[0], c.group)] = True
+        return rows
 
     def Get_A(
         self,
@@ -197,13 +142,8 @@ class _LinearSystem:
         Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
     ) -> sparse.csr_matrix:
         """`coefK·K + coefC·C + coefM·M` from the last fold, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
-        self.__Check_assembled()
         fold = [c for c in self.__fold if c.slot in "KCM"]
-        sizes: dict = {}
-        for c in fold:
-            sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
-        contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
-        key = (layout, Ndof, contributing)
+        key = (layout, Ndof, _Contributing(fold))
         if (
             self.__A is not None
             and key == self.__AKey
@@ -216,33 +156,7 @@ class _LinearSystem:
             self.__AKey = key
             self.__patternStamp += 1
 
-        # each (block, group)'s element entries, end to end in the map's order
-        spans = {}
-        size = 0
-        for block, groups in sizes.items():
-            for group, n in groups.items():
-                spans[block, group] = size
-                size += n
-        entries = np.zeros(size)
-        for c in fold:
-            weight = coefs["KCM".index(c.slot)]
-            if weight == 0:
-                continue
-            if np.iscomplexobj(c.array):
-                raise TypeError("Complex systems are not supported.")
-            start = spans[c.block, c.group]
-            entries[start : start + c.array.size] += (weight * c.coef) * c.array.ravel()
-
-        # an MPI rank may own no element of any contributing group
-        if size == 0:
-            A = sparse.csr_matrix((Ndof, Ndof))
-        else:
-            inv, indices, indptr, nnz = Get_map(contributing)
-            assert entries.size == inv.size, "A's map does not match its contributions."
-            data = np.bincount(inv, weights=entries, minlength=nnz)
-            A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
-        # canonical by construction: Solvers skips its fixup
-        A.has_canonical_format = True
+        A = _Sum(fold, coefs, Ndof, Get_map)
         A.data.flags.writeable = False
 
         self.__A = A
@@ -250,6 +164,18 @@ class _LinearSystem:
         self.__AFold = fold
         self.__stamp += 1
         return A
+
+    def Get_operator(
+        self,
+        slot: str,
+        layout: tuple,
+        Ndof: int,
+        Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
+    ) -> sparse.csr_matrix:
+        """The last fold's K, C or M alone, a new matrix on A's map."""
+        fold = [c for c in self.__fold if c.slot in "KCM"]
+        coefK, coefC, coefM = (float(s == slot) for s in "KCM")
+        return _Sum(fold, (coefK, coefC, coefM), Ndof, Get_map)
 
     def Get_load(self, layout: tuple, Ndof: int) -> _types.FloatArray:
         """The last fold's F contributions, summed: the load the terms declare."""
@@ -268,17 +194,85 @@ class _LinearSystem:
         layout: tuple,
     ) -> _types.FloatArray:
         """`load − Σ coef·R − Σ coef·X_e·field` over the last fold, X_e of the terms declaring no R; a None field is skipped."""
+        return load + _Scatter(self.__Pieces(fields, layout, True), layout, load.size)
+
+    def Get_product(
+        self,
+        fields: tuple[_types.FloatArray | None, ...],
+        layout: tuple,
+        Ndof: int,
+    ) -> _types.FloatArray:
+        """`Σ coef·X_e·field` over the last fold's K, C and M, each slot on its field; a None field is skipped."""
+        return _Scatter(self.__Pieces(fields, layout, False), layout, Ndof)
+
+    def __Pieces(
+        self,
+        fields: tuple[_types.FloatArray | None, ...],
+        layout: tuple,
+        isB: bool,
+    ) -> list[tuple[_Contribution, np.ndarray]]:
+        """Element vectors of `coef·X_e·field`, or of b's `−coef·R` and `−coef·X_e·field` over the linear terms."""
         pieces = []
         for c in self.__fold:
             if c.slot == "R":
-                pieces.append((c, -c.coef * c.array))
-            elif c.slot in "KCM" and "R" not in c.term.slots:
+                if isB:
+                    pieces.append((c, -c.coef * c.array))
+            elif c.slot in "KCM" and not (isB and "R" in c.term.slots):
                 field = fields["KCM".index(c.slot)]
                 if field is None:
                     continue
                 x_e = field[_Dofs_e(layout, c.block[1], c.group)]
-                pieces.append((c, -c.coef * np.matmul(c.array, x_e[..., None])[..., 0]))
-        return load + _Scatter(pieces, layout, load.size)
+                coef = -c.coef if isB else c.coef
+                pieces.append((c, coef * np.matmul(c.array, x_e[..., None])[..., 0]))
+        return pieces
+
+
+def _Contributing(fold: list[_Contribution]) -> tuple:
+    """`(block, groups)` of every block `fold` fills, the order of its map."""
+    sizes: dict = {}
+    for c in fold:
+        sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
+    return tuple((block, tuple(groups)) for block, groups in sizes.items())
+
+
+def _Sum(
+    fold: list[_Contribution],
+    coefs: tuple[float, float, float],
+    Ndof: int,
+    Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
+) -> sparse.csr_matrix:
+    """`Σ coef_slot·coef·X_e` over `fold`'s K, C, M on their union map: a zero-coef slot in the pattern, not in the values."""
+    sizes: dict = {}
+    for c in fold:
+        sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
+    # each (block, group)'s element entries, end to end in the map's order
+    spans = {}
+    size = 0
+    for block, groups in sizes.items():
+        for group, n in groups.items():
+            spans[block, group] = size
+            size += n
+    entries = np.zeros(size)
+    for c in fold:
+        weight = coefs["KCM".index(c.slot)]
+        if weight == 0:
+            continue
+        if np.iscomplexobj(c.array):
+            raise TypeError("Complex systems are not supported.")
+        start = spans[c.block, c.group]
+        entries[start : start + c.array.size] += (weight * c.coef) * c.array.ravel()
+
+    # an MPI rank may own no element of any contributing group
+    if size == 0:
+        A = sparse.csr_matrix((Ndof, Ndof))
+    else:
+        inv, indices, indptr, nnz = Get_map(_Contributing(fold))
+        assert entries.size == inv.size, "A's map does not match its contributions."
+        data = np.bincount(inv, weights=entries, minlength=nnz)
+        A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
+    # canonical by construction: Solvers skips its fixup
+    A.has_canonical_format = True
+    return A
 
 
 def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:

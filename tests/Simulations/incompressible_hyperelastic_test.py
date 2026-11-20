@@ -211,6 +211,13 @@ def test_IncompressibleHyperElastic_leaves_AutoDiff_unchecked():
     assert simu.model is material
 
 
+def test_IncompressibleHyperElastic_Assembly_of_p_alone_raises():
+    simu = incompressible(_square(ElemType.TRI6))
+
+    with pytest.raises(ValueError, match="No term fills pressure's equation"):
+        simu.Assembly(PRESSURE)
+
+
 def test_IncompressibleHyperElastic_add_dirichlet_on_p_raises(subtests):
     simu = incompressible(_square(ElemType.TRI6))
     nodes = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -498,8 +505,8 @@ def _assembled(
     simu._Solver_Get_Newton_Raphson_current_solution = (  # type: ignore [method-assign]
         lambda problemType=None: fields[problemType or U]
     )
-    K, _, _, F = simu.Assembly((U, PRESSURE))
-    return K, F.toarray().ravel()
+    simu.Need_Update()
+    return simu._Solver_Get_A_b((U, PRESSURE))
 
 
 def _fd(
@@ -774,11 +781,19 @@ def _per_group(field) -> list:
     return list(field.values()) if isinstance(field, dict) else [field]
 
 
-def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_update():
+def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_update(
+    monkeypatch,
+):
     simu = incompressible(_square(ElemType.TRI6))
     assert simu.matrixType == MatrixType.mass
+    monkeypatch.setattr(
+        simu,
+        "_Solver_Get_Newton_Raphson_current_solution",
+        lambda problemType=None: simu._Get_u_n(problemType or U),
+    )
 
-    simu.Need_Update(False)
+    simu.Assembly()
+    assert not simu.needUpdate
     simu.matrixType = MatrixType.rigi
 
     assert simu.matrixType == MatrixType.rigi

@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     simu.Solver_Set_Hyperbolic_Algorithm(0.1)
 
-    K, C, M, F = simu.Get_K_C_M_F()
+    K, C, M, F = simu.Assembly()
 
     if isFixed:
         simu.add_dirichlet(nodesY0, [0] * dim, simu.Get_unknowns())

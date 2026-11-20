@@ -5,7 +5,6 @@
 
 
 import numpy as np
-from scipy import sparse
 
 from ..FEM import (
     ElemType,
@@ -180,17 +179,6 @@ class IncompressibleHyperElastic(_Simu):
 
     def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
         return self.pressure if problemType == self.P else self.displacement
-
-    def Assembly(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        """Raises on p alone, whose equation only u's terms carry."""
-        u, p = self.U, self.P
-        if problemType in (p, (p,)):
-            raise ValueError(f"{p}'s equation couples to {u}: assemble ({p}, {u}).")
-        return super().Assembly(problemType)
 
     def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         u, p = self.U, self.P

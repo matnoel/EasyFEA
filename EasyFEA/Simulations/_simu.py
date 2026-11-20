@@ -260,118 +260,86 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             [self._Bc_Lagrange_dim(field) for field in fields]
         )
 
-    # Solvers
-    def Get_K_C_M_F(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        r"""Returns the assembled matrices of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the monolithic problem holding `problemType`, not copies: never write into them."""
-
-        error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problems have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
-        assert len(self._Get_monolithic_problems()) == 1, error
-
-        problem = self._Get_monolithic_problem(problemType)
-        if self.needUpdate:
-            self.Assembly(problem)
-            self.Need_Update(False)
-
-        return self._Get_linear_system(problem).Get_K_C_M_F()
-
     def Calc_Energy(
         self,
-        A: sparse.csr_matrix,
+        slot: str,
         x: _types.FloatArray,
-        dofs: _types.IntArray = None,
+        problemType: ProblemType | tuple[ProblemType, ...] | None = None,
+        dofs: _types.IntArray | None = None,
     ) -> float:
-        """Energy `1/2 xᵀ A x` of a dof vector, summed over the ranks.
-
-        Under MPI a rank assembles its owned *and* ghost elements, so `A` is complete only on the rows
-        of the dofs the rank owns. Restricting the quadratic form to those rows makes the ranks'
-        contributions disjoint, so they sum to the global energy — the same argument
-        :meth:`Calc_Resultant` uses for `K[dofs] @ u`. Taking the form over all rows instead would
-        count the ghost layer once per rank sharing it.
-
-        Parameters
-        ----------
-        A : sparse.csr_matrix
-            Operator of the energy, e.g. `K` for the strain energy or `M` for the kinetic one.
-        x : _types.FloatArray
-            Dof vector, of the full `(Ndof,)` length on every rank as the solver leaves it.
-        dofs : _types.IntArray, optional
-            Owned dofs, by default `Get_dofs()`. Pass them in a time loop, where they do not change
-            and `Get_dofs` is not cached.
-
-        Returns
-        -------
-        float
-            The energy, identical on every rank.
-        """
-
+        """Energy `1/2 xᵀ X x` of a dof vector of the monolithic problem holding `problemType`, X its folded `slot` (`"K"` strain, `"M"` kinetic), over the owned `dofs` (default `Get_dofs`): identical on every rank, collective on `mesh.comm`."""
+        if slot not in ("K", "C", "M"):
+            raise ValueError(f"slot must be 'K', 'C' or 'M', not {slot!r}.")
+        problem = self._Get_monolithic_problem(problemType)
         if dofs is None:
-            dofs = self.Get_dofs()
-
-        energy = 0.5 * x[dofs] @ (A[dofs] @ x)
+            dofs = self.Get_dofs(problem)
+        fields = tuple(x if s == slot else None for s in "KCM")
+        product = self.__Get_product(problem, fields)
+        energy = 0.5 * x[dofs] @ product[dofs]
         return Reduce_sum(energy, self.mesh.comm)
 
-    def __Get_reaction(
-        self, dofs: _types.IntArray, problemType: ProblemType
+    def __Get_product(
+        self,
+        problem: ProblemType | tuple[ProblemType, ...],
+        fields: tuple[_types.FloatArray | None, ...],
     ) -> _types.FloatArray:
-        """Internal force at `dofs`, complete on owned dofs only."""
-        K, C, M, _ = self.Get_K_C_M_F(problemType)
-        roles = self.timeScheme.roles
-        reaction = K[dofs] @ self._Get_u_n(problemType)
-        if "v" in roles:
-            reaction += C[dofs] @ self._Get_v_n(problemType)
-        if "a" in roles:
-            reaction += M[dofs] @ self._Get_a_n(problemType)
-        return reaction
+        """`K·u + C·v + M·a` of the problem's kept fold, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
+        system = self.__Get_folded(problem)
+        layout, Ndof = self.__Get_layout(self.__Fields(problem))
+        return system.Get_product(fields, layout, Ndof)[: self.__Get_size(problem)]
 
-    def __Get_owned(
-        self, dofs: _types.IntArray, problemType: ProblemType
-    ) -> _types.IntArray:
-        """The dofs of `dofs` this rank owns, in their order."""
-        owners, rank = self.__Get_dof_owners(problemType)
-        isOwned = np.zeros(self.__Get_size(problemType), dtype=bool)
-        isOwned[Owned(owners, rank)] = True
-        return dofs[isOwned[dofs]]
-
-    def Calc_Reaction(
-        self, dofs: _types.IntArray = None, problemType: ProblemType = None
-    ) -> np.ndarray:
-        """Internal force at `dofs` (all by default), `K[dofs] @ u`, `+ C[dofs] @ v` (parabolic), `+ C[dofs] @ v + M[dofs] @ a` (hyperbolic): `F` is not subtracted, so the reaction proper where no load is applied. Under MPI the rank's rows of `dofs`; their sum over the ranks is `Calc_Resultant`."""
-
+    def __Get_reaction(
+        self, problem: ProblemType | tuple[ProblemType, ...], slots: str | None
+    ) -> _types.FloatArray:
+        """Internal force of the slots (default the scheme's), complete on owned rows only."""
         if self.isNonLinear:
             raise NotImplementedError
+        if slots is None:
+            roles = self.timeScheme.roles
+            slots = "K" + "C" * ("v" in roles) + "M" * ("a" in roles)
+        Gets = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
+        fields = tuple(
+            Get(problem) if s in slots else None for s, Get in zip("KCM", Gets)
+        )
+        return self.__Get_product(problem, fields)
 
-        if problemType is None:
-            problemType = self.problemType
+    def __Get_isOwned(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.BoolArray:
+        """Whether this rank owns each dof of the problem."""
+        owners, rank = self.__Get_dof_owners(problem)
+        isOwned = np.zeros(self.__Get_size(problem), dtype=bool)
+        isOwned[Owned(owners, rank)] = True
+        return isOwned
 
-        size = self.Get_K_C_M_F(problemType)[0].shape[0]
+    def Calc_Reaction(
+        self,
+        dofs: _types.IntArray | None = None,
+        problemType: ProblemType | None = None,
+        slots: str | None = None,
+    ) -> np.ndarray:
+        """Internal force at `dofs` (all by default), `K u`, `+ C v` (parabolic), `+ C v + M a` (hyperbolic), or of the given `slots` (e.g. `"K"`): `F` is not subtracted, so the reaction proper where no load is applied. Under MPI the rank's rows of `dofs`; their sum over the ranks is `Calc_Resultant`."""
+        problem = self._Get_monolithic_problem(problemType)
+        reaction = self.__Get_reaction(problem, slots)
         if dofs is None:
-            dofs = np.arange(size)
-
-        owned = self.__Get_owned(dofs, problemType)
-        reaction = np.zeros(size, dtype=float)
-        reaction[owned] = self.__Get_reaction(owned, problemType)
+            dofs = np.arange(reaction.size)
+        reaction[~self.__Get_isOwned(problem)] = 0.0
         # a ghost row from its owner
-        self._Get_linear_system(problemType).Scatter_forward(reaction, self.mesh.comm)
-
+        self._Get_linear_system(problem).Scatter_forward(reaction, self.mesh.comm)
         return reaction[dofs]
 
     def Calc_Resultant(
-        self, dofs: _types.IntArray, problemType: ProblemType = None
+        self,
+        dofs: _types.IntArray,
+        problemType: ProblemType | None = None,
+        slots: str | None = None,
     ) -> float:
-        """Resultant of the internal force over `dofs`, each dof counted once over the ranks: the sum of `Calc_Reaction(dofs)` in serial; identical on every rank, collective on `mesh.comm`."""
-
-        if self.isNonLinear:
-            raise NotImplementedError
-
-        if problemType is None:
-            problemType = self.problemType
-
-        owned = self.__Get_owned(dofs, problemType)
-        resultant = float(np.sum(self.__Get_reaction(owned, problemType)))
+        """Resultant of :meth:`Calc_Reaction` over `dofs`, each dof counted once over the ranks: identical on every rank, collective on `mesh.comm`."""
+        problem = self._Get_monolithic_problem(problemType)
+        reaction = self.__Get_reaction(problem, slots)
+        isOwned = self.__Get_isOwned(problem)
+        dofs = np.asarray(dofs, dtype=int)
+        resultant = float(np.sum(reaction[dofs[isOwned[dofs]]]))
         return Reduce_sum(resultant, self.mesh.comm)
 
     @abstractmethod
@@ -529,6 +497,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         finally:
             self.__dict__.clear()
             self.__dict__.update(live)
+            # a reader inside refolded the linear systems in place
+            self.Need_Update()
 
     def _Iter_Restored(self) -> None:
         """Called by `Set_Iter` once a saved iteration is restored, to drop what the subclass derived from the state before; nothing by default."""
@@ -738,6 +708,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__linearSystems: dict[
             ProblemType | tuple[ProblemType, ...], _LinearSystem
         ] = {}
+        self.__fresh: set[ProblemType | tuple[ProblemType, ...]] = set()
+        """problem keys whose kept fold is current"""
         self.mesh = mesh
 
         self.rho = 1.0
@@ -1176,78 +1148,29 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__Free_solvers()
         self.__linearSystems = {}
 
-    def Need_Update(self, value=True):
-        """Sets whether the simulation needs to reconstruct matrices K, C, M and F."""
-        return super().Need_Update(value)
+    def Need_Update(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> None:
+        """Marks stale the fold of every problem sharing a field with `problemType`, of every problem by default: its next reader refolds."""
+        if problemType is None:
+            self.__fresh = set()
+            return
+        fields = set(self.__Fields(problemType))
+        self.__fresh = {
+            key for key in self.__fresh if fields.isdisjoint(self.__Fields(key))
+        }
+
+    @property
+    def needUpdate(self) -> bool:
+        """Whether the fold of a problem of the simulation is stale."""
+        return any(
+            self._Get_monolithic_problem(problem[0]) not in self.__fresh
+            for problem in self._Get_monolithic_problems()
+        )
 
     # ----------------------------------------------
     # Solver
     # ----------------------------------------------
-
-    def __Assemble_csr(
-        self,
-        dict_block_data: dict[
-            tuple[ProblemType, ProblemType] | ProblemType,
-            dict["_GroupElem", np.ndarray],
-        ],
-        contributing: tuple,
-        layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
-        Ndof: int,
-        isMatrix: bool = True,
-    ) -> sparse.csr_matrix:
-        """Scatter per-block, per-group local element matrices/vectors into one global CSR; scipy builds the pattern on the first assembly, a cached map then sums each later one with ``np.bincount`` (exact to round-off, not bit-identical).
-
-        The map's key holds the contributing groups of each block: a simulation may feed different groups to different slots (the cardiac surface group contributes to K, C and F, not M).
-
-        Parameters
-        ----------
-        dict_block_data : dict[tuple[ProblemType, ProblemType] | ProblemType, dict[_GroupElem, FeArray]]
-            Per-block ``(rows, cols)`` (``rows`` for a vector), per-group local arrays. Empty dict returns an empty CSR.
-        contributing : tuple
-            ``(block, groups)`` of `dict_block_data`, the order `data` and the map follow.
-        layout : tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
-            ``(problemType, space, dof_n, offset)`` of each field of the system, its DOFs from `offset` on.
-        Ndof : int
-            Total number of degrees of freedom (including Lagrange multiplier DOFs).
-        isMatrix bool, optional
-            If the value is True, creates a matrix (Ndof, Ndof); otherwise, creates a vector (Ndof, 1); the default value is True.
-        """
-
-        shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
-
-        if not contributing:
-            return sparse.csr_matrix(shape)
-
-        data = np.concatenate(
-            [
-                dict_block_data[block][g].ravel()
-                for block, groups in contributing
-                for g in groups
-            ]
-        )
-
-        # An MPI rank may own no element of any contributing group.
-        if data.size == 0:
-            return sparse.csr_matrix(shape)
-
-        # The reduction map (which CSR slot each element entry feeds) is cached per key; it depends only on
-        # connectivity, so a Newton loop / time stepping reuses it and only the values below change.
-        inv, indices, indptr, nnz = self.__Get_csr_map(
-            layout, isMatrix, Ndof, contributing
-        )
-        assert data.size == inv.size, f"Not enough data to fill a {shape} CSR."
-
-        if np.iscomplexobj(data):
-            raise TypeError("Complex systems are not supported.")
-        # Sum every element entry into its slot with one bincount.
-        csr_data = np.bincount(inv, weights=data, minlength=nnz)
-
-        matrix = sparse.csr_matrix((csr_data, indices, indptr), shape=shape)
-        # Canonical by construction (scipy sorted the pattern): lets Solvers skip its canonical fixup.
-        matrix.has_canonical_format = True
-        # a solver keeps what it built from this matrix while it is the same object
-        matrix.data.flags.writeable = False
-        return matrix
 
     @cache_computed_values
     def __Get_csr_map(
@@ -1331,84 +1254,68 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         return tuple(layout), Ndof
 
-    def Assembly(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of a problem type, or of several as one system ``[u | p | Lagrange]``. Raises on a block coupling to a field outside `problemType`."""
-        if problemType is None:
-            problemType = self.problemType
-        problemTypes = (
-            (problemType,) if isinstance(problemType, str) else tuple(problemType)
-        )
-        if len(set(problemTypes)) < len(problemTypes):
-            raise ValueError(f"A field is given twice in {problemTypes}.")
-
-        layout, Ndof = self.__Get_layout(problemTypes)
-
+    def __Fold(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> list[_Contribution]:
+        """The contributions of every field's terms; raises on a block coupling to a field outside `problem`, or on a field no term fills."""
+        problemTypes = self.__Fields(problem)
         fields = ", ".join(problemTypes)
 
         tic = Tic()
 
+        terms = {
+            problemType: self.Get_terms(problemType) for problemType in problemTypes
+        }
+        filled = set()
+        for problemType in problemTypes:
+            for term in terms[problemType]:
+                for slot, (rows, cols) in zip(
+                    term.slots, term._Get_blocks(problemType)
+                ):
+                    if slot in "KCM" and cols not in problemTypes:
+                        raise ValueError(
+                            f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
+                        )
+                    if rows not in problemTypes:
+                        raise ValueError(
+                            f"A term fills {rows}'s equation: assemble ({fields}, {rows})."
+                        )
+                    filled.add(rows)
+        for problemType in problemTypes:
+            if problemType not in filled:
+                raise ValueError(
+                    f"No term fills {problemType}'s equation: assemble {self._Get_monolithic_problem(problemType)}."
+                )
+
         fold: list[_Contribution] = []
         for problemType in problemTypes:
-            fold += Fold_terms(self, self.Get_terms(problemType), problemType)
+            fold += Fold_terms(self, terms[problemType], problemType)
 
-        local: dict[str, dict] = {"K": {}, "C": {}, "M": {}, "F": {}}
-        for c in fold:
-            if c.slot in "FR":
-                slot, block = "F", c.block[0]
-            else:
-                slot, block = c.slot, c.block
-            array = c.Scaled()
-            groups = local[slot].setdefault(block, {})
-            groups[c.group] = groups[c.group] + array if c.group in groups else array
+        tic.Tac("Matrix", f"Fold ({fields}).", self._verbosity)
 
-        for slot in "KCM":
-            for rows, cols in local[slot]:
-                if cols not in problemTypes:
-                    raise ValueError(
-                        f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
-                    )
-        for rows in (*local["F"], *(block[0] for s in "KCM" for block in local[s])):
-            if rows not in problemTypes:
-                raise ValueError(
-                    f"A term fills {rows}'s equation: assemble ({fields}, {rows})."
-                )
+        return fold
 
-        tic.Tac(
-            "Matrix",
-            f"Construct the local matrix system ({fields}).",
-            self._verbosity,
-        )
+    def Assembly(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, _types.FloatArray
+    ]:
+        r"""K, C, M (csr, one pattern) and F (1-D, the terms' load) of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for a problem type (default the simulation's monolithic problem), or for several as one system ``[u | p | Lagrange]``; built on each call, never read by a solve. Raises on a block coupling to a field outside `problemType`."""
+        if problemType is None:
+            problemType = self._Get_monolithic_problem()
+        problemTypes = self.__Fields(problemType)
+        if len(set(problemTypes)) < len(problemTypes):
+            raise ValueError(f"A field is given twice in {problemTypes}.")
+        problem = problemTypes[0] if len(problemTypes) == 1 else problemTypes
 
-        # a matrix folded from the same cached arrays is the previous one, kept by the system until the mesh changes
-        system = self._Get_linear_system(
-            problemTypes[0] if len(problemTypes) == 1 else problemTypes
-        )
-        system.Set_fold(fold)
-        assembled = []
-        for slot, name in zip("KCMF", ("K matrix", "C matrix", "M matrix", "F vector")):
-            blocks = local[slot]
-            # the block and group order `data` and the map follow
-            contributing = tuple(
-                (block, tuple(groups)) for block, groups in blocks.items()
-            )
+        system = self.__Get_folded(problem)
+        layout, Ndof = self.__Get_layout(problemTypes)
 
-            def assemble() -> sparse.csr_matrix:
-                matrix = self.__Assemble_csr(
-                    blocks, contributing, layout, Ndof, slot != "F"
-                )
-                tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
-                return matrix
+        def Get_map(contributing: tuple):
+            return self.__Get_csr_map(layout, True, Ndof, contributing)
 
-            key = (layout, Ndof, contributing)
-            contributions = [c for c in fold if c.slot == slot]
-            assembled.append(system.Assembled(slot, key, contributions, assemble))
-        K, C, M, F = assembled
-
-        return K, C, M, F
+        K, C, M = (system.Get_operator(slot, layout, Ndof, Get_map) for slot in "KCM")
+        return K, C, M, system.Get_load(layout, Ndof)
 
     @property
     def solver(self) -> str:
@@ -1436,7 +1343,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         systems = {
             key: copy.copy(system) for key, system in self.__linearSystems.items()
         }
-        return {**self.__dict__, "_Simu__linearSystems": systems}
+        return {**self.__dict__, "_Simu__linearSystems": systems, "_Simu__fresh": set()}
 
     def _Solver_Set_TimeScheme(self, timeScheme: _TimeScheme) -> None:
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
@@ -1842,7 +1749,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         while not converged and newtonIter < maxIter:
             newtonIter += 1
             # we must update the matrix system at each newton iteration.
-            self.Need_Update()
+            self.Need_Update(problem)
 
             # Compute delta_u and the residual norm (with the applied boundary conditions)
             self.__Solver_Set_Newton_Raphson_current_solution(problem, u)
@@ -1996,9 +1903,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> _LinearSystem:
         """The problem's linear system, refolded when stale."""
         system = self._Get_linear_system(problemType)
-        if not system.folded:
-            self.Need_Update()
-        self.Get_K_C_M_F(problemType)
+        if problemType not in self.__fresh:
+            system.Set_fold(self.__Fold(problemType))
+            self.__fresh = self.__fresh | {problemType}
         return system
 
     def _Solver_Get_A_b(
@@ -2013,9 +1920,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        self.Get_K_C_M_F(problemType)
-        size = self.__Get_size(problemType)
-        connected = self._Get_linear_system(problemType).Assembled_rows()[:size]
+        system = self.__Get_folded(problemType)
+        layout, Ndof = self.__Get_layout(self.__Fields(problemType))
+        connected = system.Connected_rows(layout, Ndof)[: self.__Get_size(problemType)]
         lagrange = self.__Compose(
             problemType,
             lambda field: BoundaryCondition.Get_dofs(field, self.__Bc_Lagrange),  # type: ignore [arg-type]
@@ -2491,7 +2398,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
     ) -> _types.IntArray:
         """DOF at global node 0 of each scalar field the system leaves free up to a constant: no diagonal block, and the other fields' free equations blind to a constant in it, ``‖K_rc[free] · 1‖ ≤ ε ‖K_rc[free]‖``. Pinned there on the ranks holding it, then shifted to zero mean after the solve."""
-        K = self.Get_K_C_M_F(problem)[0]
+        K = self.__Get_A(problem)
         owned = np.zeros(K.shape[0], dtype=bool)
         owned[self.Get_dofs(problem)] = True
         pinned = []

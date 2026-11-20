@@ -398,10 +398,9 @@ def _scalars(simu) -> np.ndarray:
     if isinstance(simu, Simulations.Beam):
         scalars += [simu.mass, *simu.center]
     if isinstance(simu, Simulations.Elastic):
-        K = simu.Get_K_C_M_F(simu.problemType)[0]
         u = simu.displacement
         scalars += [simu.Calc_Resultant(_pulled_dofs(simu, u_)) for u_ in ("x", "y")]
-        scalars.append(simu.Calc_Energy(K, u, simu.Get_dofs(simu.problemType)))
+        scalars.append(simu.Calc_Energy("K", u))
         scalars.append(simu.Result("Wdef"))
     return np.array(scalars, dtype=float)
 

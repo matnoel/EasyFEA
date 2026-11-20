@@ -149,7 +149,7 @@ if __name__ == "__main__":
     plotter.zoom_camera(0.8)
     plotter.show()
 
-    K, C, M, F = simu.Get_K_C_M_F()
+    K, C, M, F = simu.Assembly()
 
     if isFixed:
         K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
