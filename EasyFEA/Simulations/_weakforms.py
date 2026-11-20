@@ -20,7 +20,7 @@ from .. import Models
 # simu
 from ._simu import _Simu
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 
 class WeakForms(_Simu):
@@ -124,16 +124,20 @@ class WeakForms(_Simu):
         """The weak form's own thickness, keyed on the **ambient** dimension: a form written on a surface embedded in 3D integrates over that surface already, so nothing is left to scale."""
         return 1.0 if self.mesh.inDim == 3 else self.weakForms.thickness
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         """One term per form the user supplied; the fold applies :py:attr:`thickness` to each.
 
         The K/C/M forms declare no ``R``, so they are linear: b takes ``-K·u_t`` / ``-C·v_t`` / ``-M·a_t`` from them. ``computeF`` is a load, hence the ``F`` slot.
         """
         weakForms = self.weakForms
 
-        partners = self.__Get_partners()
         groupElem = weakForms.field.groupElem
-        if not any(groupElem is group for pair in partners.items() for group in pair):
+        meshGroups = [
+            meshGroup
+            for meshGroup, spaceGroup in self.__Get_partners().items()
+            if groupElem is meshGroup or groupElem is spaceGroup
+        ]
+        if not meshGroups:
             raise ValueError(
                 "The field is not on a group of the simulation's mesh: create it from this mesh, after _With_FunctionSpace."
             )
@@ -146,7 +150,7 @@ class WeakForms(_Simu):
         }
 
         return [
-            Term(slot, self.__Integrate, form=form)
+            Term(slot, self.__Integrate, groupElem=meshGroups[0], form=form)
             for slot, form in forms.items()
             if form is not None
         ]

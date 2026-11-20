@@ -9,7 +9,7 @@ import numpy as np
 from EasyFEA import Simulations
 from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem, FeArray
 from EasyFEA.Utilities import _params, _types
-from EasyFEA.Simulations import Term
+from EasyFEA.Simulations import Term, TrialSolution
 
 
 class RigidContact(Simulations.Elastic):
@@ -26,16 +26,17 @@ class RigidContact(Simulations.Elastic):
         self.penalty = penalty
         self._contactMesh: Mesh = None
 
-    def Get_terms(self, problemType=None) -> list[Term]:
-        return super().Get_terms(problemType) + [
-            Term("KR", self.__Contact, dim=self.dim - 1)
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+        u_t = self.Get_u_v_a(problemType, x)[0]
+        u = self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim)
+        return super().Get_terms(x, problemType) + [
+            Term("KR", self.__Contact, dim=self.dim - 1, u=u)
         ]
 
     def __Contact(
         self,
         groupElem: _GroupElem,
         u: _types.FloatArray,
-        elements: _types.IntArray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Penalty-contact tangent/force on one surface group of the body.
 
@@ -60,7 +61,7 @@ class RigidContact(Simulations.Elastic):
 
         contributions = []
         for contactGroup in contactGroups:
-            # `obstacle` indexes the *indenter*'s elements, not this term's `elements`
+            # `obstacle` indexes the *indenter*'s elements
             obstacle = (
                 contactGroup.Get_Elements_Tag("contact")
                 if "contact" in contactGroup.elementTags
@@ -80,7 +81,6 @@ class RigidContact(Simulations.Elastic):
                     penalty=self.penalty,
                     gap_e_pg=gap_e_pg,
                     normal_e_pg=normal_e_pg,
-                    elements=elements,
                     matrixType=matrixType,
                 )
             )

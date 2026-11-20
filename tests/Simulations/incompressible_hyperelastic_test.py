@@ -501,12 +501,7 @@ def _assembled(
 ) -> tuple[sparse.csr_matrix, np.ndarray]:
     """Tangent and right-hand side of ``[u | p]`` at `x`, standing in for Newton's current solution."""
     size = simu.displacement.size
-    fields = {U: x[:size], PRESSURE: x[size:]}
-    simu._Solver_Get_trial_solution = (  # type: ignore [method-assign]
-        lambda problemType=None: fields[problemType or U]
-    )
-    simu.Need_Update()
-    return simu._Solver_Get_A_b((U, PRESSURE))
+    return simu._Solver_Get_A_b((U, PRESSURE), {U: x[:size], PRESSURE: x[size:]})
 
 
 def _fd(
@@ -781,16 +776,9 @@ def _per_group(field) -> list:
     return list(field.values()) if isinstance(field, dict) else [field]
 
 
-def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_update(
-    monkeypatch,
-):
+def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_update():
     simu = incompressible(_square(ElemType.TRI6))
     assert simu.matrixType == MatrixType.mass
-    monkeypatch.setattr(
-        simu,
-        "_Solver_Get_trial_solution",
-        lambda problemType=None: simu._Get_u_n(problemType or U),
-    )
 
     simu.Assembly()
     assert not simu.needUpdate

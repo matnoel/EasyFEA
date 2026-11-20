@@ -110,11 +110,10 @@ moves — reassemble at the current iterate, solve for the correction, add it:
 
 ```python
 x = self._Get_u_n(problem)                      # a copy, so `x += ...` is safe
-self.__trial_solution = (problem, x)            # cleared on exit
 
 for _ in range(maxIter):
     self.Need_Update(problem)
-    dx, norm = self.__Solve(problem, x)         # A, b(x), known dofs at target − x
+    dx, norm = self.__Solve(problem, x)         # A(x), b(x), known dofs at target − x
     x += dx
     converged = (norm < absTol) or (relNorm < relTol) or (norm_dx < incTol)
     if converged:
@@ -123,9 +122,10 @@ for _ in range(maxIter):
 
 `Need_Update()` is what makes this Newton rather than a fixed-point iteration: it
 invalidates the cached matrices, so the terms are re-evaluated, giving the tangent
-**and** the residual at the new iterate. The trial solution,
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Get_trial_solution`, is what lets both the
-assembly and the boundary conditions see it.
+**and** the residual at the new iterate. The iterate reaches them as the trial solution,
+{py:data}`~EasyFEA.Simulations.TrialSolution`: a dict of each field's value, passed to
+{py:meth}`~EasyFEA.Simulations._Simu.Get_terms` — the solved fields at `x`, the others
+committed.
 
 ### What the norm measures
 

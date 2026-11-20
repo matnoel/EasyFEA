@@ -18,7 +18,7 @@ from ..FEM import (
 from ..FEM._kelvin_mandel import Tensor_to_Kelvin
 from ..Models.HyperElastic._laws import _HyperElastic
 from ..Utilities import _types
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu
 from ._terms import Term
 from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
@@ -180,16 +180,22 @@ class IncompressibleHyperElastic(_Simu):
     def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
         return self.pressure if problemType == self.P else self.displacement
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
         u, p = self.U, self.P
         # the constraint's term carries p's equation too
         if problemType == p:
             return []
+        u_t = self.Get_u_v_a(u, x)[0]
+        u_n = self._Get_FunctionSpace(u).Get_nodeValues(u_t, self.dim)
         return [
-            Term("KR", self.__Stress),
+            Term("KR", self.__Stress, u=u_n),
             Term(
                 "KRKKR",
                 self.__MixedIncompressibility,
+                u=x[u],
+                p=x[p],
                 problemTypes=(
                     (u, u),
                     u,
@@ -209,11 +215,6 @@ class IncompressibleHyperElastic(_Simu):
         u_n = space_u.Get_nodeValues(u, self.dim)
         return Kinematics(groupElem, u_n, rule)  # type: ignore [arg-type]
 
-    def __Current_kinematics(self, groupElem: _GroupElem) -> Kinematics:
-        """:meth:`__Kinematics` at the trial solution."""
-        u = self._Solver_Get_trial_solution(self.U)
-        return self.__Kinematics(groupElem, u, self.matrixType)
-
     def __Stress(
         self, groupElem: _GroupElem, u: _types.FloatArray
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -225,13 +226,18 @@ class IncompressibleHyperElastic(_Simu):
         )
 
     def __MixedIncompressibility(
-        self, groupElem: _GroupElem, pGroup: _GroupElem
+        self,
+        groupElem: _GroupElem,
+        pGroup: _GroupElem,
+        u: _types.FloatArray,
+        p: _types.FloatArray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """``∫ p (1 − J) dΩ``: both equations' tangents and residuals."""
+        """``∫ p (1 − J) dΩ`` at `u`, `p`: both equations' tangents and residuals."""
         space = self._Get_FunctionSpace(self.P)
-        p = self._Solver_Get_trial_solution(self.P)
         return Operators.NonLinear.MixedIncompressibility(
-            self.__Current_kinematics(groupElem), pGroup, space.Get_nodeValues(p, 1)
+            self.__Kinematics(groupElem, u, self.matrixType),
+            pGroup,
+            space.Get_nodeValues(p, 1),
         )
 
     # --------------------------------------------------------------------------

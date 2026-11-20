@@ -62,8 +62,8 @@ def coupled_phasefield(
     """PhaseField whose damage equation also folds `damageTerms`: two fields of different dof_n, so a block between them is rectangular."""
 
     class Coupled(Simulations.PhaseField):
-        def Get_terms(self, problemType=None):
-            terms = super().Get_terms(problemType)
+        def Get_terms(self, x, problemType=None):
+            terms = super().Get_terms(x, problemType)
             if problemType == self.D:
                 terms = terms + list(damageTerms)
             return terms

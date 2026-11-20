@@ -52,7 +52,7 @@ def _Exx(strain: float) -> float:
 # ----------------------------------------------
 
 
-def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
+def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one():
     jax = pytest.importorskip("jax")
     jax.config.update("jax_enable_x64", True)
     jnp = jax.numpy
@@ -70,13 +70,7 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
 
     def assembled(material) -> tuple[np.ndarray, np.ndarray]:
         simu = Simulations.HyperElastic(mesh, material)
-        monkeypatch.setattr(
-            simu,
-            "_Solver_Get_trial_solution",
-            lambda problemType=None: u,
-        )
-        K = simu.Assembly()[0]
-        b = simu._Solver_Get_A_b()[1]
+        K, b = simu._Solver_Get_A_b(x={simu.problemType: u})
         return K.toarray(), b
 
     K_autodiff, F_autodiff = assembled(
@@ -90,13 +84,8 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
     assert rel_error(F_autodiff, F_shipped) < 1e-10
 
 
-def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatch):
+def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at():
     simu = _svk_bar(bar_mesh("TRI3"))
-    monkeypatch.setattr(
-        simu,
-        "_Solver_Get_trial_solution",
-        lambda problemType=None: simu.displacement,
-    )
     simu.Assembly()
     assert not simu.needUpdate
     assert simu.matrixType == MatrixType.rigi
@@ -114,7 +103,7 @@ def test_HyperElastic_material_is_the_given_model():
     assert _clamped_block(material).material is material
 
 
-def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
+def test_HyperElastic_material_eta_enters_the_residual_once():
     """Turning viscosity off changes nothing else in the assembly, so the difference of the two ``F_e`` is the viscous residual alone."""
     eta = 100.0
     rng = np.random.default_rng(4)
@@ -134,17 +123,12 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
         rng.standard_normal(n) * 0.5,
         rng.standard_normal(n) * 0.5,
     )
-    u_np1 = rng.standard_normal(n) * 0.05
-    monkeypatch.setattr(
-        simu,
-        "_Solver_Get_trial_solution",
-        lambda problemType=None: u_np1,
-    )
+    x = {problemType: rng.standard_normal(n) * 0.05}
 
     groupElem = mesh.groupElem
 
     def F_e() -> np.ndarray:
-        fold = Fold_terms(simu, simu.Get_terms(problemType), problemType)
+        fold = Fold_terms(simu, simu.Get_terms(x, problemType), problemType)
         return sum(c.Scaled() for c in fold if c.slot in "FR" and c.group is groupElem)
 
     F_visco = F_e()
@@ -152,7 +136,7 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     F_plain = F_e()
     material.eta = eta
 
-    u_t, v_t, _ = simu.Get_u_v_a(problemType)
+    u_t, v_t, _ = simu.Get_u_v_a(problemType, x)
     kinematics = Kinematics(groupElem, u_t, MatrixType.rigi)
     _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(material, kinematics, v_t)
 
@@ -298,7 +282,6 @@ def _stretched_box(elemType: ElemType, order: int | None = None):
     u = np.zeros((x.size, 3))
     u[:, 0] = 0.05 * x * (1 + y * z)
     simu._Set_solutions(simu.problemType, u.ravel())
-    simu._Solver_Get_trial_solution = lambda problemType=None: u.ravel()  # type: ignore [method-assign]
     return simu
 
 
@@ -318,19 +301,14 @@ def test_HyperElastic_P2_on_TETRA4_is_the_straight_TETRA10():
     assert rel_error(simu._Calc_W(), iso._Calc_W()) < 1e-12
 
 
-def test_HyperElastic_K_per_element_reaches_the_assembly(subtests, monkeypatch):
+def test_HyperElastic_K_per_element_reaches_the_assembly(subtests):
     domain = Domain((0, 0), (2, 1), 1)
     mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
     u = 0.1 * mesh.coord[:, :2].ravel() ** 2
 
     def tangent(K: float | np.ndarray) -> np.ndarray:
         simu = Simulations.HyperElastic(mesh, Models.HyperElastic.NeoHookean(2, K))
-        monkeypatch.setattr(
-            simu,
-            "_Solver_Get_trial_solution",
-            lambda problemType=None: u,
-        )
-        return simu.Assembly()[0].toarray()
+        return simu._Solver_Get_A_b(x={simu.problemType: u})[0].toarray()
 
     with subtests.test("a uniform array is the scalar"):
         assert np.array_equal(tangent(np.array([3.0, 3.0])), tangent(3.0))

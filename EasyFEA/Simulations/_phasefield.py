@@ -19,7 +19,7 @@ from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 # simu
 from ._simu import _Simu, SolverType
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 
 class PhaseField(_Simu):
@@ -359,7 +359,7 @@ class PhaseField(_Simu):
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         """One term per problem: the damaged stiffness for the elastic problem, the damage operator for the other. The two are solved in turn, never together."""
         if problemType == self.U:
             return [Term("K", self.__Damaged_stiffness)]

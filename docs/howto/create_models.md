@@ -418,7 +418,7 @@ triangles (`(Ne,)` values here; `(Ne, nPg)` values work the same):
             super().__init__(mesh, next(iter(materials.values())))
             self._materials = materials
 
-        def Get_terms(self, problemType=None):
+        def Get_terms(self, x, problemType=None):
             return [
                 Term(
                     "K",

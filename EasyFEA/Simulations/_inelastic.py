@@ -18,7 +18,7 @@ from ..Models.InElastic._behavior import _Behavior
 
 from ._simu import _Simu
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 
 class InElastic(_Simu):
@@ -174,14 +174,16 @@ class InElastic(_Simu):
     def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
         return {g: self.__Integrate(self.displacement, g)[2] for g in self.__Groups()}
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         """One term: the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
-        return [Term("KR", self.__Assemble)]
+        return [Term("KR", self.__Assemble, u=x[self.U])]
 
     def __Assemble(
-        self, groupElem: _GroupElem, matrixType: MatrixType = MatrixType.rigi
+        self,
+        groupElem: _GroupElem,
+        u: _types.FloatArray,
+        matrixType: MatrixType = MatrixType.rigi,
     ) -> tuple[np.ndarray, np.ndarray]:
-        u = self._Solver_Get_trial_solution()
         sigma_e_pg, C_e_pg, _ = self.__Integrate(u, groupElem)
 
         tic = Tic()

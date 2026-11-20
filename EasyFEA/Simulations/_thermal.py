@@ -20,7 +20,7 @@ from .. import Models
 # simu
 from ._simu import _Simu
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 
 class Thermal(_Simu):
@@ -120,7 +120,7 @@ class Thermal(_Simu):
         else:
             return self.thermal
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         thermalModel = self.thermalModel
 
         return [

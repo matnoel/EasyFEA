@@ -406,13 +406,14 @@ def test_Simu_Get_x0_is_the_current_solution():
 
 def test_Simu_Get_terms_of_Elastic_are_its_stiffness_mass_and_damping():
     simu = _elastic_bar()
-    assert [term.slots for term in simu.Get_terms()] == [("K",), ("M",)]
+    x = {simu.problemType: simu.displacement}
+    assert [term.slots for term in simu.Get_terms(x)] == [("K",), ("M",)]
 
     simu.Set_Rayleigh_Damping_Coefs(coefM=0.1, coefK=0.2)
 
-    slots = [term.slots for term in simu.Get_terms()]
+    slots = [term.slots for term in simu.Get_terms(x)]
     assert slots == [("K",), ("M",), ("C",), ("C",)]
-    assert [term.scale for term in simu.Get_terms()[2:]] == [0.2, 0.1]
+    assert [term.scale for term in simu.Get_terms(x)[2:]] == [0.2, 0.1]
 
 
 def test_Simu_Get_terms_folds_to_one_contribution_per_group():
@@ -421,7 +422,8 @@ def test_Simu_Get_terms_folds_to_one_contribution_per_group():
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
 
     pt = simu.problemType
-    fold = Fold_terms(simu, simu.Get_terms(pt), pt)
+    x = {pt: simu.displacement}
+    fold = Fold_terms(simu, simu.Get_terms(x, pt), pt)
     Ks, Ms = ([c for c in fold if c.slot == slot] for slot in "KM")
 
     assert [c.group for c in Ks] == [c.group for c in Ms] == mesh.Get_list_groupElem(2)
@@ -1087,16 +1089,11 @@ def test_Simu__Solver_Get_A_b_subtracts_an_internal_force_Assembly_leaves_out(
 
     def F_b(slots: str) -> tuple[np.ndarray, np.ndarray]:
         terms = [Simulations.Term(slots, Ones)]
-        monkeypatch.setattr(simu, "Get_terms", lambda problemType=None: terms)
+        monkeypatch.setattr(simu, "Get_terms", lambda x, problemType=None: terms)
         simu.Need_Update()
         return simu.Assembly()[3], simu._Solver_Get_A_b()[1]
 
     monkeypatch.setattr(type(simu), "isNonLinear", True)
-    monkeypatch.setattr(
-        simu,
-        "_Solver_Get_trial_solution",
-        lambda problemType=None: np.zeros(mesh.Nn),
-    )
     (load, b_load), (F, b_force) = F_b("KF"), F_b("KR")
 
     assert np.abs(load).max() > 0
@@ -1150,31 +1147,27 @@ def test_Simu_Assembly_rejects_a_field_given_twice():
         simu.Assembly((pt, pt))
 
 
-def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the_newton_iterate(
-    monkeypatch,
-):
+def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the_newton_iterate():
     mesh = Domain((0, 0), (1, 1)).Mesh_2D()
     simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
     u = np.arange(mesh.Nn, dtype=float)
-    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda problemType=None: u)
 
     K = simu.Assembly()[0]
-    _, b = simu._Solver_Get_A_b()
+    _, b = simu._Solver_Get_A_b(x={simu.problemType: u})
 
     assert np.abs(b).max() > 0
     assert np.allclose(b, -K @ u)
 
 
-def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space(monkeypatch):
+def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space():
     mesh = Domain((0, 0), (1, 1)).Mesh_2D([], ElemType.TRI6)
     meshP1 = mesh._With_FunctionSpace(Simulations.WeakForms.problemType, 1)
     simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
     # the vertices only: fewer DOFs than nodes
     u = np.arange(meshP1._Get_FunctionSpace(simu.problemType).Nn, dtype=float)
-    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda problemType=None: u)
 
     K = simu.Assembly()[0]
-    _, b = simu._Solver_Get_A_b()
+    _, b = simu._Solver_Get_A_b(x={simu.problemType: u})
 
     assert u.size < meshP1.Nn
     assert np.abs(b).max() > 0
@@ -1188,10 +1181,9 @@ def test_Simu__Solver_Get_A_b_reads_a_block_term_on_its_column_field(monkeypatch
     mesh = simu.mesh
     x = {U: np.arange(2 * mesh.Nn) / 7.0, D: np.ones(mesh.Nn)}
     monkeypatch.setattr(type(simu), "isNonLinear", True)
-    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda pt=None: x[pt])
 
     K, _, _, F = simu.Assembly((U, D))
-    _, b = simu._Solver_Get_A_b((U, D))
+    _, b = simu._Solver_Get_A_b((U, D), x)
 
     x_ud = np.concatenate([x[U], x[D]])
     assert np.abs(K[2 * mesh.Nn :, : 2 * mesh.Nn] @ x[U]).max() > 0
@@ -1387,19 +1379,12 @@ def test_Simu_Get_u_v_a_is_the_solution_alone_when_static():
     assert np.array_equal(u, simu.thermal) and speed is None and accel is None
 
 
-def test_Simu_Get_u_v_a_evaluates_the_newton_iterate_at_the_scheme_point(
-    monkeypatch,
-):
+def test_Simu_Get_u_v_a_evaluates_the_trial_solution_at_the_scheme_point():
     simu = _hyperelastic(False)
     simu.Solver_Set_Hyperbolic_Algorithm(0.1, Hyperbolic.Midpoint)
     u_n, v_n, a_n, u_np1 = _states(simu)
-    monkeypatch.setattr(
-        simu,
-        "_Solver_Get_trial_solution",
-        lambda problemType=None: u_np1,
-    )
 
-    u_t, _, _ = simu.Get_u_v_a()
+    u_t, _, _ = simu.Get_u_v_a(x={simu.problemType: u_np1})
 
     assert rel_error(u_t, (u_n + u_np1) / 2) < 1e-15
 
@@ -1562,15 +1547,6 @@ def test_TimeSchemes_Newmark_Evaluate_np1_applies_the_corrector():
 
 def test_TimeSchemes_Elliptic_Evaluate_np1_leaves_v_and_a():
     assert TimeSchemes.Elliptic().Evaluate_np1(np.zeros(1), 0, 0, 0)[1:] == (None, None)
-
-
-def test_Simu__Solver_Get_trial_solution_is_the_last_iterate():
-    simu = _hyperelastic(False)
-    simu.Solve()
-
-    current = simu._Solver_Get_trial_solution()
-
-    assert rel_error(current, simu.displacement) < 1e-6
 
 
 def test_Simu_Solve_newton_accepts_a_zero_first_residual(recwarn):

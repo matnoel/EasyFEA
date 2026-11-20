@@ -67,9 +67,6 @@ def Same_contributions(a: list[_Contribution], b: list[_Contribution]) -> bool:
 _SLOTS = "KCMFR"
 """Slot letters, one per array the operator returns. ``K``/``C``/``M`` are the stiffness, damping and mass matrices; ``F`` is an external load, added to the right-hand side as-is; ``R`` is an **internal** force, so it reaches ``F`` negated. Every nonlinear operator returns an ``R`` — it is the residual of ``A·Δu = -R(u)`` — and ``F`` is reserved for genuine loads such as a phase-field source."""
 
-_INJECTABLE = frozenset({"u", "elements"})
-"""Parameters the fold fills in by name when the caller does not supply them. Kept short and generic on purpose: injection makes an operator's *parameter names* part of the contract, so it covers only quantities every simulation has. Anything domain-specific — a hyperelastic state, a material — is passed by a named method instead, as in :py:meth:`HyperElastic.Get_terms`."""
-
 
 def _Check_comparable(fn: Callable, name: str, value: Any) -> None:
     """Refuses a ``constant=True`` argument that no value check can see change."""
@@ -106,7 +103,9 @@ class Term:
 
         Term("KRKKR", self.__MixedIncompressibility, problemTypes=((u, u), u, (u, p), (p, u), p))
 
-    A term spanning several fields is handed one group per field, in the order its blocks name them, and no ``u``: it reaches each field's values itself.
+    A term spanning several fields is handed one group per field, in the order its blocks name them.
+
+    The operator gets exactly the kwargs given here, plus ``elements`` when ``tag`` is set: the iterate it reads is passed explicitly, e.g. ``Term("KR", self.__Stress, u=u)`` with ``u`` from :py:meth:`_Simu.Get_u_v_a`.
     """
 
     def __init__(
@@ -141,7 +140,7 @@ class Term:
         problemTypes : tuple, optional
             Block of each returned array, one entry per slot: ``(rows, cols)`` for a matrix, ``rows`` for a vector, None for the folded problem's diagonal. Defaults to the diagonal for every slot.
         **kwargs
-            Passed on to ``fn``. ``u`` and ``elements`` are supplied by the fold when ``fn`` declares them and they are left out here.
+            Passed on to ``fn`` as given; ``elements`` is added when `tag` is set.
         """
 
         if not slots or not set(slots) <= set(_SLOTS):
@@ -194,9 +193,6 @@ class Term:
         self.__groupElem = groupElem
         self.__constant = constant
         self.__problemTypes = tuple(blocks)
-
-        # resolved once, not per group per Newton iteration
-        self.__injectable = tuple(n for n in parameters[1:] if n in _INJECTABLE)
 
         if constant:
             if inspect.ismethod(fn):
@@ -265,7 +261,7 @@ class Term:
         spaceGroups: list["_GroupElem"] | None = None,
         blocks: tuple[_Block, ...] | None = None,
     ) -> Any:
-        """Unscaled contribution of a ``constant=True`` term on one group and `blocks`, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
+        """Unscaled contribution of a ``constant=True`` term on one group and `blocks`, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged."""
         key = (
             self.__fn,
             self.__declared,
@@ -339,15 +335,12 @@ class Term:
     def _Evaluate(
         self,
         groupElem: "_GroupElem",
-        u: _types.FloatArray | None = None,
         spaceGroups: list["_GroupElem"] | None = None,
     ) -> Any:
-        """Calls the operator on `spaceGroups`, the group of each field on `groupElem`'s elements (`groupElem` itself by default), injecting the arguments it declares and the caller left out."""
-        values = {"u": u, "elements": self._Get_elements(groupElem)}
-        kwargs = dict(self.__kwargs)
-        for name in self.__injectable:
-            if name not in kwargs and values[name] is not None:
-                kwargs[name] = values[name]
+        """Calls the operator on `spaceGroups`, the group of each field on `groupElem`'s elements (`groupElem` itself by default), with its kwargs and, when tagged, ``elements``."""
+        kwargs = self.__kwargs
+        if self.__tag is not None:
+            kwargs = {**kwargs, "elements": self._Get_elements(groupElem)}
         return self.__fn(*(spaceGroups or (groupElem,)), **kwargs)
 
 
@@ -365,18 +358,10 @@ def Fold_terms(
         problemType = simu.problemType
 
     thickness = simu.thickness
-    diagonal = (problemType, problemType)
-
-    # by node id, as an operator reads it through its group's connect
-    u_t = simu._Get_FunctionSpace(problemType).Get_nodeValues(
-        simu.Get_u_v_a(problemType)[0], simu.Get_dof_n(problemType)
-    )
-
     out: list[_Contribution] = []
 
     for term in terms:
         blocks = term._Get_blocks(problemType)
-        isDiagonal = all(block == diagonal for block in blocks)
         fields = tuple(dict.fromkeys(field for block in blocks for field in block))
         coef = thickness * term.scale
 
@@ -385,9 +370,7 @@ def Fold_terms(
             if term.constant:
                 arrays = term._Cached(simu, groupElem, spaceGroups, blocks)
             else:
-                arrays = term._Evaluate(
-                    groupElem, u_t if isDiagonal else None, spaceGroups
-                )
+                arrays = term._Evaluate(groupElem, spaceGroups)
             if not isinstance(arrays, tuple):
                 arrays = (arrays,)
             if len(arrays) != len(term.slots):

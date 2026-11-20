@@ -29,7 +29,7 @@ from EasyFEA import (
     TimeSchemes,
 )
 from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
-from EasyFEA.Simulations import ProblemType, Term
+from EasyFEA.Simulations import ProblemType, Term, TrialSolution
 from EasyFEA.Utilities import _params
 from EasyFEA.Utilities._mpi import MPI_RANK
 from EasyFEA.Utilities._types import FloatArray, IntArray
@@ -597,7 +597,9 @@ class _Ventricle(Simulations.HyperElastic):
         self.alpha_top, self.alpha_epi = alpha_top, alpha_epi
         self.beta_top, self.beta_epi = beta_top, beta_epi
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
         top = Term(
             "K",
             Operators.Bilinear.UV,
@@ -613,21 +615,28 @@ class _Ventricle(Simulations.HyperElastic):
             tag="epi",
             constant=True,
         )
-        return super().Get_terms(problemType) + [
+        return super().Get_terms(x, problemType) + [
             top.Scaled(self.alpha_top),
             top.Scaled(self.beta_top, "C"),
             epi.Scaled(self.alpha_epi),
             epi.Scaled(self.beta_epi, "C"),
         ]
 
-    @staticmethod
-    def _Pressure(tag: str, pressure: float) -> Term:
-        """Follower pressure on `tag`: it tracks the deformed normal, so it is rebuilt at every Newton iteration."""
+    def _Pressure(
+        self,
+        x: TrialSolution,
+        problemType: ProblemType | None,
+        tag: str,
+        pressure: float,
+    ) -> Term:
+        """Follower pressure on `tag` at `x`: it tracks the deformed normal, so it is rebuilt at every Newton iteration."""
+        u_t = self.Get_u_v_a(problemType, x)[0]
         return Term(
             "KR",
             Operators.NonLinear.FollowingPressure,
             dim=2,
             tag=tag,
+            u=self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim),
             pressure=pressure,
             matrixType=MatrixType.mass,
         )
@@ -663,8 +672,12 @@ class MonoVentricle(_Ventricle):
         )
         self.pressure = 0.0
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        return super().Get_terms(problemType) + [self._Pressure("endo", self.pressure)]
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        return super().Get_terms(x, problemType) + [
+            self._Pressure(x, problemType, "endo", self.pressure)
+        ]
 
 
 class BiVentricle(_Ventricle):
@@ -699,8 +712,10 @@ class BiVentricle(_Ventricle):
         self.pressure_lv = 0.0
         self.pressure_rv = 0.0
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        return super().Get_terms(problemType) + [
-            self._Pressure("endo_lv", self.pressure_lv),
-            self._Pressure("endo_rv", self.pressure_rv),
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        return super().Get_terms(x, problemType) + [
+            self._Pressure(x, problemType, "endo_lv", self.pressure_lv),
+            self._Pressure(x, problemType, "endo_rv", self.pressure_rv),
         ]

@@ -26,7 +26,7 @@ from ..FEM import _GroupElem
 from ._simu import _Simu
 from .TimeSchemes import Hyperbolic
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 
 class HyperElastic(_Simu):
@@ -175,7 +175,7 @@ class HyperElastic(_Simu):
     def Get_x0(self, problemType=None):
         return self.displacement
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         r"""Terms of ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``.
 
         The elastic, active fiber and Kelvin–Voigt stresses come as one ``"KRC"`` term, on one kinematics; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` the fold supplies. The ``R`` slot: these operators return the **internal** force, which reaches the right-hand side negated.
@@ -183,9 +183,10 @@ class HyperElastic(_Simu):
         if problemType is None:
             problemType = self.problemType
 
-        _, v_t, _ = self.Get_u_v_a(problemType)
+        u_t, v_t, _ = self.Get_u_v_a(problemType, x)
+        u = self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim)
 
-        terms = [Term("KRC", self.__Stress, v_t=v_t)]
+        terms = [Term("KRC", self.__Stress, u=u, v_t=v_t)]
 
         if isinstance(self.timeScheme, Hyperbolic._Hyperbolic):
             terms.append(

@@ -31,7 +31,7 @@ from ..Models.Beam._beam import BeamStructure, _Beam
 # simu
 from ._simu import _Simu, SolverType
 from ._terms import Term
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 
 # component layouts of BeamStructure.Compute_Epsilon / Compute_Sigma, keyed by dof_n
 _STRAINS = {1: ["ux'"], 3: ["ux'", "rz'"], 6: ["ux'", "rx'", "ry'", "rz'"]}
@@ -410,7 +410,7 @@ class Beam(_Simu):
         """Always 1: a beam section carries an area, not an out-of-plane thickness, and ``BeamStructure.thickness`` is deliberately ``None``. ``self.dim`` here is the structure's kinematic dimension (1D tension, 2D + bending, 3D), not a plane dimension, so the base ``model.thickness if dim == 2`` rule does not apply."""
         return 1.0
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         """Beam stiffness and mass, on the mesh's 1D element groups."""
         return [
             Term("K", Bilinear.BeamStiffness, dim=1, beamStructure=self.structure),

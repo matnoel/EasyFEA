@@ -112,7 +112,7 @@ pressure:
 
 ```python
 from EasyFEA import MatrixType, Simulations
-from EasyFEA.Simulations import ProblemType, Term
+from EasyFEA.Simulations import ProblemType, Term, TrialSolution
 from EasyFEA.FEM import Operators
 from EasyFEA.Utilities import _params
 
@@ -124,16 +124,28 @@ class Ventricle(Simulations.HyperElastic):
         super().__init__(mesh, material)
         self.pressure = 0.0   # a parameter has no default: reading it unset raises
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
         # `dim=2` picks the surface groups, `tag` the subset within them;
         # `constant=True` builds the contribution once and reuses it while its arguments are unchanged
         epi = Term("K", Operators.Bilinear.MassAlongNormal, dim=2, tag="epi", constant=True)
-        return super().Get_terms(problemType) + [
+        # the iterate, by node, at the time scheme's evaluation point
+        u_t = self.Get_u_v_a(problemType, x)[0]
+        u = self._Get_FunctionSpace().Get_nodeValues(u_t, self.dim)
+        return super().Get_terms(x, problemType) + [
             epi.Scaled(1e8),          # stiffness
             epi.Scaled(5e3, "C"),     # damping, from the same integration
-            # `groupElem`, `u` and `elements` come from the assembly, so only the pressure is passed
-            Term("KR", Operators.NonLinear.FollowingPressure,
-                 dim=2, tag="endo", pressure=self.pressure, matrixType=MatrixType.mass),
+            # `groupElem` and, since `tag` is set, `elements` come from the fold
+            Term(
+                "KR",
+                Operators.NonLinear.FollowingPressure,
+                dim=2,
+                tag="endo",
+                u=u,
+                pressure=self.pressure,
+                matrixType=MatrixType.mass,
+            ),
         ]
 
 simu = Ventricle(mesh, material)
@@ -157,15 +169,19 @@ class RigidContact(Simulations.Elastic):
         self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
         self.penalty = penalty
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        return super().Get_terms(problemType) + [
-            Term("KR", self.__Contact, dim=self.dim - 1)
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        u_t = self.Get_u_v_a(problemType, x)[0]
+        u = self._Get_FunctionSpace().Get_nodeValues(u_t, self.dim)
+        return super().Get_terms(x, problemType) + [
+            Term("KR", self.__Contact, dim=self.dim - 1, u=u)
         ]
 
-    def __Contact(self, groupElem, elements=None):
-        gap_e_pg, normal_e_pg = self.__Gap_and_normal(groupElem)
+    def __Contact(self, groupElem, u):
+        gap_e_pg, normal_e_pg = self.__Gap_and_normal(groupElem, u)
         return Operators.NonLinear.PenaltyContact(
-            groupElem, self.penalty, gap_e_pg, normal_e_pg, elements
+            groupElem, self.penalty, gap_e_pg, normal_e_pg
         )
 ```
 
@@ -190,7 +206,7 @@ The complete interface to implement (all methods are abstract):
 
 ```python
 import numpy as np
-from EasyFEA.Simulations import _Simu, ProblemType, Term
+from EasyFEA.Simulations import _Simu, ProblemType, Term, TrialSolution
 
 class MySimulation(_Simu):
 
@@ -214,7 +230,7 @@ class MySimulation(_Simu):
 
     # --- physics (see below for details) ---
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         ...
 
     # --- post-processing ---
@@ -307,7 +323,9 @@ attribute is bound back to what it was. Rebind any state the subclass derives
 
 `Get_terms` is the only method where you provide physics-specific data: it returns the
 list of {py:class}`~EasyFEA.Simulations.Term` objects that make up the local matrix
-system. From the element-level matrices they produce, `_Simu` automatically:
+system, at the trial solution `x` ({py:data}`~EasyFEA.Simulations.TrialSolution`: each
+field's value, the iterate during a Newton solve, the committed state otherwise). From
+the element-level matrices they produce, `_Simu` automatically:
 
 1. assembles the global sparse system $\Krm$, $\Crm$, $\Mrm$, $\Frm$,
 2. applies boundary conditions,
@@ -354,7 +372,8 @@ element group and slot, unsummed:
 ```python
 from EasyFEA.Simulations import Fold_terms
 
-fold = Fold_terms(simu, simu.Get_terms(problemType), problemType)
+x = {problemType: simu._Get_u_n(problemType)}  # the trial solution to fold at
+fold = Fold_terms(simu, simu.Get_terms(x, problemType), problemType)
 K_es = [c.array for c in fold if c.slot == "K" and c.block == (rows, cols)]
 coefs = [c.coef for c in fold if c.slot == "K"]
 ```
@@ -426,7 +445,7 @@ all of {py:class}`~EasyFEA.Simulations.Thermal`'s assembly:
 from EasyFEA.FEM import Operators
 from EasyFEA.Simulations import Term
 
-def Get_terms(self, problemType=None):
+def Get_terms(self, x, problemType=None):
     model = self.thermalModel
 
     return [

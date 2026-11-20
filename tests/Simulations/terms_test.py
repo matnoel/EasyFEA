@@ -11,7 +11,7 @@ import pytest
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Circle, Domain
-from EasyFEA.Simulations import Fold_terms, ProblemType, Term
+from EasyFEA.Simulations import Fold_terms, ProblemType, Term, TrialSolution
 
 from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible
 
@@ -193,18 +193,20 @@ def test_Term__Get_elements_is_the_tagged_subset():
     assert np.array_equal(elements, groupElem.Get_Elements_Tag("S1"))
 
 
-def test_Term__Evaluate_injects_u_and_elements_the_caller_left_out():
+def test_Term__Evaluate_passes_its_kwargs_and_elements_only_when_tagged():
     groupElem = _inclusion_mesh().groupElem
     u = np.arange(groupElem.Nn, dtype=float)
 
     def Echo(groupElem, u=None, elements=None, coef=1.0):
         return u, elements, coef
 
-    untagged = Term("K", Echo, coef=2.0)._Evaluate(groupElem, u)
-    tagged = Term("K", Echo, tag="S1", u=-u)._Evaluate(groupElem, u)
+    bare = Term("K", Echo)._Evaluate(groupElem)
+    untagged = Term("K", Echo, u=u, coef=2.0)._Evaluate(groupElem)
+    tagged = Term("K", Echo, tag="S1", u=u)._Evaluate(groupElem)
 
+    assert bare == (None, None, 1.0)
     assert untagged[0] is u and untagged[1] is None and untagged[2] == 2.0
-    assert np.array_equal(tagged[0], -u)
+    assert tagged[0] is u
     assert np.array_equal(tagged[1], groupElem.Get_Elements_Tag("S1"))
 
 
@@ -388,15 +390,15 @@ def test_Fold_terms_rejects_a_swapped_block():
         Fold_terms(simu, [Term("K", Swapped, problemTypes=((D, U),))], D)
 
 
-def test_Fold_terms_hands_a_spanning_term_one_group_per_field_and_no_u():
+def test_Fold_terms_hands_a_spanning_term_one_group_per_field():
     domain = Domain((0, 0), (1, 1), 0.5)
     mesh = domain.Mesh_2D([], ElemType.TRI3)
     meshP2 = mesh._With_FunctionSpace(D, 2)
     simu = coupled_phasefield(mesh=meshP2)
     seen = {}
 
-    def Spy(dGroup, uGroup, u=None):
-        seen["groups"], seen["u"] = (dGroup, uGroup), u
+    def Spy(dGroup, uGroup):
+        seen["groups"] = dGroup, uGroup
         # P2 damage rows, P1 displacement columns
         return np.zeros((dGroup.Ne, 6, 6))
 
@@ -404,7 +406,6 @@ def test_Fold_terms_hands_a_spanning_term_one_group_per_field_and_no_u():
 
     assert seen["groups"][0] is meshP2._Get_FunctionSpace(D).Get_list_groupElem()[0]
     assert seen["groups"][1] is meshP2.groupElem
-    assert seen["u"] is None
 
 
 def test_Term_Scaled_keeps_its_blocks():
@@ -453,8 +454,10 @@ class Heated(Simulations.Thermal):
         self._source = value
         self.Need_Update()
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        return super().Get_terms(problemType) + [
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        return super().Get_terms(x, problemType) + [
             Term("F", Operators.Linear.V, f=self.source)
         ]
 
@@ -483,8 +486,10 @@ class Stiffened(Heated):
         self._stiffness = value
         self.Need_Update()
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        return super().Get_terms(problemType) + [
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        return super().Get_terms(x, problemType) + [
             Term("K", self.operator, coef=self.stiffness, constant=True)
         ]
 
@@ -498,9 +503,11 @@ class Sprung(Heated):
         self.beta = 3.0
         super().__init__()
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
         spring = Term("K", self.operator, constant=True)
-        return super().Get_terms(problemType) + [
+        return super().Get_terms(x, problemType) + [
             spring.Scaled(self.alpha),
             spring.Scaled(self.beta, "C"),
         ]
@@ -573,7 +580,9 @@ class MixedElastic(Simulations.Elastic):
         super().__init__(mesh, next(iter(materials.values())))
         self.materials = materials
 
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
         return [
             Term(
                 "K",

@@ -56,7 +56,7 @@ from ..FEM._mesh import _MeshPart
 from ..Models import _IModel
 
 # simu
-from ._problem_type import ProblemType
+from ._problem_type import ProblemType, TrialSolution
 from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
 from ._linear_system import _Lagrange, _LinearSystem
@@ -111,7 +111,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Get_x0(self, problemType=None):
 
-        - def Get_terms(self, problemType=None) -> list[Term]:
+        - def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
 
         These functions describe the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, which `_Simu` then assembles.
 
@@ -154,8 +154,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
     _resolution: ResolType | None = None
     """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
-    __trial_solution: tuple | None = None
-    """`(problem, x)` the solve iterates on, None outside a solve"""
 
     # ----------------------------------------------
     # Abstract method
@@ -364,15 +362,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return lb, ub
 
     @abstractmethod
-    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
-        r"""Returns the operator terms building this simulation's local matrix system.
+    def Get_terms(
+        self, x: TrialSolution, problemType: ProblemType | None = None
+    ) -> list[Term]:
+        r"""Returns the operator terms building this simulation's local matrix system at the trial solution `x`.
 
         A simulation describes itself as a list rather than a group loop::
 
-            def Get_terms(self, problemType=None):
+            def Get_terms(self, x, problemType=None):
                 return [Term("K", Operators.Bilinear.GradUGradV, coef=self.thermalModel.k)]
 
-        Subclasses compose with ``super().Get_terms(problemType) + [...]``, the only way to extend assembly. Return ``[]`` when another problem's term fills this equation's rows.
+        Subclasses compose with ``super().Get_terms(x, problemType) + [...]``, the only way to extend assembly. Return ``[]`` when another problem's term fills this equation's rows.
         """
         return []
 
@@ -1268,16 +1268,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     yield slot, rows, cols
 
     def __Get_list_contribution(
-        self, problem: ProblemType | tuple[ProblemType, ...]
+        self, problem: ProblemType | tuple[ProblemType, ...], x: TrialSolution
     ) -> list[_Contribution]:
-        """The contributions of every field's terms; raises on a block coupling to a field outside `problem`, or on a field no term fills."""
+        """The contributions of every field's terms at `x`; raises on a block coupling to a field outside `problem`, or on a field no term fills."""
         problemTypes = self.__Fields(problem)
         fields = ", ".join(problemTypes)
 
         tic = Tic()
 
         terms = {
-            problemType: self.Get_terms(problemType) for problemType in problemTypes
+            problemType: self.Get_terms(x, problemType) for problemType in problemTypes
         }
         filled = set()
         for slot, rows, cols in self.__Blocks(terms):
@@ -1481,24 +1481,38 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self._Solver_Set_TimeScheme(scheme(dt, **params))
 
     def Get_u_v_a(
-        self, problemType: ProblemType | None = None
+        self, problemType: ProblemType | None = None, x: TrialSolution | None = None
     ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-        r"""Returns the current iterate :math:`(\mathrm{u}_t, \vrm_t, \arm_t)`, evaluated at the time scheme's own evaluation point: from the trial solution when nonlinear, from the state at n otherwise; None for a role the scheme does not integrate."""
+        r"""Returns :math:`(\mathrm{u}_t, \vrm_t, \arm_t)` of the trial solution `x` (default the committed one), evaluated at the time scheme's own evaluation point; None for a role the scheme does not integrate."""
 
         if problemType is None:
             problemType = self.problemType
+        if x is None:
+            x = self.__Committed()
 
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
-        scheme = self.timeScheme
+        return self.timeScheme.Evaluate(x[problemType], u_n, v_n, a_n)
 
-        if self.isNonLinear:
-            x = self._Solver_Get_trial_solution(problemType)
-        else:
-            x = {"u": u_n, "v": v_n, "a": a_n}[scheme.unknown]
+    def __Committed(self) -> TrialSolution:
+        """Each field's committed value of the time scheme's unknown: `u_n`, `v_n` or `a_n`."""
+        get = {"u": self._Get_u_n, "v": self._Get_v_n, "a": self._Get_a_n}[
+            self.timeScheme.unknown
+        ]
+        return {problemType: get(problemType) for problemType in self.problemTypes}
 
-        return scheme.Evaluate(x, u_n, v_n, a_n)
+    def __Trial(
+        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    ) -> TrialSolution:
+        """The trial solution of the problem's iterate `x`: its fields views into `x`, the others committed."""
+        trial = self.__Committed()
+        start = 0
+        for field in self.__Fields(problem):
+            size = self.__Get_size(field)
+            trial[field] = x[start : start + size]
+            start += size
+        return trial
 
     def _Solver_Set_Newton_Raphson_Algorithm(
         self,
@@ -1722,22 +1736,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
         return weights
 
-    def _Solver_Get_trial_solution(
-        self, problemType: ProblemType | None = None
-    ) -> np.ndarray:
-        """The solve's iterate of the problem type's field (default the simulation's), a view into the problem's vector; `u_n` outside a solve."""
-        if problemType is None:
-            problemType = self.problemType
-        if self.__trial_solution is None:
-            return self._Get_u_n(problemType)
-        problem, x = self.__trial_solution
-        if not isinstance(problem, tuple):
-            return x if problem == problemType else self._Get_u_n(problemType)
-        if problemType not in problem:
-            return self._Get_u_n(problemType)
-        start = self.__Get_offsets(problem)[problem.index(problemType)]
-        return x[start : start + self.__Get_size(problemType)]
-
     def __Solve_Newton(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
@@ -1751,26 +1749,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         x = self._Get_u_n(problem)
         norms: list[float] = []
         converged = False
-        self.__trial_solution = (problem, x)
-        try:
-            for _ in range(maxIter):
-                self.Need_Update(problem)
-                dx, rhsNorm = self.__Solve(problem, x)
-                x += dx
-                norms.append(rhsNorm)
-                relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
-                if MPI_RANK == 0:
-                    print(
-                        f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
-                    )
-                # over the owned rows, so that every rank takes the same branch
-                owned = dx[self.Get_dofs(problem)]
-                dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
-                converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
-                if converged:
-                    break
-        finally:
-            self.__trial_solution = None
+        for _ in range(maxIter):
+            self.Need_Update(problem)
+            dx, rhsNorm = self.__Solve(problem, x)
+            x += dx
+            norms.append(rhsNorm)
+            relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
+            if MPI_RANK == 0:
+                print(
+                    f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
+                )
+            # over the owned rows, so that every rank takes the same branch
+            owned = dx[self.Get_dofs(problem)]
+            dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
+            converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
+            if converged:
+                break
 
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
         if not converged:
@@ -1785,8 +1779,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem: ProblemType | tuple[ProblemType, ...],
         x: _types.FloatArray | None = None,
     ) -> tuple[_types.FloatArray, float]:
-        """y of `A y = b`, its known dofs at the Dirichlet values, minus x's when given (Newton's increment), 0 when the scheme solves for a; and b's residual norm."""
-        _, b = self._Solver_Get_A_b(problem)
+        """y of `A y = b`, its known dofs at the Dirichlet values, minus x's when given (Newton's increment, A and b at x), 0 when the scheme solves for a; and b's residual norm."""
+        trial = None if x is None else self.__Trial(problem, x)
+        _, b = self.__Get_A_b(problem, trial)
         self.__Warn_orphan_conditions(problem)
         size = self.__Get_size(problem)
         if x is None:
@@ -1843,10 +1838,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__Get_load(self._Get_monolithic_problem(problemType))
 
     def __Get_load(
-        self, problem: ProblemType | tuple[ProblemType, ...]
+        self,
+        problem: ProblemType | tuple[ProblemType, ...],
+        x: TrialSolution | None = None,
     ) -> _types.FloatArray:
-        """`_Solver_Get_load` of a problem key, its contributions rebuilt when stale."""
-        system = self.__Get_folded(problem)
+        """`_Solver_Get_load` of a problem key, its contributions rebuilt at `x` when stale."""
+        system = self.__Get_folded(problem, x)
         layout, Ndof = self.__Get_layout(self.__Fields(problem))
         dofs = self.__Compose(problem, self.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.__Compose(problem, self.Bc_values_Neumann)
@@ -1857,15 +1854,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return load
 
     def __Get_b(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        trial: TrialSolution | None = None,
     ) -> _types.FloatArray:
-        """b of `A dx = b`: the load minus the internal forces, at the trial solution when nonlinear, at 0 when linear; Lagrange rows included."""
+        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at 0 when linear; Lagrange rows included."""
         tic = Tic()
 
-        load = self.__Get_load(problemType)
+        if trial is None:
+            trial = self.__Committed()
+        load = self.__Get_load(problemType, trial)
         system = self._Get_linear_system(problemType)
         if self.isNonLinear:
-            x = self.__Compose(problemType, self._Solver_Get_trial_solution)
+            x = self.__Compose(problemType, trial.__getitem__)
         elif system.internal:
             # R is folded at u_n, not at x = 0
             raise ValueError(
@@ -1888,10 +1889,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return b
 
     def __Get_A(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        x: TrialSolution | None = None,
     ) -> sparse.csr_matrix:
-        """The problem's A for the time scheme, summed from its fold's contributions and kept by its linear system."""
-        system = self.__Get_folded(problemType)
+        """The problem's A for the time scheme, summed from its fold's contributions (rebuilt at `x` when stale) and kept by its linear system."""
+        system = self.__Get_folded(problemType, x)
         layout, Ndof = self.__Get_layout(self.__Fields(problemType))
         return system.Get_A(
             self.timeScheme.coefs,
@@ -1901,25 +1904,45 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
 
     def __Get_folded(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        x: TrialSolution | None = None,
     ) -> _LinearSystem:
-        """The problem's linear system, its contributions rebuilt when stale."""
+        """The problem's linear system, its contributions rebuilt at `x` (default committed) when stale."""
         system = self._Get_linear_system(problemType)
         if self.__dict_needUpdate.get(problemType, True):
-            system.Set_list_contribution(self.__Get_list_contribution(problemType))
+            if x is None:
+                x = self.__Committed()
+            system.Set_list_contribution(self.__Get_list_contribution(problemType, x))
             self.__dict_needUpdate = {**self.__dict_needUpdate, problemType: False}
         return system
 
     def _Solver_Get_A_b(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...] | None = None,
+        x: TrialSolution | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b at the trial solution, before Dirichlet, of the monolithic problem holding `problemType` or of the fields given; A is the object the solve uses, never write into it."""
+        """A and b before Dirichlet at the trial solution `x` (default committed), of the monolithic problem holding `problemType` or of the fields given; A is the object the solve uses, never write into it."""
         if isinstance(problemType, tuple) and len(problemType) > 1:
             problem = problemType
         else:
             problem = self._Get_monolithic_problem(problemType)
-        b = self.__Get_b(problem)
-        return self.__Get_A(problem), b
+        if x is None:
+            return self.__Get_A_b(problem)
+        # a fold at x is not kept: the readers after this one see the committed state
+        self.Need_Update(problem)
+        A, b = self.__Get_A_b(problem, x)
+        self.Need_Update(problem)
+        return A, b
+
+    def __Get_A_b(
+        self,
+        problem: ProblemType | tuple[ProblemType, ...],
+        x: TrialSolution | None = None,
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """A and b of a problem key at `x` (default committed), its contributions rebuilt at `x` when stale."""
+        b = self.__Get_b(problem, x)
+        return self.__Get_A(problem, x), b
 
     def _Bc_dofs_orphan(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -2353,7 +2376,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
     ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
         """DOF at global node 0 of each scalar field without a diagonal block whose constant the other fields' free equations are blind to, ``‖A_rc[free] · 1‖ ≤ ε ‖A_rc[free]‖``, and the field's zero-mean weights."""
-        terms = {field: self.Get_terms(field) for field in problem}
+        committed = self.__Committed()
+        terms = {field: self.Get_terms(committed, field) for field in problem}
         diagonal = {
             rows
             for slot, rows, cols in self.__Blocks(terms)
