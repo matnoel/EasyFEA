@@ -4,7 +4,7 @@
 
 """Linear system `A x = b` of one problem."""
 
-from typing import Callable
+from typing import Callable, NamedTuple
 
 import numpy as np
 from scipy import sparse
@@ -22,8 +22,26 @@ from ..Utilities._mpi import (
 from ._terms import Same_contributions, _Contribution
 
 
+class _Entries(NamedTuple):
+    """Sparse entries, summed where they repeat."""
+
+    rows: _types.IntArray
+    cols: _types.IntArray
+    values: _types.FloatArray
+
+    @staticmethod
+    def Empty() -> "_Entries":
+        return _Entries(np.empty(0, dtype=int), np.empty(0, dtype=int), np.empty(0))
+
+    @staticmethod
+    def Concatenate(pieces: list["_Entries"]) -> "_Entries":
+        if not pieces:
+            return _Entries.Empty()
+        return _Entries(*(np.concatenate(arrays) for arrays in zip(*pieces)))
+
+
 class _LinearSystem:
-    """`A x = b` of one problem key, dropped with the mesh: last fold, A, PETSc numbering, dof exchange and kept solver; `comm` is passed in, never stored."""
+    """`A x = b` of one problem key, dropped with the mesh: last contributions, A, PETSc numbering, dof exchange and kept solver; `comm` is passed in, never stored."""
 
     def __init__(
         self,
@@ -36,12 +54,12 @@ class _LinearSystem:
         self.__rank = rank
         self.__globalIds = globalIds
         self.__exchange: Exchange | None = None
-        self.__fold: list[_Contribution] = []
+        self.__list_contribution: list[_Contribution] = []
         self.__A: sparse.csr_matrix | None = None
         self.__AKey: tuple = ()
         """`(layout, Ndof, contributing)` of A's map"""
         self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
-        self.__AFold: list[_Contribution] = []
+        self.__list_contributionA: list[_Contribution] = []
         """the K, C and M contributions A was summed from"""
         self.__stamp = 0
         self.__patternStamp = 0
@@ -57,8 +75,8 @@ class _LinearSystem:
         self.__derived: tuple | None = None
         """`(key, matrix, source, inverse)`: the entries `source` of A's then the extra ones, summed at `inverse`"""
         self.__derivedValues: tuple = ()
-        self.__derivedStamps = (0, 0)
-        """pattern and values of the derived matrix"""
+        self.__derivedPatternStamp = 0
+        self.__derivedStamp = 0
         self.__alpha: tuple[int, float] = (0, 0.0)
         self.__solver: tuple | None = None
         """`(ksp, matrix)`"""
@@ -69,12 +87,12 @@ class _LinearSystem:
         self.__pinnedWeights: dict = {}
 
     def __getstate__(self) -> dict:
-        # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy refolds
+        # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy rebuilds its contributions
         return {
             **self.__dict__,
-            "_LinearSystem__fold": [],
+            "_LinearSystem__list_contribution": [],
             "_LinearSystem__A": None,
-            "_LinearSystem__AFold": [],
+            "_LinearSystem__list_contributionA": [],
             "_LinearSystem__exchange": None,
             "_LinearSystem__derived": None,
             "_LinearSystem__derivedValues": (),
@@ -94,7 +112,7 @@ class _LinearSystem:
         Scatter_forward(values, self.Get_exchange(comm))
 
     def Set_known(self, known: _types.BoolArray, comm, lagrange: tuple = ()) -> None:
-        """Numbers the owned unknowns rank after rank, the multipliers past the dofs last, kept until `known` or the Lagrange conditions' dofs change on a rank. Collective on `comm`."""
+        """Numbers the owned unknowns rank after rank, the multipliers last; kept while `known` and the Lagrange dofs hold. Collective on `comm`."""
         changed = (
             self.__known is None
             or not np.array_equal(known, self.__known)
@@ -126,7 +144,7 @@ class _LinearSystem:
     def __Stamps(self, derived: bool) -> tuple:
         """Pattern, numbering and values of A or of the derived matrix."""
         pattern, values = (
-            (("D", self.__derivedStamps[0]), ("D", self.__derivedStamps[1]))
+            (("D", self.__derivedPatternStamp), ("D", self.__derivedStamp))
             if derived
             else (("A", self.__patternStamp), ("A", self.__stamp))
         )
@@ -175,14 +193,14 @@ class _LinearSystem:
         """Zero-mean weights `∫ N_i dΩ` of each pinned field."""
         return self.__pinnedWeights
 
-    def Set_fold(self, fold: list[_Contribution]) -> None:
-        """Keeps the last fold, A's source."""
-        self.__fold = fold
+    def Set_list_contribution(self, list_contribution: list[_Contribution]) -> None:
+        """Keeps the last contributions, A's source."""
+        self.__list_contribution = list_contribution
 
     def Connected_rows(self, layout: tuple, Ndof: int) -> _types.BoolArray:
-        """Rows a K, C or M contribution of the last fold fills, ghost elements included."""
+        """Rows a K, C or M contribution of the last contributions fills, ghost elements included."""
         rows = np.zeros(Ndof, dtype=bool)
-        for c in self.__fold:
+        for c in self.__list_contribution:
             if c.slot in "KCM":
                 rows[_Dofs_e(layout, c.block[0], c.group)] = True
         return rows
@@ -194,14 +212,14 @@ class _LinearSystem:
         Ndof: int,
         Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
     ) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` from the last fold, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
-        fold = [c for c in self.__fold if c.slot in "KCM"]
-        key = (layout, Ndof, _Contributing(fold))
+        """`coefK·K + coefC·C + coefM·M` from the last contributions, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
+        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
+        key = (layout, Ndof, _Contributing(list_contribution))
         if (
             self.__A is not None
             and key == self.__AKey
             and coefs == self.__ACoefs
-            and Same_contributions(self.__AFold, fold)
+            and Same_contributions(self.__list_contributionA, list_contribution)
         ):
             return self.__A
 
@@ -209,12 +227,12 @@ class _LinearSystem:
             self.__AKey = key
             self.__patternStamp += 1
 
-        A = _Sum(fold, coefs, Ndof, Get_map)
+        A = _Sum(list_contribution, coefs, Ndof, Get_map)
         A.data.flags.writeable = False
 
         self.__A = A
         self.__ACoefs = coefs
-        self.__AFold = fold
+        self.__list_contributionA = list_contribution
         self.__stamp += 1
         return A
 
@@ -227,11 +245,11 @@ class _LinearSystem:
 
     def Get_derived(
         self,
+        extra: _Entries,
         eliminate: bool,
-        extra: tuple[_types.IntArray, _types.IntArray, _types.FloatArray],
         dropped: _types.BoolArray | None = None,
     ) -> sparse.csr_matrix:
-        """The kept A plus the `extra` `(rows, cols, values)` entries, minus the `dropped` rows' entries, on the unknowns only when `eliminate`: one pattern per A's map, numbering and extra entries, the same object refilled in place."""
+        """The kept A plus `extra`, the `dropped` rows' entries left out, reduced to the unknowns when `eliminate`; one object, refilled in place."""
         A = self.__A
         assert A is not None and self.__known is not None
         rows, cols, values = extra
@@ -252,10 +270,16 @@ class _LinearSystem:
             else:
                 index = np.arange(Ndof)
             kept = np.ones(Ndof, dtype=bool) if dropped is None else ~dropped
-            matrix, source, inverse = _Derive(A, index, kept, rows, cols)
+            matrix, source, inverse = _Derive(
+                A,
+                index,
+                kept,
+                rows,
+                cols,
+            )
             self.__derived = (key, matrix, source, inverse)
             self.__derivedValues = ()
-            self.__derivedStamps = (self.__derivedStamps[0] + 1, self.__derivedStamps[1])
+            self.__derivedPatternStamp += 1
 
         _, matrix, source, inverse = self.__derived
         valuesKey = (self.__stamp, values.tobytes())
@@ -263,7 +287,7 @@ class _LinearSystem:
             entries = np.concatenate([A.data, values])[source]
             matrix.data[:] = np.bincount(inverse, entries, matrix.data.size)
             self.__derivedValues = valuesKey
-            self.__derivedStamps = (self.__derivedStamps[0], self.__derivedStamps[1] + 1)
+            self.__derivedStamp += 1
         return matrix
 
     def Get_operator(
@@ -273,20 +297,22 @@ class _LinearSystem:
         Ndof: int,
         Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
     ) -> sparse.csr_matrix:
-        """The last fold's K, C or M alone, a new matrix on A's map."""
-        fold = [c for c in self.__fold if c.slot in "KCM"]
+        """The last contributions' K, C or M alone, a new matrix on A's map."""
+        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
         coefK, coefC, coefM = (float(s == slot) for s in "KCM")
-        return _Sum(fold, (coefK, coefC, coefM), Ndof, Get_map)
+        return _Sum(list_contribution, (coefK, coefC, coefM), Ndof, Get_map)
 
     def Get_load(self, layout: tuple, Ndof: int) -> _types.FloatArray:
-        """The last fold's F contributions, summed: the load the terms declare."""
-        pieces = [(c, c.coef * c.array) for c in self.__fold if c.slot == "F"]
+        """The last F contributions, summed: the load the terms declare."""
+        pieces = [
+            (c, c.coef * c.array) for c in self.__list_contribution if c.slot == "F"
+        ]
         return _Scatter(pieces, layout, Ndof)
 
     @property
     def internal(self) -> bool:
-        """Whether the last fold holds an internal force R."""
-        return any(c.slot == "R" for c in self.__fold)
+        """Whether the last contributions hold an internal force R."""
+        return any(c.slot == "R" for c in self.__list_contribution)
 
     def Get_b(
         self,
@@ -294,7 +320,7 @@ class _LinearSystem:
         fields: tuple[_types.FloatArray | None, ...],
         layout: tuple,
     ) -> _types.FloatArray:
-        """`load − Σ coef·R − Σ coef·X_e·field` over the last fold, X_e of the terms declaring no R; a None field is skipped."""
+        """`load − Σ coef·R − Σ coef·X_e·field` over the last contributions, X_e of the terms declaring no R; a None field is skipped."""
         return load + _Scatter(self.__Pieces(fields, layout, True), layout, load.size)
 
     def Get_product(
@@ -303,7 +329,7 @@ class _LinearSystem:
         layout: tuple,
         Ndof: int,
     ) -> _types.FloatArray:
-        """`Σ coef·X_e·field` over the last fold's K, C and M, each slot on its field; a None field is skipped."""
+        """`Σ coef·X_e·field` over the last contributions' K, C and M, each slot on its field; a None field is skipped."""
         return _Scatter(self.__Pieces(fields, layout, False), layout, Ndof)
 
     def __Pieces(
@@ -314,7 +340,7 @@ class _LinearSystem:
     ) -> list[tuple[_Contribution, np.ndarray]]:
         """Element vectors of `coef·X_e·field`, or of b's `−coef·R` and `−coef·X_e·field` over the linear terms."""
         pieces = []
-        for c in self.__fold:
+        for c in self.__list_contribution:
             if c.slot == "R":
                 if forB:
                     pieces.append((c, -c.coef * c.array))
@@ -328,27 +354,29 @@ class _LinearSystem:
         return pieces
 
 
-def _Sizes(fold: list[_Contribution]) -> dict:
-    """`{block: {group: entries}}` of every block `fold` fills, the order of its map."""
+def _Sizes(list_contribution: list[_Contribution]) -> dict:
+    """`{block: {group: entries}}` of every block `list_contribution` fills, the order of its map."""
     sizes: dict = {}
-    for c in fold:
+    for c in list_contribution:
         sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
     return sizes
 
 
-def _Contributing(fold: list[_Contribution]) -> tuple:
-    """`(block, groups)` of every block `fold` fills, the order of its map."""
-    return tuple((block, tuple(groups)) for block, groups in _Sizes(fold).items())
+def _Contributing(list_contribution: list[_Contribution]) -> tuple:
+    """`(block, groups)` of every block `list_contribution` fills, the order of its map."""
+    return tuple(
+        (block, tuple(groups)) for block, groups in _Sizes(list_contribution).items()
+    )
 
 
 def _Sum(
-    fold: list[_Contribution],
+    list_contribution: list[_Contribution],
     coefs: tuple[float, float, float],
     Ndof: int,
     Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
 ) -> sparse.csr_matrix:
-    """`Σ coef_slot·coef·X_e` over `fold`'s K, C, M on their union map: a zero-coef slot in the pattern, not in the values."""
-    sizes = _Sizes(fold)
+    """`Σ coef_slot·coef·X_e` over `list_contribution`'s K, C, M on their union map: a zero-coef slot in the pattern, not in the values."""
+    sizes = _Sizes(list_contribution)
     # each (block, group)'s element entries, end to end in the map's order
     spans = {}
     size = 0
@@ -357,7 +385,7 @@ def _Sum(
             spans[block, group] = size
             size += n
     entries = np.zeros(size)
-    for c in fold:
+    for c in list_contribution:
         weight = coefs["KCM".index(c.slot)]
         if weight == 0:
             continue
@@ -387,7 +415,7 @@ def _Derive(
     rows: _types.IntArray,
     cols: _types.IntArray,
 ) -> tuple[sparse.csr_matrix, _types.IntArray, _types.IntArray]:
-    """Unfilled pattern of A's entries in `kept` rows plus the extra `(rows, cols)`, renumbered by `index` (-1 left out); the entries taken, A's then the extra ones, and each one's position."""
+    """Unfilled pattern of A's `kept` rows plus the extra `(rows, cols)`, renumbered by `index` (-1 dropped); the entries taken and their positions."""
     rowsA = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
     rowsD = np.concatenate([index[rowsA], index[rows]])
     colsD = np.concatenate([index[A.indices], index[cols]])

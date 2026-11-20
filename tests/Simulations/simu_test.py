@@ -1617,9 +1617,8 @@ def test_Simu__Solver_Apply_Neumann_is_the_load_when_static():
 
 def test_Simu__Solver_Apply_Dirichlet_holds_the_known_values():
     simu = _elastic_bar()
-    b = simu._Solver_Apply_Neumann(simu.problemType)
 
-    A, x = simu._Solver_Apply_Dirichlet(simu.problemType, b, "r1")
+    A, x = simu._Solver_Apply_Dirichlet(simu.problemType)
 
     assert (A != simu.Assembly()[0]).nnz == 0
     assert np.array_equal(x, simu.Bc_vector_Dirichlet())
@@ -2035,7 +2034,7 @@ def test_Simu__Bc_Lagrange_dim_counts_the_multipliers():
 
     simu._Bc_Add_Lagrange(_tie(simu, _slab_corners(simu), "t"))
 
-    assert simu._Bc_Lagrange_dim() == 1 + simu.Bc_dofs_Dirichlet().size
+    assert simu._Bc_Lagrange_dim() == 1
 
 
 def test_Simu_Solve_with_petsc_follows_a_changed_set_of_known_dofs():

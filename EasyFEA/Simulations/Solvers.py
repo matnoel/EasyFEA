@@ -23,10 +23,7 @@ from ..Utilities import Tic, _types
 
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Reduce_sum
 
-from ._linear_system import _LinearSystem
-
-# fem
-from ..FEM import LagrangeCondition
+from ._linear_system import _Entries, _LinearSystem
 
 try:
     import pypardiso
@@ -104,33 +101,9 @@ def _Solve_Axb(
     lb: _types.AnyArray | _types.Numbers,
     ub: _types.AnyArray | _types.Numbers,
     system: _LinearSystem | None = None,
+    derived: bool = False,
 ) -> _types.FloatArray:
-    """Solves the linear system A x = b
-
-    Parameters
-    ----------
-    simu : Simu
-        Simulation
-    problemType : ProblemType | tuple[ProblemType, ...]
-        Specify the problemType because a simulation can have several physcal models (such as a damage simulation); a tuple for a monolithic problem's fields.
-    A : sparse.csr_matrix
-        matrix A
-    b : _types.FloatArray
-        vector b (N,)
-    x0 : _types.FloatArray
-        initial solution for iterative solvers
-    lb : _types.AnyArra | _types.Numbers
-        lowerBoundary of the solution
-    ub : _types.AnyArra | _types.Numbers
-        upperBoundary of the solution
-    system : _LinearSystem, optional
-        For PETSc, the numbering and kept solver; by default every row, one process, nothing kept.
-
-    Returns
-    -------
-    _types.FloatArray
-        comuted x solution of A x = b, through PETSc only at `system.rows`
-    """
+    """x of `A x = b`, through PETSc at `system.rows` only (`derived`: A is the system's derived matrix); a one-off system when None."""
 
     if not isinstance(A, sparse.csr_matrix):
         A = sparse.csr_matrix(A)
@@ -144,31 +117,9 @@ def _Solve_Axb(
         system = _LinearSystem()
         system.Set_known(np.zeros(A.shape[0], dtype=bool), None)
 
-    if len(simu.Bc_Lagrange) > 0:
-        if MPI_SIZE > 1:
-            raise NotImplementedError(
-                "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
-            )
-        # Lagrange multipliers yield a saddle-point system: iterative KSP methods diverge.
-        # Keep PETSc only when configured as a direct solver (preonly + lu/cholesky
-        # backed by mumps, superlu_dist, or petsc in serial). Otherwise fall back.
-        solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
-        if simu.solver == SolverType.petsc and _Get_PETSc() is not None:
-            kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
-            # Built-in PETSc LU (solverType="petsc") uses SeqAIJ which requires a
-            # non-zero diagonal — saddle-point matrices from Lagrange multipliers violate
-            # this. External solvers (mumps, superlu_dist, …) use fill-in reordering
-            # (AMD/METIS) and handle zero-diagonal rows correctly.
-            if (
-                kspType == "preonly"
-                and pcType in {"lu", "cholesky"}
-                and solverType != "petsc"
-            ):
-                solver = SolverType.petsc
-    else:
-        solver = simu.solver
-        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, system, comm):
-            __Check_saddle_point_solver(simu, problemType)
+    solver = simu.solver
+    if isinstance(problemType, tuple) and __Has_zero_diagonal(A, system, comm):
+        __Check_saddle_point_solver(simu, problemType)
 
     # import matplotlib.pyplot as plt
     # plt.figure()
@@ -190,7 +141,15 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        x, converged = _PETSc(system, A, b, x0, (kspType, pcType, solverType), comm)
+        x, converged = _PETSc(
+            system,
+            A,
+            b,
+            x0,
+            (kspType, pcType, solverType),
+            comm,
+            derived,
+        )
         if oneOff:
             _PETSc_Free(system)
         if not converged:
@@ -251,7 +210,7 @@ def __Has_zero_diagonal(A: sparse.csr_matrix, system: _LinearSystem, comm) -> bo
 
 
 def __Check_saddle_point_solver(
-    simu: "_Simu", problem: "tuple[ProblemType, ...]"
+    simu: "_Simu", problem: "ProblemType | tuple[ProblemType, ...]"
 ) -> None:
     """Rejects a solver that cannot factor a saddle point: a direct one only, PETSc's LU through an external package (Mumps or SuperLU_dist under MPI)."""
     solver = simu.solver
@@ -267,31 +226,32 @@ def __Check_saddle_point_solver(
         if kspType == "preonly" and pcType == "lu" and external:
             return
         solver = f"petsc ({kspType}, {pcType}, {solverType})"
-    names = ", ".join(problem)
+    names = ", ".join(problem) if isinstance(problem, tuple) else problem
     accepted = (
         "petsc with preonly, lu and mumps or superlu_dist"
         if MPI_SIZE > 1
         else "pypardiso, scipy or petsc with preonly, lu and an external package (mumps)"
     )
     raise ValueError(
-        f"({names}) is a saddle point (a zero diagonal block), which only a direct solver factors: use {accepted}, not {solver}."
+        f"({names}) is a saddle point (a zero diagonal block or Lagrange multipliers), which only a direct solver factors: use {accepted}, not {solver}."
     )
 
 
 def Solve_simu(
     simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
-) -> tuple[_types.FloatArray, _types.FloatArray | None | float]:
-    """Solving the simulation's problem according to the resolution type."""
+) -> tuple[_types.FloatArray, float | None]:
+    """x and, when nonlinear, the residual norm of the problem, under the simulation's resolution."""
 
-    resolution = ResolType.r1
-    resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
+    resolution = simu._resolution or (
+        ResolType.r2 if len(simu.Bc_Lagrange) > 0 else ResolType.r1
+    )
 
     if resolution == ResolType.r1:
         x, rhsNorm = __Solver_1(simu, problemType)
     elif resolution == ResolType.r2:
         # a monolithic problem refuses Lagrange conditions before solving
         assert not isinstance(problemType, tuple)
-        x, lagrange = __Solver_2(simu, problemType)
+        x, rhsNorm = __Solver_2(simu, problemType)
     elif resolution == ResolType.r3:
         x, rhsNorm = __Solver_3(simu, problemType)
     else:
@@ -300,12 +260,7 @@ def Solve_simu(
     # x is right at the owned dofs only
     simu._Get_linear_system(problemType).Scatter_forward(x, simu.mesh.comm)
 
-    if resolution in [ResolType.r1, ResolType.r3]:
-        return x, rhsNorm
-    elif resolution == ResolType.r2:
-        return x, lagrange
-    else:
-        raise NotImplementedError
+    return x, rhsNorm
 
 
 def __Residual_norm(b_owned: _types.FloatArray, comm) -> float:
@@ -316,214 +271,190 @@ def __Residual_norm(b_owned: _types.FloatArray, comm) -> float:
     return rhsNorm
 
 
-def __Solver_1(
-    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
-) -> tuple[_types.FloatArray, float | None]:
-    # --       --  --  --   --  --
-    # | Aii Aic |  | xi |   | bi |
-    # | Aci Acc |  | xc | = | bc |
-    # --       --  --  --   --  --
-    # xi = inv(Aii) * (bi - Aic * xc)
+def __Known(simu: "_Simu", problemType, Ndof: int) -> _types.BoolArray:
+    """Known dofs of the problem's vector of `Ndof`, the multipliers unknown."""
+    known = np.zeros(Ndof, dtype=bool)
+    known[simu.Bc_dofs_known_unknown(problemType)[0]] = True
+    return known
 
-    # Build the matrix system
-    b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r1)
 
-    # Recover dofs
-    dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
+def __Solve_eliminated(
+    simu: "_Simu",
+    problemType: "ProblemType | tuple[ProblemType, ...]",
+    A: sparse.csr_matrix,
+    b: _types.FloatArray,
+    x: _types.FloatArray,
+    x0: _types.FloatArray,
+    known: _types.BoolArray,
+    border: _Entries,
+    lagrange: tuple = (),
+) -> float | None:
+    """Solves `A + border` for the unknowns into x, which holds the known values; the residual norm over the dof rows when nonlinear."""
+    comm = simu.mesh.comm
+    system = simu._Get_linear_system(problemType)
+    system.Set_known(known, comm, lagrange)
+    # the known values of the ghosts from their owner
+    system.Scatter_forward(x, comm)
 
-    x0 = simu._Solver_Get_x0(problemType)
+    residual = b - A @ x
+    np.subtract.at(residual, border.rows, border.values * x[border.cols])
+    rhsNorm = None
+    if simu.isNonLinear:
+        # the multipliers past the dofs
+        dofRows = system.rows[system.rows < b.size - len(lagrange)]
+        rhsNorm = __Residual_norm(residual[dofRows], comm)
+
     lb, ub = simu._Solver_Get_lb_ub(problemType)
-
     if simu.solver == SolverType.petsc:
-        # PETSc drops the known rows and columns itself, numbered -1
-        known = np.zeros(x.size, dtype=bool)
-        known[dofsKnown] = True
-        comm = simu.mesh.comm
-        system = simu._Get_linear_system(problemType)
-        system.Set_known(known, comm)
-        # the known values of the ghosts from their owner
-        system.Scatter_forward(x, comm)
-        residual = b - A @ x
-        if simu.isNonLinear:
-            rhsNorm = __Residual_norm(residual[system.rows], comm)
+        # PETSc drops the known by -1
+        isDerived = border.rows.size > 0
+        matrix = system.Get_derived(border, eliminate=False) if isDerived else A
         x[system.rows] = _Solve_Axb(
             simu,
             problemType,
-            A,
+            matrix,
             residual,
             x0,
             lb,
             ub,
             system,
+            derived=isDerived,
         )
-
     else:
-        tic = Tic()
-        # split of the matrix system into known and unknown dofs
-        # Solve : Aii * xi = bi - Aic * xc
-        Ai = A[dofsUnknown, :].tocsc()
-        Aii = Ai[:, dofsUnknown]
-        Aic = Ai[:, dofsKnown]
-        bi = b[dofsUnknown]
-        xc = x[dofsKnown]
-
-        tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
-
-        bi -= Aic @ xc
-        if simu.isNonLinear:
-            rhsNorm = __Residual_norm(bi, simu.mesh.comm)
-
-        x[dofsUnknown] = _Solve_Axb(
+        unknown = np.flatnonzero(~known)
+        matrix = system.Get_derived(border, eliminate=True)
+        x[unknown] = _Solve_Axb(
             simu,
             problemType,
-            Aii,
-            bi,
-            x0[dofsUnknown],
+            matrix,
+            residual[unknown],
+            x0[unknown],
             lb,
             ub,
         )
-
-    if simu.isNonLinear:
-        return x, rhsNorm
-    else:
-        return x, None
+    return rhsNorm
 
 
-def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
-    # Lagrange multiplier method
-
-    size = simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
-
-    # Build the penalized matrix system
+def __Solver_1(
+    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
+) -> tuple[_types.FloatArray, float | None]:
+    """Elimination: `A_ii x_i = (b − A x_known)_i`."""
+    # --       --  --  --   --  --
+    # | Aii Aic |  | xi |   | bi |
+    # | Aci Acc |  | xc | = | bc |
+    # --       --  --  --   --  --
+    # xi = inv(Aii) * (bi - Aic * xc)
     b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r2)
-    alpha = A.data.max()
-
-    tic = Tic()
-
-    # set to lil matrix because its faster
-    A = A.tolil()
-
-    dofs_Dirichlet = simu.Bc_dofs_Dirichlet(problemType)
-    values_Dirichlet = simu.Bc_values_Dirichlet(problemType)
-    # each orphan not under Dirichlet held at 0 by a Lagrange row appended after Ndof
-    orphans = np.setdiff1d(simu._Bc_dofs_orphan(problemType), dofs_Dirichlet)
-    Ndof = A.shape[0]
-    A.resize((Ndof + orphans.size, Ndof + orphans.size))
-    b = np.append(b, np.zeros(orphans.size))
-    linesOrphan = np.arange(Ndof, Ndof + orphans.size)
-    A[linesOrphan, orphans] = alpha
-    A[orphans, linesOrphan] = alpha
-
-    list_Bc_Lagrange = simu.Bc_Lagrange
-
-    nLagrange = len(list_Bc_Lagrange)
-    nDirichlet = len(dofs_Dirichlet)
-    nCol = nLagrange + nDirichlet
-
-    x0 = simu.Get_x0(problemType)
-    x0 = np.append(x0, np.zeros(nCol + orphans.size))
-
-    linesDirichlet = np.arange(size, size + nDirichlet)
-
-    # apply lagrange multiplier
-    A[linesDirichlet, dofs_Dirichlet] = alpha
-    A[dofs_Dirichlet, linesDirichlet] = alpha
-    b[linesDirichlet] = values_Dirichlet * alpha
-
-    tic.Tac("Solver", f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
-
-    # For each lagrange condition we will add a coef to the matrix
-    if len(list_Bc_Lagrange) > 0:
-
-        def __apply_lagrange(i: int, lagrangeBc: LagrangeCondition):
-            dofs = lagrangeBc.dofs
-            values = lagrangeBc.dofsValues * alpha
-            coefs = lagrangeBc.lagrangeCoefs * alpha
-
-            A[dofs, i] = coefs
-            A[i, dofs] = coefs
-            b[i] = values[0]
-
-        start = size + nDirichlet
-        [
-            __apply_lagrange(i, lagrangeBc)
-            for i, lagrangeBc in enumerate(list_Bc_Lagrange, start)
-        ]
-
-    tic.Tac("Solver", f"Lagrange ({problemType}) Coupling", simu._verbosity)
-
-    x = _Solve_Axb(
+    A, x = simu._Solver_Apply_Dirichlet(problemType)
+    known = __Known(simu, problemType, x.size)
+    x0 = simu._Solver_Get_x0(problemType)
+    rhsNorm = __Solve_eliminated(
         simu,
         problemType,
-        A.tocsr(),
+        A,
         b,
+        x,
         x0,
-        [],
-        [],
+        known,
+        _Entries.Empty(),
     )
-
-    # We don't send back reaction forces
-    sol = x[:size]
-    lagrange = x[size:Ndof]
-
-    return sol, lagrange
+    return x, rhsNorm
 
 
-def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"):
-    # Resolution using the penalty method
+def __Solver_2(
+    simu: "_Simu", problemType: "ProblemType"
+) -> tuple[_types.FloatArray, float | None]:
+    """A bordered by the Lagrange conditions scaled by `max|A|`, the Dirichlet dofs eliminated; the multipliers dropped."""
+    if MPI_SIZE > 1:
+        raise NotImplementedError(
+            "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
+        )
+    __Check_saddle_point_solver(simu, problemType)
 
-    # This method does not give preference to dirichlet conditions over neumann conditions.
-    # This means that if a dof is applied in Neumann and in Dirichlet, it will be privileged over the dof applied in Neumann.
-
-    # This method is never used. It is just implemented as an example
-
-    # Builds the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
-    A, b = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
+    A, x = simu._Solver_Apply_Dirichlet(problemType)
+    size, Ndof = x.size, b.size
+    alpha = simu._Get_linear_system(problemType).Get_alpha()
 
-    # Solving the penalized matrix system
+    conditions = simu.Bc_Lagrange
+    u = (
+        simu._Solver_Get_Newton_Raphson_current_solution(problemType)
+        if simu.isNonLinear
+        else np.zeros(size)
+    )
+    pieces = []
+    for i, condition in enumerate(conditions, size):
+        dofs = condition.dofs
+        coefs = alpha * condition.lagrangeCoefs
+        line = np.full(dofs.size, i)
+        pieces += [_Entries(line, dofs, coefs), _Entries(dofs, line, coefs)]
+        # the condition on the increment, from the current solution
+        b[i] = alpha * condition.dofsValues[0] - coefs @ u[dofs]
+
+    known = __Known(simu, problemType, Ndof)
+    x = np.concatenate([x, np.zeros(Ndof - size)])
+    x0 = np.concatenate([simu._Solver_Get_x0(problemType), np.zeros(Ndof - size)])
+    lagrange = tuple(c.dofs for c in conditions)
+    rhsNorm = __Solve_eliminated(
+        simu,
+        problemType,
+        A,
+        b,
+        x,
+        x0,
+        known,
+        _Entries.Concatenate(pieces),
+        lagrange,
+    )
+    return x[:size], rhsNorm
+
+
+def __Solver_3(
+    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
+) -> tuple[_types.FloatArray, float | None]:
+    """Penalty: the known rows of A dropped, 1.0 on their diagonal, their values in b."""
+    b = simu._Solver_Apply_Neumann(problemType)
+    A, x = simu._Solver_Apply_Dirichlet(problemType)
+    if b.size != x.size:
+        raise NotImplementedError("r3 does not support Lagrange conditions.")
+    known = __Known(simu, problemType, x.size)
+    b[known] = x[known]
+
+    comm = simu.mesh.comm
+    system = simu._Get_linear_system(problemType)
+    # every dof unknown, each rank its owned rows
+    system.Set_known(np.zeros(b.size, dtype=bool), comm)
+    dofs = np.flatnonzero(known)
+    diagonal = _Entries(dofs, dofs, np.ones(dofs.size))
+    matrix = system.Get_derived(diagonal, eliminate=False, dropped=known)
+    rhsNorm = __Residual_norm(b[system.rows], comm) if simu.isNonLinear else None
+
     x0 = simu._Solver_Get_x0(problemType)
     lb, ub = simu._Solver_Get_lb_ub(problemType)
     if simu.solver == SolverType.petsc:
-        # every dof unknown, each rank its owned rows
-        comm = simu.mesh.comm
-        system = simu._Get_linear_system(problemType)
-        system.Set_known(np.zeros(b.size, dtype=bool), comm)
-        if simu.isNonLinear:
-            rhsNorm = __Residual_norm(b[system.rows], comm)
         x = np.zeros(b.size, dtype=float)
-        # A penalised copy, not the system's A: a solver of its own, freed after
-        _PETSc_Free(system)
         x[system.rows] = _Solve_Axb(
             simu,
             problemType,
-            A,
+            matrix,
             b,
             x0,
             lb,
             ub,
             system,
+            derived=True,
         )
-        _PETSc_Free(system)
     else:
-        if simu.isNonLinear:
-            rhsNorm = __Residual_norm(b, simu.mesh.comm)
         x = _Solve_Axb(
             simu,
             problemType,
-            A,
+            matrix,
             b,
             x0,
             lb,
             ub,
         )
-
-    if simu.isNonLinear:
-        return x, rhsNorm
-    else:
-        return x, None
+    return x, rhsNorm
 
 
 def _PETSc(
@@ -533,22 +464,29 @@ def _PETSc(
     x0: _types.FloatArray,
     options: tuple[str, str, str],
     comm,
+    derived: bool = False,
 ) -> tuple[_types.FloatArray, bool]:
-    """x at `system.rows` of `A x = b` and whether PETSc converged, through the solver the system keeps. Collective on `comm`."""
+    """x at `system.rows` of `A x = b` and whether PETSc converged, through the solver the system keeps for A or its derived matrix. Collective on `comm`."""
     PETSc = _Get_PETSc()
     assert PETSc is not None, "petsc4py is not available"
 
-    relayout, refill = system.Solver_update(comm)
+    relayout, refill = system.Solver_update(comm, derived)
     if relayout:
         # two factorisations never held at once
         _PETSc_Free(system)
-        solver = __Create_PETSc(system, PETSc, A, options, comm)
+        solver = __Create_PETSc(
+            system,
+            PETSc,
+            A,
+            options,
+            comm,
+        )
     else:
         solver = system.solver
     ksp, matrix = solver
     if refill:
         matrix.setValuesCOO(A.data)
-    system.Set_solver(solver)
+    system.Set_solver(solver, derived)
 
     x, rhs = matrix.createVecs()
     rhs.array[:] = b[system.rows]

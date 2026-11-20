@@ -159,6 +159,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __variables: _iterations.Variables
     __wholeRows: dict[int, list[_iterations.Rows]] = {}
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
+    _resolution: ResolType | None = None
+    """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
 
     # ----------------------------------------------
     # Abstract method
@@ -499,7 +501,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         finally:
             self.__dict__.clear()
             self.__dict__.update(live)
-            # a reader inside refolded the linear systems in place
+            # a reader inside rebuilt the linear systems' contributions in place
             self.Need_Update()
 
     def _Iter_Restored(self) -> None:
@@ -1152,7 +1154,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Need_Update(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> None:
-        """Marks stale the fold of every problem sharing a field with `problemType`, of every problem by default: its next reader refolds."""
+        """Marks stale the contributions of every problem sharing a field with `problemType`, of every problem by default: its next reader rebuilds them."""
         if problemType is None:
             self.__dict_needUpdate = {}
             return
@@ -1268,7 +1270,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 ):
                     yield slot, rows, cols
 
-    def __Fold(
+    def __Get_list_contribution(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> list[_Contribution]:
         """The contributions of every field's terms; raises on a block coupling to a field outside `problem`, or on a field no term fills."""
@@ -1809,7 +1811,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Get_load(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
-        """`_Solver_Get_load` of a problem key, refolded when stale."""
+        """`_Solver_Get_load` of a problem key, its contributions rebuilt when stale."""
         system = self.__Get_folded(problem)
         layout, Ndof = self.__Get_layout(self.__Fields(problem))
         dofs = self.__Compose(problem, self.Bc_dofs_Neumann, isDofs=True)
@@ -1854,27 +1856,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return b
 
     def _Solver_Apply_Dirichlet(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        b: _types.FloatArray,
-        resolution: ResolType,
+        self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """Fill in the Dirichlet conditions by constructing A and x from A x = b.
-
-        Parameters
-        ----------
-        problemType : ProblemType | tuple[ProblemType, ...]
-            The type of problem, or a monolithic problem's fields.
-        b : _types.FloatArray
-            The b vector.
-        resolution : ResolutionType
-            The resolution type.
-
-        Returns
-        -------
-        tuple[sparse.csr_matrix, _types.FloatArray]
-            A, and x (the b vector for r3).
-        """
+        """A, and x holding the known values (increments when nonlinear) at the Dirichlet dofs, 0 elsewhere."""
 
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         dofsValues = self.__Compose(problemType, self.Bc_values_Dirichlet)
@@ -1887,7 +1871,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic.Tac("Solver", f"Construct A ({problemType})", self._verbosity)
 
         if self.isNonLinear:
-            # dofsValues = dofsValues - u
             # set incremental dof values
             dofsValues -= self.__current_newton_raphson_solution[dofs]
 
@@ -1895,13 +1878,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # the solve variable is a^n: constrained DOFs have zero acceleration
             dofsValues = np.zeros_like(dofsValues)
 
-        A, x = self.__Solver_Get_Dirichlet_A_x(
-            problemType, resolution, A, b, dofsValues
-        )
-
-        val = "b" if resolution == ResolType.r3 else "x"
-        tic.Tac("Solver", f"Construct {val} ({problemType})", self._verbosity)
-
+        x = np.zeros(self.__Get_size(problemType), dtype=float)
+        np.add.at(x, np.asarray(dofs, dtype=int), dofsValues)
         return A, x
 
     def __Get_A(
@@ -1920,10 +1898,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Get_folded(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _LinearSystem:
-        """The problem's linear system, refolded when stale."""
+        """The problem's linear system, its contributions rebuilt when stale."""
         system = self._Get_linear_system(problemType)
         if self.__dict_needUpdate.get(problemType, True):
-            system.Set_fold(self.__Fold(problemType))
+            system.Set_list_contribution(self.__Get_list_contribution(problemType))
             self.__dict_needUpdate = {**self.__dict_needUpdate, problemType: False}
         return system
 
@@ -1970,65 +1948,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Terminal.MyPrintError(
                 f"WARNING: {touched} dofs in no element carry a load or a Dirichlet condition: they stay at 0 (or the Dirichlet value), their loads dropped."
             )
-
-    def __Solver_Get_Dirichlet_A_x(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        resolution: ResolType,
-        A: sparse.csr_matrix,
-        b: _types.FloatArray,
-        dofsValues: _types.FloatArray,
-    ):
-        """Resizes the matrix system according to known degrees of freedom and resolution type.
-
-        Parameters
-        ----------
-        problemType : ProblemType
-            The type of problem.
-        resolution : ResolutionType
-            The resolution type.
-        A : sparse.csr_matrix
-            The A matrix.
-        b : _types.FloatArray
-            The b vector.
-        dofsValues : _types.FloatArray
-            The values of known degrees of freedom.
-
-        Returns
-        -------
-        sparse.csr_matrix
-            The A matrix after resizing.
-        _types.FloatArray
-            x, the known values at their dofs and 0 elsewhere, or b if resolution == ResolType.r3.
-        """
-        dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
-        size = self.__Get_size(problemType)
-
-        if resolution in [ResolType.r1, ResolType.r2]:
-            # Here we return the solution with the known ddls
-            x = np.zeros(size, dtype=float)
-            np.add.at(x, np.asarray(dofs, dtype=int), dofsValues)
-
-            return A, x
-
-        elif resolution == ResolType.r3:
-            orphans = np.setdiff1d(self._Bc_dofs_orphan(problemType), dofs)
-            dofs = np.concatenate([dofs, orphans])
-            dofsValues = np.concatenate([dofsValues, np.zeros(orphans.size)])
-            # Zero constrained rows on a copy: A may be the assembled K
-            A = A.copy()
-            row_of_data = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
-            A.data[np.isin(row_of_data, dofs)] = 0.0
-            # Set diagonal to 1
-            diag = np.zeros(A.shape[0])
-            diag[dofs] = 1.0
-            A = A + sparse.diags(diag, format="csr")
-            A.eliminate_zeros()
-
-            b = b.copy()
-            b[dofs] = dofsValues
-
-            return A, b
 
     def _Solver_Set_PETSc4Py_Options(
         self,
@@ -2326,8 +2245,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType,
             self.Bc_Lagrange,  # type: ignore [arg-type]
         )
-        if nBc > 0:
-            nBc += len(self.Bc_dofs_Dirichlet(problemType))
         return nBc
 
     @property
