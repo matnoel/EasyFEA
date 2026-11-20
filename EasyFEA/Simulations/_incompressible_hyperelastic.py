@@ -210,8 +210,8 @@ class IncompressibleHyperElastic(_Simu):
         return Kinematics(groupElem, u_n, rule)  # type: ignore [arg-type]
 
     def __Current_kinematics(self, groupElem: _GroupElem) -> Kinematics:
-        """:meth:`__Kinematics` at the current Newton solution."""
-        u = self._Solver_Get_Newton_Raphson_current_solution(self.U)
+        """:meth:`__Kinematics` at the trial solution."""
+        u = self._Solver_Get_trial_solution(self.U)
         return self.__Kinematics(groupElem, u, self.matrixType)
 
     def __Stress(
@@ -229,7 +229,7 @@ class IncompressibleHyperElastic(_Simu):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """``∫ p (1 − J) dΩ``: both equations' tangents and residuals."""
         space = self._Get_FunctionSpace(self.P)
-        p = self._Solver_Get_Newton_Raphson_current_solution(self.P)
+        p = self._Solver_Get_trial_solution(self.P)
         return Operators.NonLinear.MixedIncompressibility(
             self.__Current_kinematics(groupElem), pGroup, space.Get_nodeValues(p, 1)
         )

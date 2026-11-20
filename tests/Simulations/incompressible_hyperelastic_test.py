@@ -502,7 +502,7 @@ def _assembled(
     """Tangent and right-hand side of ``[u | p]`` at `x`, standing in for Newton's current solution."""
     size = simu.displacement.size
     fields = {U: x[:size], PRESSURE: x[size:]}
-    simu._Solver_Get_Newton_Raphson_current_solution = (  # type: ignore [method-assign]
+    simu._Solver_Get_trial_solution = (  # type: ignore [method-assign]
         lambda problemType=None: fields[problemType or U]
     )
     simu.Need_Update()
@@ -788,7 +788,7 @@ def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_
     assert simu.matrixType == MatrixType.mass
     monkeypatch.setattr(
         simu,
-        "_Solver_Get_Newton_Raphson_current_solution",
+        "_Solver_Get_trial_solution",
         lambda problemType=None: simu._Get_u_n(problemType or U),
     )
 

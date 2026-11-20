@@ -290,6 +290,53 @@ class _LinearSystem:
             self.__derivedStamp += 1
         return matrix
 
+    def Solve(
+        self,
+        b: _types.FloatArray,
+        dx: _types.FloatArray,
+        known: _types.BoolArray,
+        comm,
+        backend: Callable[
+            [sparse.csr_matrix, _types.FloatArray, _types.IntArray, bool],
+            _types.FloatArray,
+        ],
+        eliminate: bool,
+        extra: _Entries,
+        lagrange: tuple = (),
+        dropped: _types.BoolArray | None = None,
+    ) -> float:
+        """Solves `A + extra` for the unknowns into `dx`, which holds the known values; the residual norm over the owned dof rows. `backend(matrix, rhs, rows, derived)` returns x at `rows`. Collective on `comm`."""
+        A = self.__A
+        assert A is not None
+        self.Set_known(known, comm, lagrange)
+        # the known values of the ghosts from their owner
+        self.Scatter_forward(dx, comm)
+
+        residual = b - A @ dx
+        np.subtract.at(residual, extra.rows, extra.values * dx[extra.cols])
+        if dropped is not None:
+            residual[dropped] = 0.0
+        # the multipliers past the dofs
+        dofRows = self.rows[self.rows < b.size - len(lagrange)]
+        rhsNorm = _Residual_norm(residual[dofRows], comm)
+
+        if eliminate:
+            rows = np.flatnonzero(~known)
+            matrix = self.Get_derived(extra, eliminate=True, dropped=dropped)
+            isDerived = True
+        else:
+            # PETSc drops the known by -1
+            rows = self.rows
+            isDerived = extra.rows.size > 0 or dropped is not None
+            matrix = (
+                self.Get_derived(extra, eliminate=False, dropped=dropped)
+                if isDerived
+                else A
+            )
+        dx[rows] += backend(matrix, residual, rows, isDerived)
+        self.Scatter_forward(dx, comm)
+        return rhsNorm
+
     def Get_operator(
         self,
         slot: str,
@@ -455,3 +502,11 @@ def _Scatter(
     if np.iscomplexobj(data):
         raise TypeError("Complex systems are not supported.")
     return np.bincount(rows, weights=data, minlength=Ndof)
+
+
+def _Residual_norm(residual: _types.FloatArray, comm) -> float:
+    """2-norm of the ranks' rows of `residual`; raises on NaN/Inf. Collective on `comm`."""
+    rhsNorm = float(np.sqrt(Reduce_sum(np.linalg.norm(residual) ** 2, comm)))
+    if not np.isfinite(rhsNorm):
+        raise FloatingPointError("The residual has NaN or Inf entries.")
+    return rhsNorm

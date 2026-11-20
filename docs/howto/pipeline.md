@@ -13,7 +13,7 @@ full source.
 ```{note}
 The internals described here live in `EasyFEA/Simulations/_simu.py`,
 `EasyFEA/Simulations/Solvers.py`, and `EasyFEA/FEM/_forms.py`. The
-single-underscore methods (e.g. `_Solver_Apply_Dirichlet`) are advanced API;
+single-underscore methods (e.g. `_Solver_Get_A_b`) are advanced API;
 the double-underscore ones are private and should never be called directly.
 ```
 
@@ -103,30 +103,28 @@ ______________________________________________________________________
 
 ## Non-linear convergence
 
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_Newton_Raphson` drives the iteration.
-It starts from the last converged solution and repeats three moves — reassemble at the
-current iterate, solve for the correction, add it:
+{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` drives every solve: a
+linear one is a single increment from 0, a non-linear one iterates from the last
+converged solution, repeating three moves — reassemble at the current iterate, solve for
+the correction, add it:
 
 ```python
-u = self._Get_u_n(problemType)                  # a copy, so `u += ...` is safe
+x = self._Get_u_n(problem)                      # a copy, so `x += ...` is safe
+self.__trial_solution = (problem, x)            # cleared on exit
 
-while not converged and newtonIter < maxIter:
-    self.Need_Update()                          # rebuild A and R at the current u
-    self.__Solver_Set_Newton_Raphson_current_solution(u)
-
-    delta_u, norm = Solve_simu(self, self.problemType)
-    relNorm = norm / list_norm[0]
-    u += delta_u
-
-    converged = (norm < absTol) or (relNorm < relTol) or (norm_delta_u < incTol)
-
-assert converged, "..."
+for _ in range(maxIter):
+    dx, norm = self.__Solver_Solve_Iter(problem, x)   # Need_Update, A, b(x), solve
+    x += dx
+    converged = (norm < absTol) or (relNorm < relTol) or (norm_dx < incTol)
+    if converged:
+        break
 ```
 
 `Need_Update()` is what makes this Newton rather than a fixed-point iteration: it
 invalidates the cached matrices, so the terms are re-evaluated, giving the tangent
-**and** the residual at the new iterate. Setting the current solution just before is
-what lets both the assembly and the boundary conditions see it.
+**and** the residual at the new iterate. The trial solution,
+{py:meth}`~EasyFEA.Simulations._Simu._Solver_Get_trial_solution`, is what lets both the
+assembly and the boundary conditions see it.
 
 ### What the norm measures
 
@@ -136,9 +134,8 @@ eliminated. Restricting to free dofs is deliberate — at a prescribed dof the r
 the reaction, which is not an equilibrium error and never vanishes. Under MPI the
 per-rank contributions are reduced across ranks.
 
-Because the unknown is $\Delta \urm$, the prescribed values are incremental too:
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Apply_Dirichlet` subtracts the current
-iterate and imposes $\urm_{\text{target}} - \urm$. The full boundary jump is therefore
+Because the unknown is $\Delta \urm$, the prescribed values are incremental too: the
+solve subtracts the current iterate and imposes $\urm_{\text{target}} - \urm$. The full boundary jump is therefore
 applied on the first iteration and decays to zero as $\urm$ reaches the target — which
 is why the first residual is large, and why $\text{relNorm}$ reads as a fraction of the
 load step's initial imbalance.

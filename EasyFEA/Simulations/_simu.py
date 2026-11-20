@@ -59,13 +59,14 @@ from ..Models import _IModel
 from ._problem_type import ProblemType
 from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
-from ._linear_system import _LinearSystem
+from ._linear_system import _Entries, _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from .Solvers import (
-    Solve_simu,
     SolverType,
     ResolType,
     CAN_USE_PYPARDISO,
+    _Backend,
+    _Check_saddle_point_solver,
     _Get_PETSc,
     _PETSc_Free,
 )
@@ -161,6 +162,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
     _resolution: ResolType | None = None
     """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
+    __trial_solution: tuple | None = None
+    """`(problem, x)` the solve iterates on, None outside a solve"""
 
     # ----------------------------------------------
     # Abstract method
@@ -1457,7 +1460,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Get_u_v_a(
         self, problemType: ProblemType | None = None
     ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-        r"""Returns the current iterate :math:`(\mathrm{u}_t, \vrm_t, \arm_t)`, evaluated at the time scheme's own evaluation point: from the Newton iterate when nonlinear, from the state at n otherwise; None for a role the scheme does not integrate."""
+        r"""Returns the current iterate :math:`(\mathrm{u}_t, \vrm_t, \arm_t)`, evaluated at the time scheme's own evaluation point: from the trial solution when nonlinear, from the state at n otherwise; None for a role the scheme does not integrate."""
 
         if problemType is None:
             problemType = self.problemType
@@ -1468,7 +1471,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         scheme = self.timeScheme
 
         if self.isNonLinear:
-            x = self._Solver_Get_Newton_Raphson_current_solution(problemType)
+            x = self._Solver_Get_trial_solution(problemType)
         else:
             x = {"u": u_n, "v": v_n, "a": a_n}[scheme.unknown]
 
@@ -1637,22 +1640,58 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         system = self._Get_linear_system(problem)
         self.__orphanWarned = False
 
-        if self.isNonLinear:
-            u, newtonIter, timeIter, list_norm_r = self._Solver_Solve_Newton_Raphson(
-                problem
-            )
-            self._Iter_Record(
-                newtonIter=newtonIter, timeIter=timeIter, list_norm_r=list_norm_r
-            )
+        isNonLinear = self.isNonLinear
+        if isNonLinear:
+            absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
+            name = ", ".join(self.__Fields(problem))
+            if MPI_RANK == 0:
+                Terminal.Section(f"{name} problem at iteration {self.Niter}")
+            x = self._Get_u_n(problem)
         else:
-            u, _ = Solve_simu(self, problem)
+            maxIter = 1
+            x = np.zeros(self.__Get_size(problem))
+
+        tic = Tic()
+        norms: list[float] = []
+        converged = not isNonLinear
+        self.__trial_solution = (problem, x)
+        try:
+            for _ in range(maxIter):
+                dx, rhsNorm = self.__Solver_Solve_Iter(problem, x)
+                x += dx
+                if not isNonLinear:
+                    break
+                norms.append(rhsNorm)
+                relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
+                if MPI_RANK == 0:
+                    print(
+                        f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
+                    )
+                # over the owned rows, so that every rank takes the same branch
+                owned = dx[self.Get_dofs(problem)]
+                dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
+                converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
+                if converged:
+                    break
+        finally:
+            self.__trial_solution = None
+
+        if isNonLinear:
+            timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
+            if not converged:
+                raise AssertionError(
+                    f"Newton raphson algorithm did not converged in {len(norms)} iterations."
+                )
+            self._Iter_Record(
+                newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms
+            )
 
         if isinstance(problem, tuple):
             for field, weights in system.pinnedWeights.items():
-                self.__Shift_to_zero_mean(problem, field, weights, u)
+                self.__Shift_to_zero_mean(problem, field, weights, x)
 
         solutions = self.timeScheme.Evaluate_np1(
-            u, self._Get_u_n(problem), self._Get_v_n(problem), self._Get_a_n(problem)
+            x, self._Get_u_n(problem), self._Get_v_n(problem), self._Get_a_n(problem)
         )
 
         self._Set_solutions(problem, *solutions)
@@ -1701,106 +1740,98 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
         return weights
 
-    def __Solver_Set_Newton_Raphson_current_solution(
-        self, problem: ProblemType | tuple[ProblemType, ...], solution: np.ndarray
-    ) -> None:
-        """Sets the current newton raphson solution of the problem, its fields end to end."""
-        assert self.isNonLinear, (
-            "You can't use this function if the simulation is linear."
-        )
-        self.__current_newton_raphson_problem = problem
-        self.__current_newton_raphson_solution = solution
-
-    def _Solver_Get_Newton_Raphson_current_solution(
+    def _Solver_Get_trial_solution(
         self, problemType: ProblemType | None = None
     ) -> np.ndarray:
-        """Returns the current newton raphson solution of the problem type's field (default the simulation's), a view into the problem's vector."""
-        assert self.isNonLinear, (
-            "You can't use this function if the simulation is linear."
-        )
-        solution = self.__current_newton_raphson_solution
-        problem = self.__current_newton_raphson_problem
-        if not isinstance(problem, tuple):
-            return solution
+        """The solve's iterate of the problem type's field (default the simulation's), a view into the problem's vector; `u_n` outside a solve."""
         if problemType is None:
             problemType = self.problemType
+        if self.__trial_solution is None:
+            return self._Get_u_n(problemType)
+        problem, x = self.__trial_solution
+        if not isinstance(problem, tuple):
+            return x if problem == problemType else self._Get_u_n(problemType)
+        if problemType not in problem:
+            return self._Get_u_n(problemType)
         start = self.__Get_offsets(problem)[problem.index(problemType)]
-        return solution[start : start + self.__Get_size(problemType)]
+        return x[start : start + self.__Get_size(problemType)]
 
-    def _Solver_Solve_Newton_Raphson(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> tuple[_types.FloatArray, int, float, list[float]]:
-        """Solves the non-linear problem using the newton raphson algorithm.\n
-
-        Used to solve A(u) Δu = - R(u).
-
-        Parameters
-        ----------
-        problemType : ProblemType | tuple[ProblemType, ...], optional
-            A problem type, or a monolithic problem, solved as the monolithic problem holding it, by default self.problemType's
-
-        Returns
-        -------
-        tuple[_types.FloatArray, int, float, list[float]]
-            return u (the problem's fields end to end), Niter, timeIter, list_norm_r
-
-        WARNING
-        -------
-        The terms returned by `Get_terms` must supply `K` and `F`, where `K` is the tangent matrix and `F` the residual.\n
-        """
-
-        newtonIter = 0
-        converged = False
-        problem = self._Get_monolithic_problem(problemType)
-
-        tic = Tic()
-
-        # init the newton raphson solution
-        u = self._Get_u_n(problem)
-
-        # init convergence list
-        list_norm: list[float] = []
-
-        name = ", ".join(self.__Fields(problem))
-        if MPI_RANK == 0:
-            Terminal.Section(f"{name} problem at iteration {self.Niter}")
-
-        absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
-
-        while not converged and newtonIter < maxIter:
-            newtonIter += 1
-            # we must update the matrix system at each newton iteration.
+    def __Solver_Solve_Iter(
+        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    ) -> tuple[_types.FloatArray, float]:
+        """Increment of `x` and the residual norm of `A dx = b(x)` under the resolution."""
+        if self.isNonLinear:
             self.Need_Update(problem)
-
-            # Compute delta_u and the residual norm (with the applied boundary conditions)
-            self.__Solver_Set_Newton_Raphson_current_solution(problem, u)
-            delta_u, norm = Solve_simu(self, problem)
-            assert isinstance(norm, float)
-            list_norm.append(norm)
-            relNorm = norm / list_norm[0] if list_norm[0] > 0 else 0.0
-
-            if MPI_RANK == 0:
-                print(
-                    # f"At Newton iteration {newtonIter} norm is {norm:14.12e}"
-                    f"At Newton iteration {newtonIter} relative norm is {relNorm:14.12e}"
-                )
-
-            # ||delta_u|| over the owned rows, so that every rank takes the same branch
-            owned = delta_u[self.Get_dofs(problem)]
-            norm_delta_u = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
-            # update the newton raphson solution
-            u += delta_u
-
-            converged = (norm < absTol) or (relNorm < relTol) or (norm_delta_u < incTol)
-
-        timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
-
-        if not converged:
-            raise AssertionError(
-                f"Newton raphson algorithm did not converged in {newtonIter} iterations."
+        # A refreshed on the system
+        _, b = self._Solver_Get_A_b(problem)
+        self.__Warn_orphan_conditions(problem)
+        system = self._Get_linear_system(problem)
+        size, Ndof = x.size, b.size
+        hasLagrange = Ndof > size
+        resolution = self._resolution or (ResolType.r2 if hasLagrange else ResolType.r1)
+        if hasLagrange and resolution != ResolType.r2:
+            raise NotImplementedError(
+                f"{resolution} does not support Lagrange conditions."
             )
 
-        return u, newtonIter, timeIter, list_norm
+        dofs = self.__Compose(problem, self.Bc_dofs_Dirichlet, isDofs=True)
+        dofs = np.asarray(dofs, dtype=int)
+        dofsValues = self.__Compose(problem, self.Bc_values_Dirichlet) - x[dofs]
+        if self.timeScheme.unknown == "a":
+            # the solve variable is a^n: constrained DOFs have zero acceleration
+            dofsValues = np.zeros_like(dofsValues)
+        dx = np.zeros(Ndof, dtype=float)
+        np.add.at(dx, dofs, dofsValues)
+
+        known = np.zeros(Ndof, dtype=bool)
+        known[self.Bc_dofs_known_unknown(problem)[0]] = True
+
+        extra, lagrange, dropped = _Entries.Empty(), (), None
+        if resolution == ResolType.r2:
+            assert not isinstance(problem, tuple)
+            extra, lagrange = self.__Solver_Lagrange_border(problem, system, b, x)
+        elif resolution == ResolType.r3:
+            # every dof unknown, the known rows 1.0 on the diagonal
+            knownDofs = np.flatnonzero(known)
+            extra = _Entries(knownDofs, knownDofs, np.ones(knownDofs.size))
+            dropped, known = known, np.zeros(Ndof, dtype=bool)
+
+        rhsNorm = system.Solve(
+            b,
+            dx,
+            known,
+            self.mesh.comm,
+            _Backend(self, problem, system),
+            eliminate=self.solver != SolverType.petsc,
+            extra=extra,
+            lagrange=lagrange,
+            dropped=dropped,
+        )
+        return dx[:size], rhsNorm
+
+    def __Solver_Lagrange_border(
+        self,
+        problem: ProblemType,
+        system: _LinearSystem,
+        b: _types.FloatArray,
+        x: _types.FloatArray,
+    ) -> tuple[_Entries, tuple]:
+        """A's border by the Lagrange conditions scaled by `max|A|`, their rows of b set on the increment from `x`, and their dofs."""
+        if MPI_SIZE > 1:
+            raise NotImplementedError(
+                "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
+            )
+        _Check_saddle_point_solver(self, problem)
+        alpha = system.Get_alpha()
+        conditions = self.Bc_Lagrange
+        pieces = []
+        for i, condition in enumerate(conditions, x.size):
+            dofs = condition.dofs
+            coefs = alpha * condition.lagrangeCoefs
+            line = np.full(dofs.size, i)
+            pieces += [_Entries(line, dofs, coefs), _Entries(dofs, line, coefs)]
+            b[i] = alpha * condition.dofsValues[0] - coefs @ x[dofs]
+        return _Entries.Concatenate(pieces), tuple(c.dofs for c in conditions)
 
     def _Solver_Get_load(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
@@ -1822,18 +1853,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         load += system.Get_load(layout, Ndof)
         return load
 
-    def _Solver_Apply_Neumann(
+    def __Get_b(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
-        """b of `A x = b`: the load minus the internal forces at x, 0 when linear, the Newton iterate otherwise; Lagrange rows included."""
+        """b of `A dx = b`: the load minus the internal forces, at the trial solution when nonlinear, at 0 when linear; Lagrange rows included."""
         tic = Tic()
 
         load = self.__Get_load(problemType)
         system = self._Get_linear_system(problemType)
         if self.isNonLinear:
-            x = self.__Compose(
-                problemType, self._Solver_Get_Newton_Raphson_current_solution
-            )
+            x = self.__Compose(problemType, self._Solver_Get_trial_solution)
         elif system.internal:
             # R is folded at u_n, not at x = 0
             raise ValueError(
@@ -1854,33 +1883,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic.Tac("Solver", f"b ({problemType})", self._verbosity)
 
         return b
-
-    def _Solver_Apply_Dirichlet(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A, and x holding the known values (increments when nonlinear) at the Dirichlet dofs, 0 elsewhere."""
-
-        dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
-        dofsValues = self.__Compose(problemType, self.Bc_values_Dirichlet)
-
-        tic = Tic()
-
-        A = self.__Get_A(problemType)
-        self.__Warn_orphan_conditions(problemType)
-
-        tic.Tac("Solver", f"Construct A ({problemType})", self._verbosity)
-
-        if self.isNonLinear:
-            # set incremental dof values
-            dofsValues -= self.__current_newton_raphson_solution[dofs]
-
-        if self.timeScheme.unknown == "a":
-            # the solve variable is a^n: constrained DOFs have zero acceleration
-            dofsValues = np.zeros_like(dofsValues)
-
-        x = np.zeros(self.__Get_size(problemType), dtype=float)
-        np.add.at(x, np.asarray(dofs, dtype=int), dofsValues)
-        return A, x
 
     def __Get_A(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -1908,9 +1910,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Get_A_b(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b of the monolithic problem holding `problemType`, before Dirichlet; A is the object the solve uses, never write into it."""
-        problem = self._Get_monolithic_problem(problemType)
-        b = self._Solver_Apply_Neumann(problem)
+        """A and b at the trial solution, before Dirichlet, of the monolithic problem holding `problemType` or of the fields given; A is the object the solve uses, never write into it."""
+        if isinstance(problemType, tuple) and len(problemType) > 1:
+            problem = problemType
+        else:
+            problem = self._Get_monolithic_problem(problemType)
+        b = self.__Get_b(problem)
         return self.__Get_A(problem), b
 
     def _Bc_dofs_orphan(

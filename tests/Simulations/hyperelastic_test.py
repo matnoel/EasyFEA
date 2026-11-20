@@ -72,7 +72,7 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
         simu = Simulations.HyperElastic(mesh, material)
         monkeypatch.setattr(
             simu,
-            "_Solver_Get_Newton_Raphson_current_solution",
+            "_Solver_Get_trial_solution",
             lambda problemType=None: u,
         )
         K = simu.Assembly()[0]
@@ -94,7 +94,7 @@ def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatc
     simu = _svk_bar(bar_mesh("TRI3"))
     monkeypatch.setattr(
         simu,
-        "_Solver_Get_Newton_Raphson_current_solution",
+        "_Solver_Get_trial_solution",
         lambda problemType=None: simu.displacement,
     )
     simu.Assembly()
@@ -137,7 +137,7 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     u_np1 = rng.standard_normal(n) * 0.05
     monkeypatch.setattr(
         simu,
-        "_Solver_Get_Newton_Raphson_current_solution",
+        "_Solver_Get_trial_solution",
         lambda problemType=None: u_np1,
     )
 
@@ -298,9 +298,7 @@ def _stretched_box(elemType: ElemType, order: int | None = None):
     u = np.zeros((x.size, 3))
     u[:, 0] = 0.05 * x * (1 + y * z)
     simu._Set_solutions(simu.problemType, u.ravel())
-    simu._Solver_Get_Newton_Raphson_current_solution = lambda problemType=None: (
-        u.ravel()
-    )  # type: ignore [method-assign]
+    simu._Solver_Get_trial_solution = lambda problemType=None: u.ravel()  # type: ignore [method-assign]
     return simu
 
 
@@ -329,7 +327,7 @@ def test_HyperElastic_K_per_element_reaches_the_assembly(subtests, monkeypatch):
         simu = Simulations.HyperElastic(mesh, Models.HyperElastic.NeoHookean(2, K))
         monkeypatch.setattr(
             simu,
-            "_Solver_Get_Newton_Raphson_current_solution",
+            "_Solver_Get_trial_solution",
             lambda problemType=None: u,
         )
         return simu.Assembly()[0].toarray()

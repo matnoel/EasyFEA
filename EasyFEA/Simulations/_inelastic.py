@@ -181,7 +181,7 @@ class InElastic(_Simu):
     def __Assemble(
         self, groupElem: _GroupElem, matrixType: MatrixType = MatrixType.rigi
     ) -> tuple[np.ndarray, np.ndarray]:
-        u = self._Solver_Get_Newton_Raphson_current_solution()
+        u = self._Solver_Get_trial_solution()
         sigma_e_pg, C_e_pg, _ = self.__Integrate(u, groupElem)
 
         tic = Tic()

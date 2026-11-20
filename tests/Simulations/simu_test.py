@@ -1094,7 +1094,7 @@ def test_Simu__Solver_Get_A_b_subtracts_an_internal_force_Assembly_leaves_out(
     monkeypatch.setattr(type(simu), "isNonLinear", True)
     monkeypatch.setattr(
         simu,
-        "_Solver_Get_Newton_Raphson_current_solution",
+        "_Solver_Get_trial_solution",
         lambda problemType=None: np.zeros(mesh.Nn),
     )
     (load, b_load), (F, b_force) = F_b("KF"), F_b("KR")
@@ -1156,9 +1156,7 @@ def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the
     mesh = Domain((0, 0), (1, 1)).Mesh_2D()
     simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
     u = np.arange(mesh.Nn, dtype=float)
-    monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
-    )
+    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda problemType=None: u)
 
     K = simu.Assembly()[0]
     _, b = simu._Solver_Get_A_b()
@@ -1173,9 +1171,7 @@ def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space(monkey
     simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
     # the vertices only: fewer DOFs than nodes
     u = np.arange(meshP1._Get_FunctionSpace(simu.problemType).Nn, dtype=float)
-    monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
-    )
+    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda problemType=None: u)
 
     K = simu.Assembly()[0]
     _, b = simu._Solver_Get_A_b()
@@ -1185,19 +1181,17 @@ def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space(monkey
     assert np.allclose(b, -K @ u)
 
 
-def test_Simu__Solver_Apply_Neumann_reads_a_block_term_on_its_column_field(monkeypatch):
+def test_Simu__Solver_Get_A_b_reads_a_block_term_on_its_column_field(monkeypatch):
     U = Simulations.PhaseField.U
     D = Simulations.PhaseField.D
     simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
     mesh = simu.mesh
     x = {U: np.arange(2 * mesh.Nn) / 7.0, D: np.ones(mesh.Nn)}
     monkeypatch.setattr(type(simu), "isNonLinear", True)
-    monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda pt=None: x[pt]
-    )
+    monkeypatch.setattr(simu, "_Solver_Get_trial_solution", lambda pt=None: x[pt])
 
     K, _, _, F = simu.Assembly((U, D))
-    b = simu._Solver_Apply_Neumann((U, D))
+    _, b = simu._Solver_Get_A_b((U, D))
 
     x_ud = np.concatenate([x[U], x[D]])
     assert np.abs(K[2 * mesh.Nn :, : 2 * mesh.Nn] @ x[U]).max() > 0
@@ -1401,7 +1395,7 @@ def test_Simu_Get_u_v_a_evaluates_the_newton_iterate_at_the_scheme_point(
     u_n, v_n, a_n, u_np1 = _states(simu)
     monkeypatch.setattr(
         simu,
-        "_Solver_Get_Newton_Raphson_current_solution",
+        "_Solver_Get_trial_solution",
         lambda problemType=None: u_np1,
     )
 
@@ -1570,58 +1564,49 @@ def test_TimeSchemes_Elliptic_Evaluate_np1_leaves_v_and_a():
     assert TimeSchemes.Elliptic().Evaluate_np1(np.zeros(1), 0, 0, 0)[1:] == (None, None)
 
 
-def test_Simu__Solver_Get_Newton_Raphson_current_solution_is_the_last_iterate():
+def test_Simu__Solver_Get_trial_solution_is_the_last_iterate():
     simu = _hyperelastic(False)
     simu.Solve()
 
-    current = simu._Solver_Get_Newton_Raphson_current_solution()
+    current = simu._Solver_Get_trial_solution()
 
     assert rel_error(current, simu.displacement) < 1e-6
-    with pytest.raises(AssertionError, match="linear"):
-        _elastic_bar()._Solver_Get_Newton_Raphson_current_solution()
 
 
-def test_Simu__Solver_Solve_Newton_Raphson_accepts_a_zero_first_residual(recwarn):
+def test_Simu_Solve_newton_accepts_a_zero_first_residual(recwarn):
     """An unloaded solve starts at equilibrium: the relative norm must not divide by zero."""
     mesh = _bar()
     simu = Simulations.HyperElastic(mesh, Models.HyperElastic.NeoHookean(2, K=1e3))
     nodes0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     simu.add_dirichlet(nodes0, [0, 0], simu.Get_unknowns())
 
-    u, newtonIter, _, norms = simu._Solver_Solve_Newton_Raphson()
+    u = simu.Solve()
+    record = simu._variables.record
 
-    assert np.all(u == 0) and newtonIter == 1 and norms == [0.0]
+    assert np.all(u == 0) and record["newtonIter"] == 1
+    assert record["list_norm_r"] == [0.0]
     assert not [w for w in recwarn if issubclass(w.category, RuntimeWarning)]
 
 
-def test_Simu__Solver_Solve_Newton_Raphson_raises_when_it_does_not_converge():
+def test_Simu_Solve_newton_raises_when_it_does_not_converge():
     simu = _hyperelastic(False)
     simu._Solver_Set_Newton_Raphson_Algorithm(1e-14, 1e-14, 1e-14, maxIter=2)
     simu.Bc_Init()
     _reference.pull_bar(simu, 0.5)
 
     with pytest.raises(AssertionError, match="did not converged"):
-        simu._Solver_Solve_Newton_Raphson()
+        simu.Solve()
 
 
-def test_Simu__Solver_Apply_Neumann_is_the_load_when_static():
+def test_Simu__Solver_Get_A_b_is_the_load_when_static():
     simu = _elastic_bar()
     nodes = simu.mesh.Nodes_Conditions(lambda x, y, z: x == L)
     simu.add_neumann(nodes, [5.0], ["y"])
 
-    b = simu._Solver_Apply_Neumann(simu.problemType)
+    _, b = simu._Solver_Get_A_b()
 
     assert b.shape == (simu.mesh.Nn * 2,)
     assert np.array_equal(b, simu.Bc_vector_Neumann())
-
-
-def test_Simu__Solver_Apply_Dirichlet_holds_the_known_values():
-    simu = _elastic_bar()
-
-    A, x = simu._Solver_Apply_Dirichlet(simu.problemType)
-
-    assert (A != simu.Assembly()[0]).nnz == 0
-    assert np.array_equal(x, simu.Bc_vector_Dirichlet())
 
 
 INVALID_PETSC = {
