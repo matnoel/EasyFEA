@@ -4,7 +4,7 @@
 
 """Linear system `A x = b` of one problem."""
 
-from typing import Callable, NamedTuple
+from typing import TYPE_CHECKING, Callable, NamedTuple
 
 import numpy as np
 from scipy import sparse
@@ -29,6 +29,9 @@ from .Solvers import (
     _Solve_Axb,
     _Solver,
 )
+
+if TYPE_CHECKING:
+    from ..FEM import _GroupElem
 
 
 class _Lagrange(NamedTuple):
@@ -72,6 +75,11 @@ class _LinearSystem:
         """the free dofs the pinned ones were found for"""
         self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
         self.__pinnedWeights: dict = {}
+        self.__dofsLayout: tuple = ()
+        self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
+        """`{(field, group): dofs_e}` on `__dofsLayout`"""
+        self.__connectedKey: tuple = ()
+        self.__connected: _types.BoolArray | None = None
 
     def __getstate__(self) -> dict:
         # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy rebuilds its contributions
@@ -80,6 +88,8 @@ class _LinearSystem:
             "_LinearSystem__list_contribution": [],
             "_LinearSystem__A": None,
             "_LinearSystem__list_contributionA": [],
+            "_LinearSystem__dict_dofs_e": {},
+            "_LinearSystem__connected": None,
             "_LinearSystem__exchange": None,
             "_LinearSystem__petsc": _PETScSolver(),
         }
@@ -144,12 +154,16 @@ class _LinearSystem:
         self.__list_contribution = list_contribution
 
     def Connected_rows(self, layout: tuple, Ndof: int) -> _types.BoolArray:
-        """Rows a K, C or M contribution of the last contributions fills, ghost elements included."""
-        rows = np.zeros(Ndof, dtype=bool)
-        for c in self.__list_contribution:
-            if c.slot in "KCM":
-                rows[_Dofs_e(layout, c.block[0], c.group)] = True
-        return rows
+        """Rows a K, C or M contribution of the last contributions fills, ghost elements included; a copy."""
+        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
+        key = (layout, Ndof, _Contributing(list_contribution))
+        if self.__connected is None or key != self.__connectedKey:
+            rows = np.zeros(Ndof, dtype=bool)
+            for c in list_contribution:
+                rows[self.__Dofs_e(layout, c.block[0], c.group)] = True
+            self.__connected = rows
+            self.__connectedKey = key
+        return self.__connected.copy()
 
     def Get_A(
         self,
@@ -209,7 +223,8 @@ class _LinearSystem:
             solver, lambda: bool(lagrange) or self.__Has_zero_diagonal(A, comm)
         )
 
-        residual = b - A @ x
+        # a linear step's x is often 0: no lift
+        residual = b - A @ x if x.any() else b.copy()
         # the multipliers past the dofs
         rhsNorm = _Residual_norm(residual[self.rows[self.rows < size]], comm)
 
@@ -257,7 +272,7 @@ class _LinearSystem:
         pieces = [
             (c, c.coef * c.array) for c in self.__list_contribution if c.slot == "F"
         ]
-        return _Scatter(pieces, layout, Ndof)
+        return self.__Scatter(pieces, layout, Ndof)
 
     @property
     def internal(self) -> bool:
@@ -271,7 +286,9 @@ class _LinearSystem:
         layout: tuple,
     ) -> _types.FloatArray:
         """`load − Σ coef·R − Σ coef·X_e·field` over the last contributions, X_e of the terms declaring no R; a None field is skipped."""
-        return load + _Scatter(self.__Pieces(fields, layout, True), layout, load.size)
+        return load + self.__Scatter(
+            self.__Pieces(fields, layout, True), layout, load.size
+        )
 
     def Get_product(
         self,
@@ -280,7 +297,7 @@ class _LinearSystem:
         Ndof: int,
     ) -> _types.FloatArray:
         """`Σ coef·X_e·field` over the last contributions' K, C and M, each slot on its field; a None field is skipped."""
-        return _Scatter(self.__Pieces(fields, layout, False), layout, Ndof)
+        return self.__Scatter(self.__Pieces(fields, layout, False), layout, Ndof)
 
     def __Pieces(
         self,
@@ -289,6 +306,8 @@ class _LinearSystem:
         forB: bool,
     ) -> list[tuple[_Contribution, np.ndarray]]:
         """Element vectors of `coef·X_e·field`, or of b's `−coef·R` and `−coef·X_e·field` over the linear terms."""
+        # contributions sharing one array (a term and its scaled copies) take one matmul on their summed fields
+        shared: dict[tuple, list] = {}
         pieces = []
         for c in self.__list_contribution:
             if c.slot == "R":
@@ -298,10 +317,52 @@ class _LinearSystem:
                 field = fields["KCM".index(c.slot)]
                 if field is None:
                     continue
-                x_e = field[_Dofs_e(layout, c.block[1], c.group)]
                 coef = -c.coef if forB else c.coef
-                pieces.append((c, coef * np.matmul(c.array, x_e[..., None])[..., 0]))
+                key = (id(c.array), c.block, c.group)
+                if key in shared:
+                    shared[key][1] += coef * field
+                else:
+                    shared[key] = [c, coef * field]
+        for c, field in shared.values():
+            x_e = field[self.__Dofs_e(layout, c.block[1], c.group)]
+            pieces.append((c, np.matmul(c.array, x_e[..., None])[..., 0]))
         return pieces
+
+    def __Dofs_e(
+        self, layout: tuple, field: str, group: "_GroupElem"
+    ) -> _types.IntArray:
+        """`field`'s dofs on each element of `group`, in the problem's vector; kept while `layout` holds."""
+        if layout != self.__dofsLayout:
+            self.__dofsLayout = layout
+            self.__dict_dofs_e = {}
+        dofs_e = self.__dict_dofs_e.get((field, group))
+        if dofs_e is None:
+            dofs_e = _Dofs_e(layout, field, group)
+            dofs_e.flags.writeable = False
+            self.__dict_dofs_e[field, group] = dofs_e
+        return dofs_e
+
+    def __Scatter(
+        self, pieces: list[tuple[_Contribution, np.ndarray]], layout: tuple, Ndof: int
+    ) -> _types.FloatArray:
+        """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
+        if not pieces:
+            return np.zeros(Ndof)
+        rows = np.concatenate(
+            [self.__Dofs_e(layout, c.block[0], c.group).ravel() for c, _ in pieces]
+        )
+        data = np.concatenate([vector.ravel() for _, vector in pieces])
+        if np.iscomplexobj(data):
+            raise TypeError("Complex systems are not supported.")
+        return np.bincount(rows, weights=data, minlength=Ndof)
+
+
+def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
+    """`field`'s dofs on each element of `group`, in the problem's vector."""
+    for problemType, space, dof_n, offset in layout:
+        if problemType == field:
+            return space.Get_assembly_e(group, dof_n) + offset
+    raise KeyError(field)
 
 
 def _Sizes(list_contribution: list[_Contribution]) -> dict:
@@ -356,29 +417,6 @@ def _Sum(
     # canonical by construction: no sort before the backends
     A.has_canonical_format = True
     return A
-
-
-def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
-    """`field`'s dofs on each element of `group`, in the problem's vector."""
-    for problemType, space, dof_n, offset in layout:
-        if problemType == field:
-            return space.Get_assembly_e(group, dof_n) + offset
-    raise KeyError(field)
-
-
-def _Scatter(
-    pieces: list[tuple[_Contribution, np.ndarray]], layout: tuple, Ndof: int
-) -> _types.FloatArray:
-    """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
-    if not pieces:
-        return np.zeros(Ndof)
-    rows = np.concatenate(
-        [_Dofs_e(layout, c.block[0], c.group).ravel() for c, _ in pieces]
-    )
-    data = np.concatenate([vector.ravel() for _, vector in pieces])
-    if np.iscomplexobj(data):
-        raise TypeError("Complex systems are not supported.")
-    return np.bincount(rows, weights=data, minlength=Ndof)
 
 
 def _Border(

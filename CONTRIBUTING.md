@@ -135,8 +135,8 @@ test of its own: it is tested through the names that use it.
    name deserves to be public, or another public result can be checked instead.
 
 4. **Check exact values, without solving.** Compare to a result known in closed form (a
-   bar in tension, a linear heat slab), or to the assembled system (`Assembly`). When
-   a test needs a solution, set it with `_Set_solutions` rather than calling `Solve`.
+   bar in tension, a linear heat slab), or to the assembled system (`Assembly`). When a
+   test needs a solution, set it with `_Set_solutions` rather than calling `Solve`.
    Solve only when the solve itself is under test (`Solve`, `SolverType`,
    `Solver_Set_*`, `DIC.Solve`, …), on at most 4 elements, or for a `Beam` closed form.
    Full simulations are covered by the examples, which the documentation build runs.

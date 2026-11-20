@@ -728,6 +728,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """The current solve already warned about conditions on orphan dofs."""
 
         # Solver used
+        self.__dict_solver: dict[ProblemType | tuple[ProblemType, ...], SolverType] = {}
+        """Solver of a problem key overriding `solver`; kept across mesh changes."""
         if MPI_SIZE > 1:
             if _Get_PETSc() is None:
                 raise ModuleNotFoundError(
@@ -1336,14 +1338,43 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Terminal.MyPrintError(
                 f"The solver {value} cannot be used. The solver must be in {solvers}"
             )
-        elif MPI_SIZE > 1 and value != SolverType.petsc:
-            raise ValueError(
-                f"Only petsc solves a system distributed over the ranks, not {value}."
-            )
         else:
-            if value != SolverType.petsc:
-                self.__Free_solvers()
+            self.__Check_distributed(value)
             self.__solver = value
+            self.__Free_solvers(
+                [
+                    problem
+                    for problem in self.__linearSystems
+                    if self._Solver_Get(problem) != SolverType.petsc
+                ]
+            )
+
+    def _Solver_Set(
+        self,
+        solverType: SolverType | None,
+        problemType: ProblemType | tuple[ProblemType, ...],
+    ) -> None:
+        """Sets the solver of one problem key, `None` = back to `solver`; frees that key's kept PETSc solver on leaving petsc."""
+        if solverType is None:
+            self.__dict_solver.pop(problemType, None)
+        else:
+            self.__Check_distributed(solverType)
+            self.__dict_solver[problemType] = SolverType(solverType)
+        if self._Solver_Get(problemType) != SolverType.petsc:
+            self.__Free_solvers([problemType])
+
+    @staticmethod
+    def __Check_distributed(solverType: str) -> None:
+        if MPI_SIZE > 1 and solverType != SolverType.petsc:
+            raise ValueError(
+                f"Only petsc solves a system distributed over the ranks, not {solverType}."
+            )
+
+    def _Solver_Get(
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> SolverType:
+        """Solver of one problem key: its own, else `solver`."""
+        return SolverType(self.__dict_solver.get(problemType, self.solver))
 
     def __getstate__(self) -> dict:
         # PETSc objects do not pickle: a copy builds its own, in its own systems
@@ -1778,12 +1809,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 lagrange.append(_Lagrange(dofs, coefs, value))
         resolution = self._resolution or (ResolType.r2 if lagrange else ResolType.r1)
 
+        solverType = self._Solver_Get(problem)
         options = ("", "", "")
-        if self.solver == SolverType.petsc:
+        if solverType == SolverType.petsc:
             options = self._Solver_Get_PETSc4Py_Options(problem)
         lb, ub = self._Solver_Get_lb_ub(problem)
         solver = _Solver(
-            SolverType(self.solver),
+            solverType,
             options,
             self._Solver_Get_x0(problem),
             lb,
@@ -1800,7 +1832,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             lagrange=lagrange,
             resolution=resolution,
         )
-        backend = ", ".join(options) if self.solver == SolverType.petsc else self.solver
+        backend = ", ".join(options) if solverType == SolverType.petsc else solverType
         tic.Tac("Solver", f"Solve {problem} ({backend})", self._verbosity)
         return y[:size], rhsNorm
 
@@ -1911,14 +1943,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.__orphanWarned:
             return
         self.__orphanWarned = True
-        conditions = [
-            self.__Compose(problemType, Bc_dofs, isDofs=True)
-            for Bc_dofs in (self.Bc_dofs_Neumann, self.Bc_dofs_Dirichlet)
-        ]
-        orphans = np.intersect1d(
-            self._Bc_dofs_orphan(problemType), self.Get_dofs(problemType)
-        )
-        touched = np.isin(orphans, np.concatenate(conditions)).sum()
+        orphans = self._Bc_dofs_orphan(problemType)
+        touched = 0
+        if orphans.size > 0:
+            conditions = [
+                self.__Compose(problemType, Bc_dofs, isDofs=True)
+                for Bc_dofs in (self.Bc_dofs_Neumann, self.Bc_dofs_Dirichlet)
+            ]
+            orphans = np.intersect1d(orphans, self.Get_dofs(problemType))
+            touched = np.isin(orphans, np.concatenate(conditions)).sum()
         touched = Reduce_sum(int(touched), self.mesh.comm)
         if touched > 0:
             Terminal.MyPrintError(

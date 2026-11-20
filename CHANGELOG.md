@@ -29,12 +29,10 @@ This document describes the changes made to the project.
 - `_GroupElem._global_to_local_nodes` renamed `_nodesIdx`, a read-only property.
 - PETSc, serial and MPI, keeps its matrix and solver between solves: refilled when `A`
   changes, rebuilt when the known dofs or the mesh do. LU factors are kept, so a Newmark
-  step with a constant `A` takes ~15 ms instead of ~1 s (47k dofs). GAMG reuses its
+  step with a constant `A` takes ~20 ms instead of ~1 s (47k dofs). GAMG reuses its
   interpolation on a refill (PETSc's default): iterative solutions move within the
   solver tolerance. PETSc options set elsewhere after the first solve are read only when
   `_Solver_Set_PETSc4Py_Options` is called again.
-- Assembled `K`, `C`, `M` are read-only; `Assembly` returns the previous matrix while
-  its `constant=True` terms are unchanged.
 - `Result` on a rank gives its rows, ghosts included, equal to the serial ones: nodal
   averages of element values are exact at the partition interfaces.
   `Results_Reshape_values` split into `Results_Reshape_values_n` and
@@ -91,6 +89,29 @@ This document describes the changes made to the project.
   or group; an `R` stays in `R`, negated into `F` by `Assembly`.
 - `_Construct_local_matrix_system` is removed: `Get_terms` is the only extension point
   of assembly.
+- `Get_K_C_M_F` is removed. `Assembly(problemType)` returns `K`, `C`, `M` (csr, one
+  pattern) and `F` as a 1-D array, built on each call and never read by a solve: `A` and
+  `b` are summed from the contributions, no sparse `K`, `C`, `M` stored.
+- `Calc_Energy(slot, x, problemType=None, dofs=None)` takes the slot (`"K"` strain,
+  `"M"` kinetic), not a matrix. `Calc_Reaction` and `Calc_Resultant` take `slots`, the
+  scheme's by default; `Calc_Reaction()` leaves out the Lagrange rows.
+- `Need_Update(problemType=None)` marks stale the problems sharing a field with
+  `problemType`, every problem by default (was a bool).
+- `mesh.orphanNodes` is removed. A dof in no element and no Lagrange condition is known,
+  0 unless a Dirichlet value sets it, under every resolution; a load or a Dirichlet
+  condition on one warns once per solve.
+- Lagrange conditions, or any saddle point, raise `ValueError` unless the solver factors
+  it: pypardiso, scipy, or PETSc `preonly`, `lu` with an external package (mumps or
+  superlu_dist under MPI).
+- `Solvers.Solve_simu`, `_Solver_Apply_Dirichlet`, `_Solver_Apply_Neumann` and
+  `_Solver_Solve_Newton_Raphson` are removed: linear and Newton solves take one path,
+  `_Solver_Get_A_b(problemType)` gives `A` and `b` before Dirichlet.
+- `_Solver_Set(solverType, problemType)` sets one problem's solver, `None` back to
+  `solver`. PhaseField's damage on `lsq_linear` (`BoundConstrain`) no longer swaps the
+  displacement's solver, whose PETSc solver is kept between staggered iterations.
+- Newmark step with a constant `A`, 47k dofs, PETSc LU: 23 → 19 ms (Rayleigh 30 → 21
+  ms), `b` from element products on the kept contributions. Newton steps unchanged,
+  PhaseField's ~1 % slower (energies by element products).
 
 ## 7.3.0 (November 13, 2026):
 

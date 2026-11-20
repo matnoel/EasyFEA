@@ -136,10 +136,10 @@ the reaction, which is not an equilibrium error and never vanishes. Under MPI th
 per-rank contributions are reduced across ranks.
 
 Because the unknown is $\Delta \urm$, the prescribed values are incremental too: the
-solve subtracts the current iterate and imposes $\urm_{\text{target}} - \urm$. The full boundary jump is therefore
-applied on the first iteration and decays to zero as $\urm$ reaches the target — which
-is why the first residual is large, and why $\text{relNorm}$ reads as a fraction of the
-load step's initial imbalance.
+solve subtracts the current iterate and imposes $\urm_{\text{target}} - \urm$. The full
+boundary jump is therefore applied on the first iteration and decays to zero as $\urm$
+reaches the target — which is why the first residual is large, and why $\text{relNorm}$
+reads as a fraction of the load step's initial imbalance.
 
 ### Stopping
 

@@ -110,8 +110,6 @@ class PhaseField(_Simu):
         self.__resumeIter = ""
         self._Iter_Record(Niter=0, timeIter=0.0, convIter=0.0, damageMax=0.0)
 
-        self.__displacement_solver = self.solver
-
         self._Solver_Set_PETSc4Py_Options(
             "cg",
             "gamg",
@@ -238,12 +236,21 @@ class PhaseField(_Simu):
         old_damage = self.damage
 
         solver = self.phaseFieldModel.solver
+        if solver == Models.PhaseField.SolverType.BoundConstrain:
+            if MPI_SIZE > 1:
+                raise NotImplementedError(
+                    "BoundConstrain bounds the damage with lsq_linear, which is serial: use History or HistoryDamage under MPI."
+                )
+            self._Solver_Set(SolverType.lsq_linear, self.D)
+        else:
+            self._Solver_Set(None, self.D)
 
         if convOption == 2:
             fu = self._Solver_Get_load(self.U)
             # A vector of zeros when no external body and surface forces are applied.
 
         tic = Tic()
+        E_np1 = 0.0
 
         while not converged and Niter < maxIter:
             Niter += 1
@@ -251,7 +258,11 @@ class PhaseField(_Simu):
             d_n = self.damage
             u_n = self.displacement
 
-            if convOption == 1:
+            if convOption in [1, 2] and Niter > 1:
+                # u and d unchanged since the last E_np1
+                E_n = E_np1
+
+            elif convOption == 1:
                 E_n = self._Calc_Psi_Crack()
 
             elif convOption == 2:
@@ -385,7 +396,6 @@ class PhaseField(_Simu):
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
 
-        self.solver = self.__displacement_solver
         self._Solver_Solve_problemType(self.U)
 
         return self.displacement
@@ -476,12 +486,6 @@ class PhaseField(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
-        if self.phaseFieldModel.solver == Models.PhaseField.SolverType.BoundConstrain:
-            if MPI_SIZE > 1:
-                raise NotImplementedError(
-                    "BoundConstrain bounds the damage with lsq_linear, which is serial: use History or HistoryDamage under MPI."
-                )
-            self.solver = SolverType.lsq_linear
         self._Solver_Solve_problemType(self.D)
 
         return self.damage
