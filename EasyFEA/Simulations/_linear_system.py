@@ -46,6 +46,7 @@ class _LinearSystem:
         self.__stamp = 0
         self.__patternStamp = 0
         self.__known: _types.BoolArray | None = None
+        self.__lagrange: tuple = ()
         self.rows: _types.IntArray = np.empty(0, dtype=int)
         """the owned unknowns, in PETSc order"""
         self.ids: _types.IntArray = np.empty(0, dtype=np.int64)
@@ -53,9 +54,15 @@ class _LinearSystem:
         self.rowIds: _types.IntArray = np.empty(0, dtype=np.int64)
         """`ids`, -1 at the ghost rows"""
         self.__numberingStamp = 0
+        self.__derived: tuple | None = None
+        """`(key, matrix, source, inverse)`: the entries `source` of A's then the extra ones, summed at `inverse`"""
+        self.__derivedValues: tuple = ()
+        self.__derivedStamps = (0, 0)
+        """pattern and values of the derived matrix"""
+        self.__alpha: tuple[int, float] = (0, 0.0)
         self.__solver: tuple | None = None
         """`(ksp, matrix)`"""
-        self.__solverStamps: tuple[int, int, int] | None = None
+        self.__solverStamps: tuple | None = None
         self.__pinnedFor: _types.BoolArray | None = None
         """the free dofs the pinned ones were found for"""
         self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
@@ -69,6 +76,8 @@ class _LinearSystem:
             "_LinearSystem__A": None,
             "_LinearSystem__AFold": [],
             "_LinearSystem__exchange": None,
+            "_LinearSystem__derived": None,
+            "_LinearSystem__derivedValues": (),
             "_LinearSystem__solver": None,
             "_LinearSystem__solverStamps": None,
         }
@@ -84,14 +93,23 @@ class _LinearSystem:
         """Copies onto the ghost rows of a vector of the problem their owners' values. Collective on `comm`."""
         Scatter_forward(values, self.Get_exchange(comm))
 
-    def Set_known(self, known: _types.BoolArray, comm) -> None:
-        """Numbers the owned unknowns rank after rank, kept until `known` changes on a rank. Collective on `comm`."""
-        changed = self.__known is None or not np.array_equal(known, self.__known)
+    def Set_known(self, known: _types.BoolArray, comm, lagrange: tuple = ()) -> None:
+        """Numbers the owned unknowns rank after rank, the multipliers past the dofs last, kept until `known` or the Lagrange conditions' dofs change on a rank. Collective on `comm`."""
+        changed = (
+            self.__known is None
+            or not np.array_equal(known, self.__known)
+            or len(lagrange) != len(self.__lagrange)
+            or not all(map(np.array_equal, lagrange, self.__lagrange))
+        )
         if not Reduce_max(changed, comm):
             return
         owned = np.zeros(known.size, dtype=bool)
-        owned[Owned(self.__owners, self.__rank)] = True
+        size = known.size if self.__owners is None else self.__owners.size
+        owned[:size][Owned(self.__owners, self.__rank)] = True
+        # the multipliers on the last rank
+        owned[size:] = comm is None or self.__rank == comm.Get_size() - 1
         self.__known = known
+        self.__lagrange = lagrange
         self.rows = np.flatnonzero(owned & ~known)
         ids = np.full(known.size, -1, dtype=np.int64)
         ids[self.rows] = Exscan_sum(self.rows.size, comm) + np.arange(self.rows.size)
@@ -105,19 +123,28 @@ class _LinearSystem:
         """The kept PETSc `(ksp, matrix)`."""
         return self.__solver
 
-    def Solver_update(self, comm) -> tuple[bool, bool]:
-        """Whether the kept solver must be laid out again (new pattern of A or numbering) and refilled (new A). Collective on `comm`."""
-        stamps = (self.__patternStamp, self.__numberingStamp, self.__stamp)
+    def __Stamps(self, derived: bool) -> tuple:
+        """Pattern, numbering and values of A or of the derived matrix."""
+        pattern, values = (
+            (("D", self.__derivedStamps[0]), ("D", self.__derivedStamps[1]))
+            if derived
+            else (("A", self.__patternStamp), ("A", self.__stamp))
+        )
+        return pattern, self.__numberingStamp, values
+
+    def Solver_update(self, comm, derived: bool = False) -> tuple[bool, bool]:
+        """Whether the kept solver must be laid out again (new pattern or numbering) and refilled (new values), for A or the derived matrix. Collective on `comm`."""
+        stamps = self.__Stamps(derived)
         kept = self.__solverStamps
         relayout = self.__solver is None or kept is None or stamps[:2] != kept[:2]
         refill = relayout or kept is None or stamps[2] != kept[2]
         relayout, refill = Reduce_sum(np.array([relayout, refill], dtype=int), comm)
         return bool(relayout), bool(refill)
 
-    def Set_solver(self, solver: tuple) -> None:
-        """Keeps `(ksp, matrix)`, laid out on the current pattern and numbering, filled with the current A."""
+    def Set_solver(self, solver: tuple, derived: bool = False) -> None:
+        """Keeps `(ksp, matrix)`, laid out and filled with A or the derived matrix."""
         self.__solver = solver
-        self.__solverStamps = (self.__patternStamp, self.__numberingStamp, self.__stamp)
+        self.__solverStamps = self.__Stamps(derived)
 
     def Take_solver(self) -> tuple | None:
         """The kept solver, no longer kept."""
@@ -190,6 +217,54 @@ class _LinearSystem:
         self.__AFold = fold
         self.__stamp += 1
         return A
+
+    def Get_alpha(self) -> float:
+        """`max|A.data|` of the kept A, once per A."""
+        assert self.__A is not None
+        if self.__alpha[0] != self.__stamp:
+            self.__alpha = (self.__stamp, float(np.abs(self.__A.data).max(initial=0.0)))
+        return self.__alpha[1]
+
+    def Get_derived(
+        self,
+        eliminate: bool,
+        extra: tuple[_types.IntArray, _types.IntArray, _types.FloatArray],
+        dropped: _types.BoolArray | None = None,
+    ) -> sparse.csr_matrix:
+        """The kept A plus the `extra` `(rows, cols, values)` entries, minus the `dropped` rows' entries, on the unknowns only when `eliminate`: one pattern per A's map, numbering and extra entries, the same object refilled in place."""
+        A = self.__A
+        assert A is not None and self.__known is not None
+        rows, cols, values = extra
+        key = (
+            self.__patternStamp,
+            self.__numberingStamp,
+            eliminate,
+            rows.tobytes(),
+            cols.tobytes(),
+            None if dropped is None else dropped.tobytes(),
+        )
+        if self.__derived is None or self.__derived[0] != key:
+            Ndof = A.shape[0]
+            if eliminate:
+                unknown = np.flatnonzero(~self.__known)
+                index = np.full(Ndof, -1)
+                index[unknown] = np.arange(unknown.size)
+            else:
+                index = np.arange(Ndof)
+            kept = np.ones(Ndof, dtype=bool) if dropped is None else ~dropped
+            matrix, source, inverse = _Derive(A, index, kept, rows, cols)
+            self.__derived = (key, matrix, source, inverse)
+            self.__derivedValues = ()
+            self.__derivedStamps = (self.__derivedStamps[0] + 1, self.__derivedStamps[1])
+
+        _, matrix, source, inverse = self.__derived
+        valuesKey = (self.__stamp, values.tobytes())
+        if self.__derivedValues != valuesKey:
+            entries = np.concatenate([A.data, values])[source]
+            matrix.data[:] = np.bincount(inverse, entries, matrix.data.size)
+            self.__derivedValues = valuesKey
+            self.__derivedStamps = (self.__derivedStamps[0], self.__derivedStamps[1] + 1)
+        return matrix
 
     def Get_operator(
         self,
@@ -303,6 +378,32 @@ def _Sum(
     # canonical by construction: Solvers skips its fixup
     A.has_canonical_format = True
     return A
+
+
+def _Derive(
+    A: sparse.csr_matrix,
+    index: _types.IntArray,
+    kept: _types.BoolArray,
+    rows: _types.IntArray,
+    cols: _types.IntArray,
+) -> tuple[sparse.csr_matrix, _types.IntArray, _types.IntArray]:
+    """Unfilled pattern of A's entries in `kept` rows plus the extra `(rows, cols)`, renumbered by `index` (-1 left out); the entries taken, A's then the extra ones, and each one's position."""
+    rowsA = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
+    rowsD = np.concatenate([index[rowsA], index[rows]])
+    colsD = np.concatenate([index[A.indices], index[cols]])
+    isKept = (rowsD >= 0) & (colsD >= 0)
+    isKept[: rowsA.size] &= kept[rowsA]
+    source = np.flatnonzero(isKept)
+    n = int(np.count_nonzero(index >= 0))
+    positions = rowsD[source] * n + colsD[source]
+    unique, inverse = np.unique(positions, return_inverse=True)
+    indptr = np.zeros(n + 1, dtype=np.int32)
+    np.cumsum(np.bincount(unique // n, minlength=n), out=indptr[1:])
+    matrix = sparse.csr_matrix(
+        (np.zeros(unique.size), (unique % n).astype(np.int32), indptr), shape=(n, n)
+    )
+    matrix.has_canonical_format = True
+    return matrix, source, inverse
 
 
 def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
