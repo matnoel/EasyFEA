@@ -129,13 +129,13 @@ test of its own: it is tested through the names that use it.
 
 3. **Test through the public API.** A test sees EasyFEA the way a user does: it builds
    its objects and checks its results with the names listed above, never with internal
-   ones. Assert on `simu.Get_K_C_M_F()` or `mesh.area`, not on a `__private` attribute;
+   ones. Assert on `simu.Assembly()` or `mesh.area`, not on a `__private` attribute;
    import from `EasyFEA.FEM`, not from `EasyFEA.FEM._mesh`. Then refactoring the
    internals never breaks a test. If a check seems to need an internal name, either that
    name deserves to be public, or another public result can be checked instead.
 
 4. **Check exact values, without solving.** Compare to a result known in closed form (a
-   bar in tension, a linear heat slab), or to the assembled system (`Get_K_C_M_F`). When
+   bar in tension, a linear heat slab), or to the assembled system (`Assembly`). When
    a test needs a solution, set it with `_Set_solutions` rather than calling `Solve`.
    Solve only when the solve itself is under test (`Solve`, `SolverType`,
    `Solver_Set_*`, `DIC.Solve`, …), on at most 4 elements, or for a `Beam` closed form.

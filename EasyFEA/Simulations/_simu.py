@@ -32,6 +32,7 @@ from ..Utilities._mpi import (
     MPI_RANK,
     Gather,
     Place_rows,
+    Reduce_max,
     Reduce_sum,
     Owned,
     Scatter_forward,
@@ -267,7 +268,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | tuple[ProblemType, ...] | None = None,
         dofs: _types.IntArray | None = None,
     ) -> float:
-        """Energy `1/2 xᵀ X x` of a dof vector of the monolithic problem holding `problemType`, X its folded `slot` (`"K"` strain, `"M"` kinetic), over the owned `dofs` (default `Get_dofs`): identical on every rank, collective on `mesh.comm`."""
+        """Energy `1/2 xᵀ X x`, X the folded `slot` (`"K"` strain, `"M"` kinetic), over the owned `dofs`; collective on `mesh.comm`."""
         if slot not in ("K", "C", "M"):
             raise ValueError(f"slot must be 'K', 'C' or 'M', not {slot!r}.")
         problem = self._Get_monolithic_problem(problemType)
@@ -297,13 +298,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if slots is None:
             roles = self.timeScheme.roles
             slots = "K" + "C" * ("v" in roles) + "M" * ("a" in roles)
-        Gets = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
-        fields = tuple(
-            Get(problem) if s in slots else None for s, Get in zip("KCM", Gets)
+        fields = (
+            self._Get_u_n(problem) if "K" in slots else None,
+            self._Get_v_n(problem) if "C" in slots else None,
+            self._Get_a_n(problem) if "M" in slots else None,
         )
         return self.__Get_product(problem, fields)
 
-    def __Get_isOwned(
+    def __Get_owned_mask(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> _types.BoolArray:
         """Whether this rank owns each dof of the problem."""
@@ -318,12 +320,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | None = None,
         slots: str | None = None,
     ) -> np.ndarray:
-        """Internal force at `dofs` (all by default), `K u`, `+ C v` (parabolic), `+ C v + M a` (hyperbolic), or of the given `slots` (e.g. `"K"`): `F` is not subtracted, so the reaction proper where no load is applied. Under MPI the rank's rows of `dofs`; their sum over the ranks is `Calc_Resultant`."""
+        """Internal force `K u + C v + M a` at `dofs` over the scheme's slots or the given `slots` (e.g. `"K"`), `F` not subtracted; under MPI the rank's rows."""
         problem = self._Get_monolithic_problem(problemType)
         reaction = self.__Get_reaction(problem, slots)
         if dofs is None:
             dofs = np.arange(reaction.size)
-        reaction[~self.__Get_isOwned(problem)] = 0.0
+        reaction[~self.__Get_owned_mask(problem)] = 0.0
         # a ghost row from its owner
         self._Get_linear_system(problem).Scatter_forward(reaction, self.mesh.comm)
         return reaction[dofs]
@@ -334,10 +336,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | None = None,
         slots: str | None = None,
     ) -> float:
-        """Resultant of :meth:`Calc_Reaction` over `dofs`, each dof counted once over the ranks: identical on every rank, collective on `mesh.comm`."""
+        """Sum of :meth:`Calc_Reaction` over `dofs`, each dof once over the ranks; collective on `mesh.comm`."""
         problem = self._Get_monolithic_problem(problemType)
         reaction = self.__Get_reaction(problem, slots)
-        isOwned = self.__Get_isOwned(problem)
+        isOwned = self.__Get_owned_mask(problem)
         dofs = np.asarray(dofs, dtype=int)
         resultant = float(np.sum(reaction[dofs[isOwned[dofs]]]))
         return Reduce_sum(resultant, self.mesh.comm)
@@ -708,8 +710,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__linearSystems: dict[
             ProblemType | tuple[ProblemType, ...], _LinearSystem
         ] = {}
-        self.__fresh: set[ProblemType | tuple[ProblemType, ...]] = set()
-        """problem keys whose kept fold is current"""
+        self.__dict_needUpdate: dict[ProblemType | tuple[ProblemType, ...], bool] = {}
+        """whether each problem key's kept fold is stale, a missing key stale"""
         self.mesh = mesh
 
         self.rho = 1.0
@@ -724,9 +726,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__isNonLinear = False
         """System type during simulation."""
         # a simulation is by default linear
-
-        self.__pinnedFields: set[ProblemType] = set()
-        """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
         self.__orphanWarned = False
         """The current solve already warned about conditions on orphan dofs."""
@@ -1110,9 +1109,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Get_linear_system(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> _LinearSystem:
-        """The linear system of a problem key, kept until the mesh changes."""
+        """The linear system of a problem key, kept until the mesh changes; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
         system = self.__linearSystems.get(problem)
         if system is None:
+            if isinstance(problem, tuple):
+                self.__Check_monolithic(problem)
             owners, rank = self.__Get_dof_owners(problem)
             globalIds = None
             if self.mesh.comm is not None:
@@ -1153,18 +1154,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> None:
         """Marks stale the fold of every problem sharing a field with `problemType`, of every problem by default: its next reader refolds."""
         if problemType is None:
-            self.__fresh = set()
+            self.__dict_needUpdate = {}
             return
         fields = set(self.__Fields(problemType))
-        self.__fresh = {
-            key for key in self.__fresh if fields.isdisjoint(self.__Fields(key))
+        self.__dict_needUpdate = {
+            key: needUpdate or not fields.isdisjoint(self.__Fields(key))
+            for key, needUpdate in self.__dict_needUpdate.items()
         }
 
     @property
     def needUpdate(self) -> bool:
         """Whether the fold of a problem of the simulation is stale."""
         return any(
-            self._Get_monolithic_problem(problem[0]) not in self.__fresh
+            self.__dict_needUpdate.get(self._Get_monolithic_problem(problem[0]), True)
             for problem in self._Get_monolithic_problems()
         )
 
@@ -1254,6 +1256,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         return tuple(layout), Ndof
 
+    @staticmethod
+    def __Blocks(
+        terms: dict[ProblemType, list[Term]],
+    ) -> Iterator[tuple[str, ProblemType, ProblemType]]:
+        """`(slot, rows, cols)` of each array the terms declare, a vector's `cols` its rows."""
+        for problemType, fieldTerms in terms.items():
+            for term in fieldTerms:
+                for slot, (rows, cols) in zip(
+                    term.slots, term._Get_blocks(problemType)
+                ):
+                    yield slot, rows, cols
+
     def __Fold(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> list[_Contribution]:
@@ -1267,20 +1281,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType: self.Get_terms(problemType) for problemType in problemTypes
         }
         filled = set()
-        for problemType in problemTypes:
-            for term in terms[problemType]:
-                for slot, (rows, cols) in zip(
-                    term.slots, term._Get_blocks(problemType)
-                ):
-                    if slot in "KCM" and cols not in problemTypes:
-                        raise ValueError(
-                            f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
-                        )
-                    if rows not in problemTypes:
-                        raise ValueError(
-                            f"A term fills {rows}'s equation: assemble ({fields}, {rows})."
-                        )
-                    filled.add(rows)
+        for slot, rows, cols in self.__Blocks(terms):
+            if slot in "KCM" and cols not in problemTypes:
+                raise ValueError(
+                    f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
+                )
+            if rows not in problemTypes:
+                raise ValueError(
+                    f"A term fills {rows}'s equation: assemble ({fields}, {rows})."
+                )
+            filled.add(rows)
         for problemType in problemTypes:
             if problemType not in filled:
                 raise ValueError(
@@ -1300,7 +1310,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, _types.FloatArray
     ]:
-        r"""K, C, M (csr, one pattern) and F (1-D, the terms' load) of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for a problem type (default the simulation's monolithic problem), or for several as one system ``[u | p | Lagrange]``; built on each call, never read by a solve. Raises on a block coupling to a field outside `problemType`."""
+        r"""K, C, M (csr, one pattern) and F (1-D, the terms' load) of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, of one or several fields ``[u | p | Lagrange]``; built on each call, never read by a solve."""
         if problemType is None:
             problemType = self._Get_monolithic_problem()
         problemTypes = self.__Fields(problemType)
@@ -1343,7 +1353,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         systems = {
             key: copy.copy(system) for key, system in self.__linearSystems.items()
         }
-        return {**self.__dict__, "_Simu__linearSystems": systems, "_Simu__fresh": set()}
+        return {
+            **self.__dict__,
+            "_Simu__linearSystems": systems,
+            "_Simu__dict_needUpdate": {},
+        }
 
     def _Solver_Set_TimeScheme(self, timeScheme: _TimeScheme) -> None:
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
@@ -1616,8 +1630,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         problem = self._Get_monolithic_problem(problemType)
         if isinstance(problem, tuple):
+            # a scheme or a Lagrange condition set since the system was created
             self.__Check_monolithic(problem)
-        self.__pinnedFields = set()
+        system = self._Get_linear_system(problem)
         self.__orphanWarned = False
 
         if self.isNonLinear:
@@ -1631,8 +1646,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             u, _ = Solve_simu(self, problem)
 
         if isinstance(problem, tuple):
-            for field in self.__pinnedFields:
-                self.__Shift_to_zero_mean(problem, field, u)
+            for field, weights in system.pinnedWeights.items():
+                self.__Shift_to_zero_mean(problem, field, weights, u)
 
         solutions = self.timeScheme.Evaluate_np1(
             u, self._Get_u_n(problem), self._Get_v_n(problem), self._Get_a_n(problem)
@@ -1659,26 +1674,30 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         problem: tuple[ProblemType, ...],
         field: ProblemType,
+        weights: _types.FloatArray,
         x: _types.FloatArray,
     ) -> None:
-        """Shifts a field pinned at one node to zero mean, ``∫ field dΩ = 0``, in place in the problem's vector `x`."""
-        space = self._Get_FunctionSpace(field)
-        weights = np.zeros(space.Nn)
-        dim = self.mesh.dim
-        for groupElem, spaceGroup in zip(
-            self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim)
-        ):
-            # ∫ N_i dΩ of each node
-            V_e = Operators.Linear.V(spaceGroup)
-            np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
+        """Shifts a field pinned at one node to zero mean, ``∫ field dΩ = 0`` with `weights` ``∫ N_i dΩ``, in place in the problem's vector `x`."""
         start = self.__Get_offsets(problem)[problem.index(field)]
-        values = x[start : start + space.Nn]
+        values = x[start : start + weights.size]
         owned = self.Get_dofs(field)
         comm = self.mesh.comm
         mean = Reduce_sum(weights[owned] @ values[owned], comm) / Reduce_sum(
             weights[owned].sum(), comm
         )
         values -= mean
+
+    def __Get_weights(self, field: ProblemType) -> _types.FloatArray:
+        """``∫ N_i dΩ`` of each node of a scalar field."""
+        space = self._Get_FunctionSpace(field)
+        weights = np.zeros(space.Nn)
+        dim = self.mesh.dim
+        for groupElem, spaceGroup in zip(
+            self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim)
+        ):
+            V_e = Operators.Linear.V(spaceGroup)
+            np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
+        return weights
 
     def __Solver_Set_Newton_Raphson_current_solution(
         self, problem: ProblemType | tuple[ProblemType, ...], solution: np.ndarray
@@ -1903,9 +1922,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> _LinearSystem:
         """The problem's linear system, refolded when stale."""
         system = self._Get_linear_system(problemType)
-        if problemType not in self.__fresh:
+        if self.__dict_needUpdate.get(problemType, True):
             system.Set_fold(self.__Fold(problemType))
-            self.__fresh = self.__fresh | {problemType}
+            self.__dict_needUpdate = {**self.__dict_needUpdate, problemType: False}
         return system
 
     def _Solver_Get_A_b(
@@ -2397,30 +2416,44 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Bc_dofs_pinned(
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
     ) -> _types.IntArray:
-        """DOF at global node 0 of each scalar field the system leaves free up to a constant: no diagonal block, and the other fields' free equations blind to a constant in it, ``‖K_rc[free] · 1‖ ≤ ε ‖K_rc[free]‖``. Pinned there on the ranks holding it, then shifted to zero mean after the solve."""
-        K = self.__Get_A(problem)
-        owned = np.zeros(K.shape[0], dtype=bool)
+        """Dofs pinning the fields left free up to a constant, kept by the problem's system until `free` changes. Collective on `mesh.comm`."""
+        system = self._Get_linear_system(problem)
+        comm = self.mesh.comm
+        if Reduce_max(not system.Pinned_for(free), comm):
+            system.Set_pinned(free, *self.__Find_pinned(problem, free))
+        return system.pinnedDofs
+
+    def __Find_pinned(
+        self, problem: tuple[ProblemType, ...], free: _types.BoolArray
+    ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
+        """DOF at global node 0 of each scalar field without a diagonal block whose constant the other fields' free equations are blind to, ``‖A_rc[free] · 1‖ ≤ ε ‖A_rc[free]‖``, and the field's zero-mean weights."""
+        terms = {field: self.Get_terms(field) for field in problem}
+        diagonal = {
+            rows
+            for slot, rows, cols in self.__Blocks(terms)
+            if slot in "KCM" and rows == cols
+        }
+        A = self.__Get_A(problem)
+        owned = np.zeros(A.shape[0], dtype=bool)
         owned[self.Get_dofs(problem)] = True
-        pinned = []
+        pinned: list[int] = []
+        weights = {}
         comm = self.mesh.comm
         for field, start in zip(problem, self.__Get_offsets(problem)):
-            if self.Get_dof_n(field) != 1:
+            if self.Get_dof_n(field) != 1 or field in diagonal:
                 continue
-            isField = np.zeros(K.shape[0], dtype=bool)
+            isField = np.zeros(A.shape[0], dtype=bool)
             isField[start : start + self.__Get_size(field)] = True
             # rows complete only where owned under MPI
-            K_c = K[:, isField]
-            if Reduce_sum(abs(K_c[owned & isField]).sum(), comm) > 0:
-                continue
-            K_rc = K_c[owned & free & ~isField]
-            constant = Reduce_sum(np.sum((K_rc @ np.ones(K_rc.shape[1])) ** 2), comm)
-            scale = Reduce_sum(K_rc.multiply(K_rc).sum(), comm)
+            A_rc = A[:, isField][owned & free & ~isField]
+            constant = Reduce_sum(np.sum((A_rc @ np.ones(A_rc.shape[1])) ** 2), comm)
+            scale = Reduce_sum(A_rc.multiply(A_rc).sum(), comm)
             if constant <= (1e-10) ** 2 * scale:
                 space = self._Get_FunctionSpace(field)
                 node = space.Get_dof_nodes(np.flatnonzero(space.globalNodes == 0))
                 pinned.extend(start + space.Get_dofs(node, 1))
-                self.__pinnedFields.add(field)
-        return np.asarray(pinned, dtype=int)
+                weights[field] = self.__Get_weights(field)
+        return np.asarray(pinned, dtype=np.int64), weights
 
     def Bc_dofs_nodes(
         self,

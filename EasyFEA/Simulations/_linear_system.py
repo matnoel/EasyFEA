@@ -56,6 +56,10 @@ class _LinearSystem:
         self.__solver: tuple | None = None
         """`(ksp, matrix)`"""
         self.__solverStamps: tuple[int, int, int] | None = None
+        self.__pinnedFor: _types.BoolArray | None = None
+        """the free dofs the pinned ones were found for"""
+        self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
+        self.__pinnedWeights: dict = {}
 
     def __getstate__(self) -> dict:
         # PETSc objects and graph communicators do not pickle, nor a term's bound method; a copy refolds
@@ -121,6 +125,28 @@ class _LinearSystem:
         self.__solver = None
         self.__solverStamps = None
         return solver
+
+    def Set_pinned(
+        self, free: _types.BoolArray, dofs: _types.IntArray, weights: dict
+    ) -> None:
+        """Keeps the pinned dofs and weights found for `free`."""
+        self.__pinnedFor = free.copy()
+        self.__pinnedDofs = dofs
+        self.__pinnedWeights = weights
+
+    def Pinned_for(self, free: _types.BoolArray) -> bool:
+        """Whether the kept pinned dofs were found for `free`."""
+        return self.__pinnedFor is not None and np.array_equal(free, self.__pinnedFor)
+
+    @property
+    def pinnedDofs(self) -> _types.IntArray:
+        """Dofs pinning a field left free up to a constant."""
+        return self.__pinnedDofs
+
+    @property
+    def pinnedWeights(self) -> dict:
+        """Zero-mean weights `∫ N_i dΩ` of each pinned field."""
+        return self.__pinnedWeights
 
     def Set_fold(self, fold: list[_Contribution]) -> None:
         """Keeps the last fold, A's source."""
@@ -209,30 +235,35 @@ class _LinearSystem:
         self,
         fields: tuple[_types.FloatArray | None, ...],
         layout: tuple,
-        isB: bool,
+        forB: bool,
     ) -> list[tuple[_Contribution, np.ndarray]]:
         """Element vectors of `coef·X_e·field`, or of b's `−coef·R` and `−coef·X_e·field` over the linear terms."""
         pieces = []
         for c in self.__fold:
             if c.slot == "R":
-                if isB:
+                if forB:
                     pieces.append((c, -c.coef * c.array))
-            elif c.slot in "KCM" and not (isB and "R" in c.term.slots):
+            elif c.slot in "KCM" and not (forB and "R" in c.term.slots):
                 field = fields["KCM".index(c.slot)]
                 if field is None:
                     continue
                 x_e = field[_Dofs_e(layout, c.block[1], c.group)]
-                coef = -c.coef if isB else c.coef
+                coef = -c.coef if forB else c.coef
                 pieces.append((c, coef * np.matmul(c.array, x_e[..., None])[..., 0]))
         return pieces
 
 
-def _Contributing(fold: list[_Contribution]) -> tuple:
-    """`(block, groups)` of every block `fold` fills, the order of its map."""
+def _Sizes(fold: list[_Contribution]) -> dict:
+    """`{block: {group: entries}}` of every block `fold` fills, the order of its map."""
     sizes: dict = {}
     for c in fold:
         sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
-    return tuple((block, tuple(groups)) for block, groups in sizes.items())
+    return sizes
+
+
+def _Contributing(fold: list[_Contribution]) -> tuple:
+    """`(block, groups)` of every block `fold` fills, the order of its map."""
+    return tuple((block, tuple(groups)) for block, groups in _Sizes(fold).items())
 
 
 def _Sum(
@@ -242,9 +273,7 @@ def _Sum(
     Get_map: Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]],
 ) -> sparse.csr_matrix:
     """`Σ coef_slot·coef·X_e` over `fold`'s K, C, M on their union map: a zero-coef slot in the pattern, not in the values."""
-    sizes: dict = {}
-    for c in fold:
-        sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
+    sizes = _Sizes(fold)
     # each (block, group)'s element entries, end to end in the map's order
     spans = {}
     size = 0
@@ -266,7 +295,8 @@ def _Sum(
     if size == 0:
         A = sparse.csr_matrix((Ndof, Ndof))
     else:
-        inv, indices, indptr, nnz = Get_map(_Contributing(fold))
+        contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
+        inv, indices, indptr, nnz = Get_map(contributing)
         assert entries.size == inv.size, "A's map does not match its contributions."
         data = np.bincount(inv, weights=entries, minlength=nnz)
         A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))

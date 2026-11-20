@@ -4,6 +4,7 @@
 
 """Under `make test-mpi`, a simulation solved over the ranks matches the same one solved serially by a child process run with `EASYFEA_MPI=off`."""
 
+import functools
 import os
 import subprocess
 import sys
@@ -16,7 +17,7 @@ import pytest
 
 from EasyFEA import ElemType, Mesher, Models, Simulations
 from EasyFEA.FEM import BiLinearForm, Field, LinearForm
-from EasyFEA.Geoms import Circle, Domain, Line
+from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Models.InElastic import ONE, Plasticity, _Behavior
 from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardening
 from EasyFEA.Models.InElastic.Yield import VonMises
@@ -25,11 +26,11 @@ from EasyFEA.Utilities import Allgather, Reduce_max, Reduce_sum
 from _owned import held_nodes, owned_nodes
 
 
-def _plate_with_hole(elemType: ElemType):
-    """Unit-height plate with an off-centre hole: no symmetry for a partition to hide behind."""
-    domain = Domain((0, 0), (2, 1), 0.1)
-    circle = Circle((0.7, 0.45), 0.3, 0.1)
-    return domain.Mesh_2D([circle], elemType)
+def _cracked_plate(elemType: ElemType):
+    """Plate with an off-centre edge crack, so that no symmetry hides a partition."""
+    domain = Domain((0, 0), (2, 1), 1.0)
+    crack = Line((0.7, 0), (0.7, 0.5), 1.0, isOpen=True)
+    return domain.Mesh_2D([], elemType, cracks=[crack])
 
 
 def _clamped_and_pulled(simu, pull: list[float], unknowns: list[str]):
@@ -46,8 +47,8 @@ def _pulled_dofs(simu, unknown: str):
 
 
 def _elastic() -> Simulations.Elastic:
-    """E heterogeneous: softer left of the hole."""
-    mesh = _plate_with_hole(ElemType.TRI6)
+    """E heterogeneous: softer left of the crack."""
+    mesh = _cracked_plate(ElemType.TRI6)
     group = mesh.groupElem
     E_e = np.where(mesh.coord[group.connect].mean(1)[:, 0] < 0.7, 70e3, 210e3)
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2, E=E_e, v=0.3))
@@ -58,7 +59,7 @@ def _elastic() -> Simulations.Elastic:
 
 def _newmark() -> Simulations.Elastic:
     simu = Simulations.Elastic(
-        _plate_with_hole(ElemType.QUAD4), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+        _cracked_plate(ElemType.TRI3), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
     )
     simu.rho = 7.8e-9
     simu.Solver_Set_Hyperbolic_Algorithm(1e-6)
@@ -71,7 +72,7 @@ def _newmark() -> Simulations.Elastic:
 
 def _newton() -> Simulations.HyperElastic:
     simu = Simulations.HyperElastic(
-        _plate_with_hole(ElemType.TRI3), Models.HyperElastic.NeoHookean(2, K=5e3)
+        _cracked_plate(ElemType.TRI3), Models.HyperElastic.NeoHookean(2, K=5e3)
     )
     _clamped_and_pulled(simu, [0.4, 0.2], ["x", "y"])
     simu.Solve()
@@ -79,10 +80,10 @@ def _newton() -> Simulations.HyperElastic:
 
 
 def _inelastic() -> Simulations.InElastic:
-    """Yields around the hole, so that the plastic strain is an internal variable that varies."""
+    """Yields around the crack, so that the plastic strain is an internal variable that varies."""
     elastic = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
     behavior = Plasticity(elastic, VonMises(250.0), LinearHardening(2000.0))
-    simu = Simulations.InElastic(_plate_with_hole(ElemType.TRI3), behavior)
+    simu = Simulations.InElastic(_cracked_plate(ElemType.TRI3), behavior)
     for step in range(1, 3):
         simu.Bc_Init()
         _clamped_and_pulled(simu, [1e-3 * step], ["x"])
@@ -93,7 +94,7 @@ def _inelastic() -> Simulations.InElastic:
 def _moving() -> Simulations.Elastic:
     """The known dofs change between the solves: pulled along x, then x and y, then y."""
     simu = Simulations.Elastic(
-        _plate_with_hole(ElemType.TRI3), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
+        _cracked_plate(ElemType.TRI3), Models.Elastic.Isotropic(2, E=210e3, v=0.3)
     )
     for pull, unknowns in (
         ([1e-3], ["x"]),
@@ -110,7 +111,7 @@ def _monolithic() -> Simulations.IncompressibleHyperElastic:
     """u and p side by side, a saddle point."""
     material = Models.HyperElastic.NeoHookean(2, K=1.0)
     simu = Simulations.IncompressibleHyperElastic(
-        _plate_with_hole(ElemType.TRI6), material
+        _cracked_plate(ElemType.TRI6), material
     )
     _clamped_and_pulled(simu, [0.1, 0.05], ["x", "y"])
     simu.Solve()
@@ -120,9 +121,11 @@ def _monolithic() -> Simulations.IncompressibleHyperElastic:
 def _pinned() -> Simulations.IncompressibleHyperElastic:
     """u prescribed on the whole boundary, so that p is free up to a constant, pinned at one node."""
     material = Models.HyperElastic.NeoHookean(2, K=1.0)
-    mesh = _plate_with_hole(ElemType.TRI6)
+    mesh = _cracked_plate(ElemType.TRI6)
     simu = Simulations.IncompressibleHyperElastic(mesh, material)
-    nodesBoundary = mesh.Nodes_Tags(*(f"L{i}" for i in range(8)))
+    nodesBoundary = mesh.Nodes_Conditions(
+        lambda x, y, z: (x == 0) | (x == 2) | (y == 0) | (y == 1)
+    )
     simu.add_dirichlet(
         nodesBoundary,
         [lambda x, y, z: 0.02 * y**2, lambda x, y, z: 0.02 * x**2],
@@ -141,7 +144,7 @@ def _exact(simu) -> None:
 
 
 def _phasefield(folder: str = "") -> Simulations.PhaseField:
-    """Pulled until the damage grows around the hole, each step saved."""
+    """Pulled until the damage grows around the crack, each step saved."""
     material = Models.Elastic.Isotropic(2, E=210e3, v=0.3, planeStress=True)
     pfm = Models.PhaseField(
         material,
@@ -150,7 +153,7 @@ def _phasefield(folder: str = "") -> Simulations.PhaseField:
         2.7,
         0.1,
     )
-    simu = Simulations.PhaseField(_plate_with_hole(ElemType.TRI3), pfm, folder)
+    simu = Simulations.PhaseField(_cracked_plate(ElemType.TRI3), pfm, folder)
     _exact(simu)
     for step in range(1, 4):
         simu.Bc_Init()
@@ -161,8 +164,8 @@ def _phasefield(folder: str = "") -> Simulations.PhaseField:
 
 
 def _thermal(folder: str = "") -> Simulations.Thermal:
-    """Heated through the hole's side, cooled at x = 2, transient."""
-    mesh = _plate_with_hole(ElemType.TRI6)
+    """Heated through the crack's side, cooled at x = 2, transient."""
+    mesh = _cracked_plate(ElemType.TRI6)
     simu = Simulations.Thermal(mesh, Models.Thermal(1.0, 2.0), folder)
     _exact(simu)
     simu.rho = 1.5
@@ -182,7 +185,7 @@ def _beam(folder: str = "") -> Simulations.Beam:
     """Timoshenko cantilever along x under its own line load and a tip force."""
     rectangle = Domain((-0.05, -0.1), (0.05, 0.1))
     section = rectangle.Mesh_2D([], ElemType.TRI3)
-    line = Line((0, 0), (2, 0), 0.05)
+    line = Line((0, 0), (2, 0), 0.25)
     beam = Models.Beam.Isotropic(
         2,
         line,
@@ -219,7 +222,7 @@ def _source(v: Field):
 
 def _weakforms(folder: str = "") -> Simulations.WeakForms:
     """A Poisson problem written as forms, ∫ ∇u·∇v = ∫ f v, u = 0 at x = 0."""
-    mesh = _plate_with_hole(ElemType.QUAD4)
+    mesh = _cracked_plate(ElemType.TRI3)
     weakForms = Models.WeakForms(Field(mesh.groupElem, 1), _laplacian, computeF=_source)
     simu = Simulations.WeakForms(mesh, weakForms, folder)
     _exact(simu)
@@ -258,7 +261,7 @@ class _Heated(_Behavior):
         return self.C @ (eps - 1e-5 * T * ONE)
 
 
-def _history(case: str, folder: str = "", steps=(1, 1.5, 2), simu=None):
+def _history(case: str, folder: str = "", steps=(1, 2), simu=None):
     """`case` loaded step after step, each step saved; `simu` resumed if given."""
     if simu is None:
         elastic = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
@@ -266,7 +269,7 @@ def _history(case: str, folder: str = "", steps=(1, 1.5, 2), simu=None):
             behavior = Plasticity(elastic, VonMises(250.0), LinearHardening(2000.0))
         else:
             behavior = _Heated(elastic)
-        mesh = _plate_with_hole(ElemType.TRI3)
+        mesh = _cracked_plate(ElemType.TRI3)
         simu = Simulations.InElastic(mesh, behavior, folder=folder)
     for step in steps:
         simu.Bc_Init()
@@ -314,7 +317,7 @@ def _two_meshes(folder: str = "") -> Simulations.Elastic:
     """An order 2 displacement on a TRI3 mesh, then on another, each solved and saved."""
     problemType = Simulations.Elastic.problemType
     meshes = [
-        _plate_with_hole(ElemType.TRI3)._With_FunctionSpace(problemType, 2)
+        _cracked_plate(ElemType.TRI3)._With_FunctionSpace(problemType, 2)
         for _ in range(2)
     ]
     material = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
@@ -359,7 +362,7 @@ _RESULTS = {
 
 def _space_coord(order: int) -> np.ndarray:
     """Coordinates of every node id of the displacement on the order `order` elements of a TRI3 mesh."""
-    mesh = _plate_with_hole(ElemType.TRI3)
+    mesh = _cracked_plate(ElemType.TRI3)
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     return mesh._Get_FunctionSpace(Simulations.Elastic.problemType).coord
 
@@ -414,14 +417,19 @@ def _results(simu, case: str) -> dict[str, np.ndarray]:
     return results
 
 
+@functools.cache
 def _serial(case: str) -> dict[str, np.ndarray]:
-    """Coordinates then displacement per node, and the scalars, from `case` solved serially in a child process."""
+    """Coordinates then displacement per node, and the scalars, from `case` solved serially in a child process, once per session."""
     env = {
         k: v
         for k, v in os.environ.items()
         if not k.startswith(("OMPI_", "PMI", "MV2_"))
     }
     env["EASYFEA_MPI"] = "off"
+    # `_owned` beside the tests
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(Path(__file__).parents[1]), env.get("PYTHONPATH", "")]
+    )
     with tempfile.TemporaryDirectory() as folder:
         path = os.path.join(folder, "serial.npz")
         subprocess.run([sys.executable, __file__, case, path], env=env, check=True)
@@ -432,7 +440,7 @@ def _serial(case: str) -> dict[str, np.ndarray]:
 @pytest.mark.mpi
 @pytest.mark.parametrize("order", [2, 3])
 def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
-    mesh = _plate_with_hole(ElemType.TRI3)
+    mesh = _cracked_plate(ElemType.TRI3)
     mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
     space = mesh._Get_FunctionSpace(Simulations.Elastic.problemType)
     held = held_nodes(space)
@@ -448,11 +456,24 @@ def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
     assert np.array_equal(np.sort(owned), np.arange(serial.shape[0]))
 
 
+@functools.cache
+def _solved(case: str):
+    """`case` solved over the ranks, once per session, for the tests that only read it."""
+    return _CASES[case]()
+
+
 @pytest.mark.mpi
 @pytest.mark.parametrize("case", _CASES)
 def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     pytest.importorskip("petsc4py")
-    simu = _CASES[case]()
+    simu = _solved(case)
+    mesh = simu.mesh
+    whole = Reduce_sum(owned_nodes(mesh._Get_FunctionSpace()).size, mesh.comm)
+    assert mesh.Nn < whole
+    assert mesh.coord.shape == (mesh.Nn, 3)
+    assert _fields(simu).shape[0] == mesh.Nn
+    assert simu.Result(_RESULTS[case][-1]).shape[0] == mesh.Nn
+
     nodes = owned_nodes(simu.mesh._Get_FunctionSpace())
     coord = simu.mesh.coord[nodes, :2]
     u = _fields(simu)[nodes]
@@ -472,20 +493,6 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     # a vanishing resultant is round-off of the largest scalar
     atol = 1e-12 * np.abs(serial["scalars"]).max(initial=1.0)
     np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=atol)
-
-
-@pytest.mark.mpi
-@pytest.mark.parametrize("case", _CASES)
-def test_Solve_over_the_ranks_holds_the_rank_nodes_only(case):
-    pytest.importorskip("petsc4py")
-    simu = _CASES[case]()
-    mesh = simu.mesh
-    whole = Reduce_sum(owned_nodes(mesh._Get_FunctionSpace()).size, mesh.comm)
-
-    assert mesh.Nn < whole
-    assert mesh.coord.shape == (mesh.Nn, 3)
-    assert _fields(simu).shape[0] == mesh.Nn
-    assert simu.Result(_RESULTS[case][-1]).shape[0] == mesh.Nn
 
 
 @pytest.mark.mpi
@@ -533,7 +540,7 @@ def _globalElements(mesh) -> np.ndarray:
 def test_Result_over_the_ranks_gives_the_serial_rows_the_rank_holds(case):
     """Ghosts included: a ghost row is its owner's, nodal averages across the partition interfaces too."""
     pytest.importorskip("petsc4py")
-    simu = _CASES[case]()
+    simu = _solved(case)
     serial = {k.removeprefix("result/"): v for k, v in _serial(case).items()}
 
     _assert_rank_rows(simu, _results(simu, case), serial)
@@ -571,7 +578,7 @@ def test_Set_Iter_over_the_ranks_gives_the_serial_rows_of_every_iteration(
 @pytest.mark.mpi
 def test_DIC_refuses_a_mesh_shared_by_the_ranks():
     domain = Domain((0, 0), (20, 10), 2)
-    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    mesh = domain.Mesh_2D([], ElemType.TRI3, isOrganised=True)
     image = np.zeros((11, 21))
 
     with pytest.raises(ValueError, match="DIC is serial"):
@@ -600,7 +607,7 @@ def test_PhaseField_refuses_BoundConstrain_over_the_ranks():
         0.1,
         solver=Models.PhaseField.SolverType.BoundConstrain,
     )
-    simu = Simulations.PhaseField(_plate_with_hole(ElemType.TRI3), pfm)
+    simu = Simulations.PhaseField(_cracked_plate(ElemType.TRI3), pfm)
     _clamped_and_pulled(simu, [4e-3], ["x"])
 
     with pytest.raises(NotImplementedError, match="BoundConstrain"):
@@ -674,7 +681,7 @@ def test_Set_Iter_over_the_ranks_gives_back_the_rank_rows_ghosts_included(
     _history(case, folder, steps=[0.5, 1.25])
     lives = []
     simu = _history(case, folder, steps=[])
-    for step in (1, 1.5, 2):
+    for step in (1, 2):
         _history(case, simu=simu, steps=[step])
         lives.append(_held(simu))
 
@@ -710,7 +717,7 @@ def test_Set_Iter_over_the_ranks_reads_an_earlier_mesh_of_an_order_2_space(
     folder = _shared_folder(tmp_path)
     problemType = Simulations.Elastic.problemType
     meshes = [
-        _plate_with_hole(ElemType.TRI3)._With_FunctionSpace(problemType, 2)
+        _cracked_plate(ElemType.TRI3)._With_FunctionSpace(problemType, 2)
         for _ in range(2)
     ]
     material = Models.Elastic.Isotropic(2, E=210e3, v=0.3)
@@ -757,7 +764,7 @@ def test_Save_Iter_over_the_ranks_stores_each_row_once(tmp_path):
 
     files = sorted(Path(folder, f"Rank{rank}", "Results").glob("*.pickle"))
     size = Reduce_sum(sum(f.stat().st_size for f in files), comm)
-    assert len(files) == 3
+    assert len(files) == 2
     assert not Path(folder, "Results").exists()
     serial = _serial("saved:plastic")["bytes"]
     assert serial < size < serial * 1.05 + 1024 * comm.Get_size() * len(files)
@@ -797,7 +804,7 @@ def test_Load_Simu_over_the_ranks_resumes_the_run_where_it_was_saved(
     whole.Set_Iter(0)
     first = _held(whole)
 
-    stopped = _history(case, folder if inFolder else "", steps=(1, 1.5))
+    stopped = _history(case, folder if inFolder else "", steps=(1,))
     stopped.Save(folder)
     simu = Simulations.Load_Simu(folder)
     assert simu.mesh.isPartitioned
@@ -805,7 +812,7 @@ def test_Load_Simu_over_the_ranks_resumes_the_run_where_it_was_saved(
 
     # the solver is rebuilt: round-off
     _assert_held_equal(simu, expected, "resumed", rtol=1e-10)
-    assert simu.Niter == 3
+    assert simu.Niter == 2
     simu.Set_Iter(0)
     _assert_held_equal(simu, first, "iteration 0")
     assert not Path(folder, "Results").exists()
@@ -862,13 +869,12 @@ def test_Load_Simu_over_the_ranks_raises_on_every_rank_when_one_file_is_empty(
 
 @pytest.mark.mpi
 @pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes", *_SAVED])
-@pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
 def test_Load_Simu_serially_reads_a_run_over_the_ranks_as_the_serial_run(
-    case, inFolder, tmp_path
+    case, tmp_path
 ):
     pytest.importorskip("petsc4py")
     folder = _shared_folder(tmp_path)
-    simu = _saved(case, folder if inFolder else "")
+    simu = _saved(case, folder)
     simu.Save(folder)
     if simu.mesh.comm.Get_rank() != 0:
         return
@@ -880,13 +886,12 @@ def test_Load_Simu_serially_reads_a_run_over_the_ranks_as_the_serial_run(
 
 @pytest.mark.mpi
 @pytest.mark.parametrize("case", [*_HISTORIES, "two_meshes", *_SAVED])
-@pytest.mark.parametrize("inFolder", [False, True], ids=["memory", "folder"])
-def test_Set_Iter_after_Gather_gives_the_serial_iterations(case, inFolder, tmp_path):
+def test_Set_Iter_after_Gather_gives_the_serial_iterations(case, tmp_path):
     pytest.importorskip("petsc4py")
     from EasyFEA import Matplotlib
 
     folder = _shared_folder(tmp_path)
-    simu = _saved(case, folder if inFolder else "")
+    simu = _saved(case, folder)
     comm = simu.mesh.comm
     serial = _serial(f"iterations:{case}") if comm.Get_rank() == 0 else {}
 

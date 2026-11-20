@@ -613,11 +613,10 @@ def _PETSc_Free(system: _LinearSystem) -> None:
     if solver is None:
         return
     ksp, matrix = solver
-    comm = ksp.getComm()
-    ksp.destroy()
-    matrix.destroy()
     # flush any remaining petsc4py reference cycles as suggested here:
     # https://gitlab.com/petsc/petsc/-/work_items/1309
     PETSc = _Get_PETSc()
     assert PETSc is not None
-    PETSc.garbage_cleanup(comm)
+    PETSc.garbage_cleanup(ksp.getComm())
+    ksp.destroy()
+    matrix.destroy()

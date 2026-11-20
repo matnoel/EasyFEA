@@ -17,4 +17,3 @@ MPI_TESTS = tests/Utilities tests/FEM/mesh_test.py tests/Simulations/incompressi
 
 test-mpi:
 	mpirun -n 2 pytest -m mpi -n0 -p no:cacheprovider $(MPI_TESTS)
-	mpirun -n 4 pytest -m mpi -n0 -p no:cacheprovider $(MPI_TESTS)

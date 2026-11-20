@@ -29,6 +29,18 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(skip)
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call):
+    """Under `mpirun`, a failure on one rank aborts every rank: the others would wait for it in a collective forever."""
+    outcome = yield
+    report = outcome.get_result()
+    if MPI_SIZE > 1 and report.failed:
+        from EasyFEA.Utilities._mpi import MPI_COMM
+
+        print(f"\n{report.nodeid} FAILED\n{report.longreprtext}", flush=True)
+        MPI_COMM.Abort(1)
+
+
 L = 2
 H = 1
 B = 1
