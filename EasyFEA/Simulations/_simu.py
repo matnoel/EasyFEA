@@ -21,7 +21,6 @@ from ..__about__ import __version__
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _params, _types
 from ..Utilities._cache import (
-    cache_computed_values,
     clear_cached_computed_values,
 )
 from ..Utilities._observers import Observable, _IObserver
@@ -59,6 +58,7 @@ from ..Models import _IModel
 from ._problem_type import ProblemType, TrialSolution
 from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
+from ._assembly import _Assembly, _Blocks, _Dof_layout
 from ._linear_system import _Lagrange, _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from .Solvers import SolverType, ResolType, CAN_USE_PYPARDISO, _Get_PETSc, _Solver
@@ -280,9 +280,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         fields: tuple[_types.FloatArray | None, ...],
     ) -> _types.FloatArray:
         """`K·u + C·v + M·a` of the problem's kept fold, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
-        system = self.__Get_folded(problem)
-        layout, Ndof = self.__Get_layout(self.__Fields(problem))
-        return system.Get_product(fields, layout, Ndof)[: self.__Get_size(problem)]
+        assembly = self.__Get_folded(problem)
+        layout, Ndof = _Dof_layout(self, self.__Fields(problem))
+        return assembly.Get_product(fields, layout, Ndof)[: self.__Get_size(problem)]
 
     def __Get_reaction(
         self, problem: ProblemType | tuple[ProblemType, ...], slots: str | None
@@ -707,6 +707,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__linearSystems: dict[
             ProblemType | tuple[ProblemType, ...], _LinearSystem
         ] = {}
+        self.__assemblies: dict[ProblemType | tuple[ProblemType, ...], _Assembly] = {}
         self.__dict_needUpdate: dict[ProblemType | tuple[ProblemType, ...], bool] = {}
         """whether each problem key's kept fold is stale, a missing key stale"""
         self.mesh = mesh
@@ -1121,6 +1122,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__linearSystems[problem] = system
         return system
 
+    def __Get_assembly(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _Assembly:
+        """The assembly of a problem key, kept until the mesh changes; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
+        assembly = self.__assemblies.get(problem)
+        if assembly is None:
+            if isinstance(problem, tuple):
+                self.__Check_monolithic(problem)
+            assembly = _Assembly()
+            self.__assemblies[problem] = assembly
+        return assembly
+
     def __Get_dof_globalIds(
         self, problem: ProblemType | tuple[ProblemType, ...]
     ) -> _types.IntArray:
@@ -1144,9 +1157,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 system.Free_solver()
 
     def __Drop_linear_systems(self) -> None:
-        """Forgets every linear system: the mesh they were built on changed. Collective."""
+        """Forgets every linear system and assembly: the mesh they were built on changed. Collective."""
         self.__Free_solvers()
         self.__linearSystems = {}
+        self.__assemblies = {}
 
     def Need_Update(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
@@ -1173,100 +1187,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Solver
     # ----------------------------------------------
 
-    @cache_computed_values
-    def __Get_csr_map(
-        self,
-        layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
-        isMatrix: bool,
-        Ndof: int,
-        contributing: tuple,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
-        """Reduction map from element entries to global CSR slots for one assembly key.
-
-        Returns ``(inv, indices, indptr, nnz)``: ``inv[k]`` is the CSR-data slot that element entry ``k``
-        feeds, and ``(indices, indptr, nnz)`` is scipy's canonical pattern. Depends only on connectivity, so
-        ``@cache_computed_values`` (keyed on ``layout, isMatrix, Ndof, contributing``) reuses it across every
-        assembly of a key and rebuilds it when the spaces / groups / Ndof / dof_n change or the mesh is reset. ``inv``
-        is the single largest cached array; int32 halves it and is safe since slots are bounded by nnz < 2^31.
-        """
-        shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
-        byField = {
-            problemType: (functionSpace, dof_n, offset)
-            for problemType, functionSpace, dof_n, offset in layout
-        }
-
-        list_rows, list_cols = [], []
-        for block, groups in contributing:
-            r, c = block if isMatrix else (block, block)
-            space_r, dof_n_r, offset_r = byField[r]
-            space_c, dof_n_c, offset_c = byField[c]
-            for groupElem in groups:
-                rows_e = space_r.Get_assembly_e(groupElem, dof_n_r) + offset_r
-                if isMatrix:
-                    cols_e = space_c.Get_assembly_e(groupElem, dof_n_c) + offset_c
-                    list_rows.append(
-                        _FunctionSpace._Get_rows_e(rows_e, cols_e.shape[1]).ravel()
-                    )
-                    list_cols.append(
-                        _FunctionSpace._Get_columns_e(cols_e, rows_e.shape[1]).ravel()
-                    )
-                else:
-                    list_rows.append(rows_e.ravel())
-                    list_cols.append(np.zeros(rows_e.size, dtype=rows_e.dtype))
-        rows = np.concatenate(list_rows)
-        cols = np.concatenate(list_cols)
-
-        # scipy owns the canonical sparsity pattern; build it once from a structure-only matrix (the values
-        # are irrelevant — only the nonzero positions matter).
-        matrix = sparse.csr_matrix((np.ones(rows.size), (rows, cols)), shape=shape)
-        matrix.sort_indices()
-
-        # `canon` is the sorted linear (row-major) index of each stored coefficient; `searchsorted` maps each
-        # element entry to the slot whose `(row, col)` it matches. Building the map from scipy's own pattern
-        # (rather than a parallel hand-built one) is correct by construction, independent of any sort order.
-        ncol = Ndof if isMatrix else 1
-        canon = (
-            np.repeat(np.arange(shape[0]), np.diff(matrix.indptr)) * ncol
-            + matrix.indices
-        )
-        inv = np.searchsorted(canon, rows.astype(np.int64) * ncol + cols).astype(
-            np.int32
-        )
-        return inv, matrix.indices, matrix.indptr, matrix.nnz
-
-    def __Get_layout(
-        self, problemTypes: tuple[ProblemType, ...]
-    ) -> tuple[tuple[tuple[ProblemType, _FunctionSpace, int, int], ...], int]:
-        """`(problemType, space, dof_n, offset)` of each field, side by side in the given order, and Ndof, every Lagrange dof after them."""
-        layout = []
-        offset = 0
-        for problemType in problemTypes:
-            layout.append(
-                (
-                    problemType,
-                    self._Get_FunctionSpace(problemType),
-                    self.Get_dof_n(problemType),
-                    offset,
-                )
-            )
-            offset += self.__Get_size(problemType)
-        Ndof = offset + sum(
-            self._Bc_Lagrange_dim(problemType) for problemType in problemTypes
-        )
-        return tuple(layout), Ndof
-
-    @staticmethod
-    def __Blocks(
-        terms: dict[ProblemType, list[Term]],
-    ) -> Iterator[tuple[str, ProblemType, ProblemType]]:
-        """`(slot, rows, cols)` of each array the terms declare, a vector's `cols` its rows."""
-        for problemType, fieldTerms in terms.items():
-            for term in fieldTerms:
-                for slot, (rows, cols) in zip(
-                    term.slots, term._Get_blocks(problemType)
-                ):
-                    yield slot, rows, cols
-
     def __Get_list_contribution(
         self, problem: ProblemType | tuple[ProblemType, ...], x: TrialSolution
     ) -> list[_Contribution]:
@@ -1280,7 +1200,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType: self.Get_terms(x, problemType) for problemType in problemTypes
         }
         filled = set()
-        for slot, rows, cols in self.__Blocks(terms):
+        for slot, rows, cols in _Blocks(terms):
             if slot in "KCM" and cols not in problemTypes:
                 raise ValueError(
                     f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
@@ -1317,14 +1237,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             raise ValueError(f"A field is given twice in {problemTypes}.")
         problem = problemTypes[0] if len(problemTypes) == 1 else problemTypes
 
-        system = self.__Get_folded(problem)
-        layout, Ndof = self.__Get_layout(problemTypes)
-
-        def Get_map(contributing: tuple):
-            return self.__Get_csr_map(layout, True, Ndof, contributing)
-
-        K, C, M = (system.Get_operator(slot, layout, Ndof, Get_map) for slot in "KCM")
-        return K, C, M, system.Get_load(layout, Ndof)
+        assembly = self.__Get_folded(problem)
+        layout, Ndof = _Dof_layout(self, problemTypes)
+        K, C, M = (assembly.Get_operator(slot, layout, Ndof) for slot in "KCM")
+        return K, C, M, assembly.Get_load(layout, Ndof)
 
     @property
     def solver(self) -> str:
@@ -1381,9 +1297,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         systems = {
             key: copy.copy(system) for key, system in self.__linearSystems.items()
         }
+        assemblies = {
+            key: copy.copy(assembly) for key, assembly in self.__assemblies.items()
+        }
         return {
             **self.__dict__,
             "_Simu__linearSystems": systems,
+            "_Simu__assemblies": assemblies,
             "_Simu__dict_needUpdate": {},
         }
 
@@ -1674,7 +1594,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if isinstance(problem, tuple):
             # a scheme or a Lagrange condition set since the system was created
             self.__Check_monolithic(problem)
-        system = self._Get_linear_system(problem)
         self.__orphanWarned = False
 
         if self.isNonLinear:
@@ -1683,7 +1602,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             x, _ = self.__Solve(problem)
 
         if isinstance(problem, tuple):
-            for field, weights in system.pinnedWeights.items():
+            for field, weights in self.__Get_assembly(problem).pinnedWeights.items():
                 self.__Shift_to_zero_mean(problem, field, weights, x)
 
         solutions = self.timeScheme.Evaluate_np1(
@@ -1781,7 +1700,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[_types.FloatArray, float]:
         """y of `A y = b`, its known dofs at the Dirichlet values, minus x's when given (Newton's increment, A and b at x), 0 when the scheme solves for a; and b's residual norm."""
         trial = None if x is None else self.__Trial(problem, x)
-        _, b = self.__Get_A_b(problem, trial)
+        A, b = self.__Get_A_b(problem, trial)
         self.__Warn_orphan_conditions(problem)
         size = self.__Get_size(problem)
         if x is None:
@@ -1819,6 +1738,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
         rhsNorm = self._Get_linear_system(problem).Solve(
+            A,
             b,
             y,
             known,
@@ -1843,14 +1763,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         x: TrialSolution | None = None,
     ) -> _types.FloatArray:
         """`_Solver_Get_load` of a problem key, its contributions rebuilt at `x` when stale."""
-        system = self.__Get_folded(problem, x)
-        layout, Ndof = self.__Get_layout(self.__Fields(problem))
+        assembly = self.__Get_folded(problem, x)
+        layout, Ndof = _Dof_layout(self, self.__Fields(problem))
         dofs = self.__Compose(problem, self.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.__Compose(problem, self.Bc_values_Neumann)
 
         load = np.zeros(Ndof, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
-        load += system.Get_load(layout, Ndof)
+        load += assembly.Get_load(layout, Ndof)
         return load
 
     def __Get_b(
@@ -1864,10 +1784,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if trial is None:
             trial = self.__Committed()
         load = self.__Get_load(problemType, trial)
-        system = self._Get_linear_system(problemType)
+        assembly = self.__Get_assembly(problemType)
         if self.isNonLinear:
             x = self.__Compose(problemType, trial.__getitem__)
-        elif system.internal:
+        elif assembly.internal:
             # R is folded at u_n, not at x = 0
             raise ValueError(
                 "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`."
@@ -1881,8 +1801,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             field if field is not None and field.any() else None
             for field in self.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
-        layout, _ = self.__Get_layout(self.__Fields(problemType))
-        b = system.Get_b(load, fields, layout)
+        layout, _ = _Dof_layout(self, self.__Fields(problemType))
+        b = assembly.Get_b(load, fields, layout)
 
         tic.Tac("Solver", f"b ({problemType})", self._verbosity)
 
@@ -1893,29 +1813,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | tuple[ProblemType, ...],
         x: TrialSolution | None = None,
     ) -> sparse.csr_matrix:
-        """The problem's A for the time scheme, summed from its fold's contributions (rebuilt at `x` when stale) and kept by its linear system."""
-        system = self.__Get_folded(problemType, x)
-        layout, Ndof = self.__Get_layout(self.__Fields(problemType))
-        return system.Get_A(
-            self.timeScheme.coefs,
-            layout,
-            Ndof,
-            lambda contributing: self.__Get_csr_map(layout, True, Ndof, contributing),
-        )
+        """The problem's A for the time scheme, summed from its fold's contributions (rebuilt at `x` when stale) and kept by its assembly."""
+        assembly = self.__Get_folded(problemType, x)
+        layout, Ndof = _Dof_layout(self, self.__Fields(problemType))
+        return assembly.Get_A(self.timeScheme.coefs, layout, Ndof)
 
     def __Get_folded(
         self,
         problemType: ProblemType | tuple[ProblemType, ...],
         x: TrialSolution | None = None,
-    ) -> _LinearSystem:
-        """The problem's linear system, its contributions rebuilt at `x` (default committed) when stale."""
-        system = self._Get_linear_system(problemType)
+    ) -> _Assembly:
+        """The problem's assembly, its contributions rebuilt at `x` (default committed) when stale."""
+        assembly = self.__Get_assembly(problemType)
         if self.__dict_needUpdate.get(problemType, True):
             if x is None:
                 x = self.__Committed()
-            system.Set_list_contribution(self.__Get_list_contribution(problemType, x))
+            assembly.Set_list_contribution(self.__Get_list_contribution(problemType, x))
             self.__dict_needUpdate = {**self.__dict_needUpdate, problemType: False}
-        return system
+        return assembly
 
     def _Solver_Get_A_b(
         self,
@@ -1948,9 +1863,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        system = self.__Get_folded(problemType)
-        layout, Ndof = self.__Get_layout(self.__Fields(problemType))
-        connected = system.Connected_rows(layout, Ndof)[: self.__Get_size(problemType)]
+        assembly = self.__Get_folded(problemType)
+        layout, Ndof = _Dof_layout(self, self.__Fields(problemType))
+        connected = assembly.Connected_rows(layout, Ndof)[
+            : self.__Get_size(problemType)
+        ]
         lagrange = self.__Compose(
             problemType,
             lambda field: BoundaryCondition.Get_dofs(field, self.__Bc_Lagrange),  # type: ignore [arg-type]
@@ -2365,12 +2282,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Bc_dofs_pinned(
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
     ) -> _types.IntArray:
-        """Dofs pinning the fields left free up to a constant, kept by the problem's system until `free` changes. Collective on `mesh.comm`."""
-        system = self._Get_linear_system(problem)
+        """Dofs pinning the fields left free up to a constant, kept by the problem's assembly until `free` changes. Collective on `mesh.comm`."""
+        assembly = self.__Get_assembly(problem)
         comm = self.mesh.comm
-        if Reduce_max(not system.Pinned_for(free), comm):
-            system.Set_pinned(free, *self.__Find_pinned(problem, free))
-        return system.pinnedDofs
+        if Reduce_max(not assembly.Pinned_for(free), comm):
+            assembly.Set_pinned(free, *self.__Find_pinned(problem, free))
+        return assembly.pinnedDofs
 
     def __Find_pinned(
         self, problem: tuple[ProblemType, ...], free: _types.BoolArray
@@ -2380,7 +2297,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         terms = {field: self.Get_terms(committed, field) for field in problem}
         diagonal = {
             rows
-            for slot, rows, cols in self.__Blocks(terms)
+            for slot, rows, cols in _Blocks(terms)
             if slot in "KCM" and rows == cols
         }
         A = self.__Get_A(problem)
