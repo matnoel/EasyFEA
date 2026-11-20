@@ -4,8 +4,6 @@
 
 """Linear system `A x = b` of one problem."""
 
-from typing import NamedTuple
-
 import numpy as np
 from scipy import sparse
 
@@ -20,26 +18,12 @@ from ..Utilities._mpi import (
     Reduce_max,
     Reduce_sum,
 )
-from .Solvers import (
-    ResolType,
-    SolverType,
-    _Check_saddle_point,
-    _PETScSolver,
-    _Solve_Axb,
-    _Solver,
-)
+from ._backends import _Backend, _PETScSolver
+from ._constraints import Constraints, Lagrange, ResolType
 
 
-class _Lagrange(NamedTuple):
-    """A condition `coefs · x[dofs] = value`."""
-
-    dofs: _types.IntArray
-    coefs: _types.FloatArray
-    value: float
-
-
-class _LinearSystem:
-    """`A x = b` of one problem key, dropped with the mesh: numbering, dof exchange and kept PETSc solver, A passed in; `comm` is passed in, never stored."""
+class System:
+    """`A x = b` over a vector's rows: numbering, dof exchange and kept PETSc solver, A passed in; `comm` is passed in, never stored."""
 
     def __init__(
         self,
@@ -59,14 +43,15 @@ class _LinearSystem:
         """PETSc id of each dof, -1 for a known one"""
         self.rowIds: _types.IntArray = np.empty(0, dtype=np.int64)
         """`ids`, -1 at the ghost rows"""
-        self.__petsc = _PETScSolver()
+        self._petsc = _PETScSolver()
+        """PETSc's KSP and Mat, kept for the PETSc backend"""
 
     def __getstate__(self) -> dict:
         # PETSc objects and graph communicators do not pickle
         return {
             **self.__dict__,
-            "_LinearSystem__exchange": None,
-            "_LinearSystem__petsc": _PETScSolver(),
+            "_System__exchange": None,
+            "_petsc": _PETScSolver(),
         }
 
     def Get_exchange(self, comm) -> Exchange | None:
@@ -98,66 +83,56 @@ class _LinearSystem:
         self.ids = ids
         self.rowIds = np.where(owned, ids, -1)
 
-    def Free_solver(self) -> None:
+    @property
+    def known(self) -> _types.BoolArray:
+        """The known dofs `Set_known` numbered around."""
+        assert self.__known is not None
+        return self.__known
+
+    def Free(self) -> None:
         """Destroys the kept PETSc solver. Collective."""
-        self.__petsc.Free()
+        self._petsc.Free()
 
     def Solve(
         self,
         A: sparse.csr_matrix,
         b: _types.FloatArray,
         x: _types.FloatArray,
-        known: _types.BoolArray,
-        solver: _Solver,
+        constraints: Constraints,
+        backend: _Backend,
         comm,
-        lagrange: list[_Lagrange] | None = None,
-        resolution: ResolType = ResolType.r1,
-    ) -> float:
-        """Solves `A x = b` for x's unknowns in place, x holding the known values and 0 elsewhere; the residual norm over the owned dof rows. Collective on `comm`."""
-        lagrange = lagrange or []
-        size = b.size - len(lagrange)
+    ) -> tuple[_types.FloatArray, float]:
+        """dx of `A dx = b` at x, `x + dx` meeting the constraints, b's rows past x's the Lagrange ones; b's residual norm over the owned dof rows. Collective on `comm`."""
+        lagrange = constraints.lagrange
+        size = x.size
+        assert b.size == size + len(lagrange)
+        known = np.zeros(b.size, dtype=bool)
+        known[:size] = constraints.known
+        dx = np.zeros(b.size)
+        dx[known] = constraints.target - x[constraints.known]
         if lagrange:
-            if resolution != ResolType.r2:
-                raise NotImplementedError(
-                    f"{resolution} does not support Lagrange conditions."
-                )
-            A, b = _Border(A, b, lagrange)
+            shifted = [
+                c._replace(value=float(c.value - c.coefs @ x[c.dofs])) for c in lagrange
+            ]
+            A, b = _Border(A, b, shifted)
         # the known values of the ghosts from their owner
-        self.Scatter_forward(x, comm)
-        if resolution == ResolType.r3:
-            A, b, known = _Penalty(A, b, x, known)
+        self.Scatter_forward(dx, comm)
+        if constraints.resolution == ResolType.r3:
+            A, b, known = _Penalty(A, b, dx, known)
         self.Set_known(known, comm)
 
-        _Check_saddle_point(
-            solver, lambda: bool(lagrange) or self.__Has_zero_diagonal(A, comm)
+        backend.Check_saddle_point(
+            lambda: bool(lagrange) or self.__Has_zero_diagonal(A, comm)
         )
 
-        # a linear step's x is often 0: no lift
-        residual = b - A @ x if x.any() else b.copy()
+        # no known dof moved: no lift
+        residual = b - A @ dx if dx.any() else b.copy()
         # the multipliers past the dofs
         rhsNorm = _Residual_norm(residual[self.rows[self.rows < size]], comm)
 
-        x0 = np.zeros(b.size)
-        x0[: solver.x0.size] = solver.x0
-        if solver.type == SolverType.petsc:
-            x[self.rows] += self.__petsc.Solve(
-                A,
-                residual,
-                x0,
-                self.ids,
-                self.rowIds,
-                solver.options,
-                comm,
-            )
-        else:
-            unknown = np.flatnonzero(~known)
-            x[unknown] += _Solve_Axb(
-                A[unknown][:, unknown],
-                residual[unknown],
-                solver._replace(x0=x0[unknown]),
-            )
-        self.Scatter_forward(x, comm)
-        return rhsNorm
+        dx += backend.Solve(A, residual, self, comm)
+        self.Scatter_forward(dx, comm)
+        return dx[:size], rhsNorm
 
     def __Has_zero_diagonal(self, A: sparse.csr_matrix, comm) -> bool:
         """Whether a numbered row has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
@@ -166,7 +141,7 @@ class _LinearSystem:
 
 
 def _Border(
-    A: sparse.csr_matrix, b: _types.FloatArray, lagrange: list[_Lagrange]
+    A: sparse.csr_matrix, b: _types.FloatArray, lagrange: list[Lagrange]
 ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
     """A bordered by the Lagrange conditions and b's multiplier rows, both scaled by `max|A|`."""
     if MPI_SIZE > 1:

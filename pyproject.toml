@@ -163,6 +163,7 @@ layers = [
     "Viz",
     "IO",
     "Simulations",
+    "Solvers",
     "Models",
     "FEM",
     "Geoms",

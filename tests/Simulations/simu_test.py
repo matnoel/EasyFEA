@@ -28,7 +28,7 @@ from EasyFEA import (
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations import Fold_terms
-from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
+from EasyFEA.Solvers._backends import CAN_USE_PYPARDISO, _Get_PETSc
 from EasyFEA.Utilities import MPI_SIZE
 
 from _numerics import rel_error

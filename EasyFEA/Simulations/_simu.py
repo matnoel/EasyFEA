@@ -59,9 +59,9 @@ from ._problem_type import ProblemType, TrialSolution
 from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
 from ._assembly import _Assembly, _Blocks, _Dof_layout
-from ._linear_system import _Lagrange, _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
-from .Solvers import SolverType, ResolType, CAN_USE_PYPARDISO, _Get_PETSc, _Solver
+from ..Solvers import SolverType, ResolType, Constraints, Lagrange, System, Get_backend
+from ..Solvers._backends import CAN_USE_PYPARDISO, _Get_PETSc
 
 
 @cache
@@ -704,9 +704,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__NindexMesh: int = -1
         """Current mesh index in self.__listMesh"""
         self.__listMesh: list[str | Mesh] = []
-        self.__linearSystems: dict[
-            ProblemType | tuple[ProblemType, ...], _LinearSystem
-        ] = {}
+        self.__linearSystems: dict[ProblemType | tuple[ProblemType, ...], System] = {}
         self.__assemblies: dict[ProblemType | tuple[ProblemType, ...], _Assembly] = {}
         self.__dict_needUpdate: dict[ProblemType | tuple[ProblemType, ...], bool] = {}
         """whether each problem key's kept fold is stale, a missing key stale"""
@@ -1108,7 +1106,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Get_linear_system(
         self, problem: ProblemType | tuple[ProblemType, ...]
-    ) -> _LinearSystem:
+    ) -> System:
         """The linear system of a problem key, kept until the mesh changes; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
         system = self.__linearSystems.get(problem)
         if system is None:
@@ -1118,7 +1116,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             globalIds = None
             if self.mesh.comm is not None:
                 globalIds = self.__Get_dof_globalIds(problem)
-            system = _LinearSystem(owners, rank, globalIds)
+            system = System(owners, rank, globalIds)
             self.__linearSystems[problem] = system
         return system
 
@@ -1154,7 +1152,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Destroys the solvers kept by the systems of `problems`, every one by default. Collective."""
         for problem, system in self.__linearSystems.items():
             if problems is None or problem in problems:
-                system.Free_solver()
+                system.Free()
 
     def __Drop_linear_systems(self) -> None:
         """Forgets every linear system and assembly: the mesh they were built on changed. Collective."""
@@ -1698,7 +1696,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem: ProblemType | tuple[ProblemType, ...],
         x: _types.FloatArray | None = None,
     ) -> tuple[_types.FloatArray, float]:
-        """y of `A y = b`, its known dofs at the Dirichlet values, minus x's when given (Newton's increment, A and b at x), 0 when the scheme solves for a; and b's residual norm."""
+        """dx of `A dx = b` at x (default 0, dx the solution), `x + dx` at the Dirichlet values, x's when the scheme solves for a; and b's residual norm."""
         trial = None if x is None else self.__Trial(problem, x)
         A, b = self.__Get_A_b(problem, trial)
         self.__Warn_orphan_conditions(problem)
@@ -1706,50 +1704,48 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if x is None:
             x = np.zeros(size)
 
-        y = np.zeros(b.size)
+        known = np.zeros(size, dtype=bool)
+        known[self.Bc_dofs_known_unknown(problem)[0]] = True
+        # orphan and pinned dofs stay at x, as every one when the scheme solves for a
+        target = x.copy()
         if self.timeScheme.unknown != "a":
             dofs = self.__Compose(problem, self.Bc_dofs_Dirichlet, isDofs=True)
             dofs = np.asarray(dofs, dtype=int)
-            values = self.__Compose(problem, self.Bc_values_Dirichlet) - x[dofs]
-            np.add.at(y, dofs, values)
-        known = np.zeros(b.size, dtype=bool)
-        known[self.Bc_dofs_known_unknown(problem)[0]] = True
+            target[dofs] = 0.0
+            np.add.at(target, dofs, self.__Compose(problem, self.Bc_values_Dirichlet))
 
-        lagrange = []
+        lagrange = ()
         if b.size > size:
-            for condition in self.Bc_Lagrange:
-                coefs, dofs = condition.lagrangeCoefs, condition.dofs
-                value = condition.dofsValues[0] - coefs @ x[dofs]
-                lagrange.append(_Lagrange(dofs, coefs, value))
-        resolution = self._resolution or (ResolType.r2 if lagrange else ResolType.r1)
+            lagrange = tuple(
+                Lagrange(c.dofs, c.lagrangeCoefs, c.dofsValues[0])
+                for c in self.Bc_Lagrange
+            )
+        constraints = Constraints(known, target[known], lagrange, self._resolution)
 
         solverType = self._Solver_Get(problem)
-        options = ("", "", "")
+        options = None
         if solverType == SolverType.petsc:
             options = self._Solver_Get_PETSc4Py_Options(problem)
         lb, ub = self._Solver_Get_lb_ub(problem)
-        solver = _Solver(
+        backend = Get_backend(
             solverType,
             options,
-            self._Solver_Get_x0(problem),
             lb,
             ub,
+            self._Solver_Get_x0(problem),
         )
 
         tic = Tic()
-        rhsNorm = self._Get_linear_system(problem).Solve(
+        dx, rhsNorm = self._Get_linear_system(problem).Solve(
             A,
             b,
-            y,
-            known,
-            solver,
+            x,
+            constraints,
+            backend,
             self.mesh.comm,
-            lagrange=lagrange,
-            resolution=resolution,
         )
-        backend = ", ".join(options) if solverType == SolverType.petsc else solverType
         tic.Tac("Solver", f"Solve {problem} ({backend})", self._verbosity)
-        return y[:size], rhsNorm
+        return dx, rhsNorm
 
     def _Solver_Get_load(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None

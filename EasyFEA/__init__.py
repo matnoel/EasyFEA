@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from .Utilities import Terminal, Folder, Tic
 from .FEM import Mesher, ElemType, Mesh, MatrixType
 from . import Models, Simulations, IO
-from .Simulations.Solvers import SolverType
+from .Solvers import SolverType
 from .Simulations import TimeSchemes
 from .__about__ import __version__
 

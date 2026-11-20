@@ -13,11 +13,15 @@ from types import ModuleType
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
-from typing import Any, Callable, NamedTuple
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Callable
 
 from ..Utilities import _types
 
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, Reduce_sum
+
+if TYPE_CHECKING:
+    from ._system import System
 
 try:
     import pypardiso
@@ -46,21 +50,6 @@ def _Get_PETSc() -> ModuleType | None:
         return None
 
 
-class ResolType(str, Enum):
-    """Resolution type."""
-
-    r1 = "r1"
-    r""":math:`\mathrm{x}_\irm = {\Arm_{\irm\irm}}^{-1} \cdot (b_\irm - \Arm_{\irm\crm} * \mathrm{x}_\crm)`,
-    where :math:`\irm` and :math:`\crm` are unknown and known degrees of freedom."""
-    r2 = "r2"
-    """Lagrange multipliers"""
-    r3 = "r3"
-    """Penality"""
-
-    def __str__(self) -> str:
-        return self.name
-
-
 class SolverType(str, Enum):
     r"""Solver type used to solve the linear system :math:`\Arm \, \mathrm{x} = \brm`"""
 
@@ -86,40 +75,107 @@ class SolverType(str, Enum):
         return self.name
 
 
-class _Solver(NamedTuple):
-    """A solve's backend, PETSc's `(ksp, pc, factor)` options, initial guess and lsq_linear bounds."""
+class _Backend(ABC):
+    """Solves `A y = b` for a `System`; `x0` the guess of y (an increment under Newton), padded with 0 past it."""
 
-    type: SolverType
-    options: tuple[str, str, str]
-    x0: _types.FloatArray
-    lb: _types.AnyArray | _types.Numbers
-    ub: _types.AnyArray | _types.Numbers
+    def __init__(self, type: SolverType, x0: _types.FloatArray | None = None) -> None:
+        self.type = type
+        self.x0 = np.zeros(0) if x0 is None else x0
+
+    def __str__(self) -> str:
+        return str(self.type)
+
+    @abstractmethod
+    def Solve(
+        self, A: sparse.csr_matrix, b: _types.FloatArray, system: "System", comm
+    ) -> _types.FloatArray:
+        """y of `A y = b` on the rows it solves, 0 elsewhere. Collective on `comm`."""
+
+    def _Factors_saddle(self) -> bool:
+        """Whether it factors a saddle point."""
+        return False
+
+    def _Describe(self) -> str:
+        """Its name in an error."""
+        return str(self.type)
+
+    def Check_saddle_point(self, isSaddle: Callable[[], bool]) -> None:
+        """Rejects a backend that cannot factor a saddle point when `isSaddle()`: a direct one only, PETSc's LU through an external package (Mumps or SuperLU_dist under MPI)."""
+        if self._Factors_saddle() or not isSaddle():
+            return
+        accepted = (
+            "petsc with preonly, lu and mumps or superlu_dist"
+            if MPI_SIZE > 1
+            else "pypardiso, scipy or petsc with preonly, lu and an external package (mumps)"
+        )
+        raise ValueError(
+            f"A saddle point (a zero diagonal block or Lagrange multipliers) only a direct solver factors: use {accepted}, not {self._Describe()}."
+        )
+
+    def _X0(self, size: int) -> _types.FloatArray:
+        x0 = np.zeros(size)
+        x0[: self.x0.size] = self.x0
+        return x0
 
 
-def _Solve_Axb(
-    A: sparse.csr_matrix,
-    b: _types.FloatArray,
-    solver: _Solver,
-) -> _types.FloatArray:
-    """x of `A x = b` through a serial backend, `solver.x0` its initial guess."""
-    x0, lb, ub = solver.x0, solver.lb, solver.ub
-    if solver.type == SolverType.pypardiso and CAN_USE_PYPARDISO:
-        x = pypardiso.spsolve(A, b)
-    elif solver.type == SolverType.scipy:
-        x = sla.spsolve(A, b)
-    elif solver.type == SolverType.cg:
-        x, _ = sla.cg(A, b, x0, maxiter=None)
-    elif solver.type == SolverType.bicg:
-        x, _ = sla.bicg(A, b, x0, maxiter=None)
-    elif solver.type == SolverType.gmres:
-        x, _ = sla.gmres(A, b, x0, maxiter=None)
-    elif solver.type == SolverType.lgmres:
-        x, _ = sla.lgmres(A, b, x0)
-    elif solver.type == SolverType.lsq_linear:
+class _Serial(_Backend):
+    """A serial backend, on every unknown."""
+
+    def Solve(self, A, b, system, comm):
+        rows = np.flatnonzero(~system.known)
+        y = np.zeros(b.size)
+        y[rows] = self._Solve_Axb(A[rows][:, rows], b[rows], self._X0(b.size)[rows])
+        return y
+
+    @abstractmethod
+    def _Solve_Axb(
+        self, A: sparse.csr_matrix, b: _types.FloatArray, x0: _types.FloatArray
+    ) -> _types.FloatArray: ...
+
+
+class _Direct(_Serial):
+    """scipy's or pypardiso's spsolve."""
+
+    def _Solve_Axb(self, A, b, x0):
+        if self.type == SolverType.pypardiso and CAN_USE_PYPARDISO:
+            return pypardiso.spsolve(A, b)
+        if self.type == SolverType.scipy:
+            return sla.spsolve(A, b)
+        raise NotImplementedError(f"{self.type} is not implemented.")
+
+    def _Factors_saddle(self):
+        return MPI_SIZE == 1
+
+
+class _Iterative(_Serial):
+    """scipy's cg, bicg, gmres or lgmres."""
+
+    def _Solve_Axb(self, A, b, x0):
+        if self.type == SolverType.cg:
+            x, _ = sla.cg(A, b, x0, maxiter=None)
+        elif self.type == SolverType.bicg:
+            x, _ = sla.bicg(A, b, x0, maxiter=None)
+        elif self.type == SolverType.gmres:
+            x, _ = sla.gmres(A, b, x0, maxiter=None)
+        else:
+            x, _ = sla.lgmres(A, b, x0)
+        return x
+
+
+class _LsqLinear(_Serial):
+    """scipy's lsq_linear within the bounds `lb`, `ub`."""
+
+    def __init__(self, x0=None, lb=None, ub=None) -> None:
+        super().__init__(SolverType.lsq_linear, x0)
+        self.lb = [] if lb is None else lb
+        self.ub = [] if ub is None else ub
+
+    def _Solve_Axb(self, A, b, x0):
+        lb, ub = self.lb, self.ub
         assert len(lb) == len(ub) != 0
         from scipy.optimize import lsq_linear
 
-        x = lsq_linear(
+        return lsq_linear(
             A,
             b,
             bounds=(lb, ub),
@@ -127,34 +183,60 @@ def _Solve_Axb(
             method="trf",
             verbose=0,
         )["x"]
-    else:
-        raise NotImplementedError(f"{solver.type} is not implemented.")
-    return np.asarray(x)
 
 
-def _Check_saddle_point(solver: _Solver, isSaddle: Callable[[], bool]) -> None:
-    """Rejects a solver that cannot factor a saddle point when `isSaddle()`: a direct one only, PETSc's LU through an external package (Mumps or SuperLU_dist under MPI)."""
-    name = str(solver.type)
-    if solver.type in (SolverType.pypardiso, SolverType.scipy) and MPI_SIZE == 1:
-        return
-    if solver.type == SolverType.petsc:
-        kspType, pcType, factor = solver.options
+class _PETSc(_Backend):
+    """PETSc's KSP with `(ksp, pc, factor)` options, kept by the system, on its owned unknowns."""
+
+    def __init__(self, options: tuple[str, str, str], x0=None) -> None:
+        super().__init__(SolverType.petsc, x0)
+        self.options = options
+
+    def __str__(self) -> str:
+        return ", ".join(self.options)
+
+    def Solve(self, A, b, system, comm):
+        y = np.zeros(b.size)
+        y[system.rows] = system._petsc.Solve(
+            A,
+            b,
+            self._X0(b.size),
+            system.ids,
+            system.rowIds,
+            self.options,
+            comm,
+        )
+        return y
+
+    def _Factors_saddle(self):
+        kspType, pcType, factor = self.options
         external = (
             factor in ("mumps", "superlu_dist") if MPI_SIZE > 1 else factor != "petsc"
         )
-        if kspType == "preonly" and pcType == "lu" and external:
-            return
-        name = f"petsc ({kspType}, {pcType}, {factor})"
-    if not isSaddle():
-        return
-    accepted = (
-        "petsc with preonly, lu and mumps or superlu_dist"
-        if MPI_SIZE > 1
-        else "pypardiso, scipy or petsc with preonly, lu and an external package (mumps)"
-    )
-    raise ValueError(
-        f"A saddle point (a zero diagonal block or Lagrange multipliers) only a direct solver factors: use {accepted}, not {name}."
-    )
+        return kspType == "preonly" and pcType == "lu" and external
+
+    def _Describe(self):
+        kspType, pcType, factor = self.options
+        return f"petsc ({kspType}, {pcType}, {factor})"
+
+
+def Get_backend(
+    solverType: SolverType | str,
+    options: tuple[str, str, str] | None = None,
+    lb: _types.AnyArray | _types.Numbers | None = None,
+    ub: _types.AnyArray | _types.Numbers | None = None,
+    x0: _types.FloatArray | None = None,
+) -> _Backend:
+    """The backend of a solver type: PETSc's `(ksp, pc, factor)` `options`, lsq_linear's bounds `lb`, `ub`, an initial guess `x0`."""
+    solverType = SolverType(solverType)
+    if solverType == SolverType.petsc:
+        assert options is not None, "petsc needs its (ksp, pc, factor) options"
+        return _PETSc(options, x0)
+    if solverType == SolverType.lsq_linear:
+        return _LsqLinear(x0, lb, ub)
+    if solverType in (SolverType.pypardiso, SolverType.scipy):
+        return _Direct(solverType, x0)
+    return _Iterative(solverType, x0)
 
 
 class _PETScSolver:

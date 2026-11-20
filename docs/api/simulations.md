@@ -240,15 +240,24 @@ can serve as a good starting point.
 ## Solvers API
 
 ```{eval-rst}
-.. automodule:: EasyFEA.Simulations.Solvers
+.. automodule:: EasyFEA.Solvers
    :no-members:
 
-.. autoclass:: EasyFEA.Simulations.Solvers.ResolType
+.. autoclass:: EasyFEA.Solvers.ResolType
    :members:
    :undoc-members:
-   
-.. autoclass:: EasyFEA.Simulations.Solvers.SolverType
+
+.. autoclass:: EasyFEA.Solvers.SolverType
    :members:
    :undoc-members:
+
+.. autoclass:: EasyFEA.Solvers.Constraints
+
+.. autoclass:: EasyFEA.Solvers.Lagrange
+
+.. autoclass:: EasyFEA.Solvers.System
+   :members: Solve
+
+.. autofunction:: EasyFEA.Solvers.Get_backend
 
 ```

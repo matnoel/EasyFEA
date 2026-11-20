@@ -12,7 +12,7 @@ full source.
 
 ```{note}
 The internals described here live in `EasyFEA/Simulations/_simu.py`,
-`EasyFEA/Simulations/Solvers.py`, and `EasyFEA/FEM/_forms.py`. The
+`EasyFEA/Solvers/`, and `EasyFEA/FEM/_forms.py`. The
 single-underscore methods (e.g. `_Solver_Get_A_b`) are advanced API;
 the double-underscore ones are private and should never be called directly.
 ```
