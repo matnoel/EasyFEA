@@ -104,16 +104,17 @@ ______________________________________________________________________
 ## Non-linear convergence
 
 {py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` drives every solve: a
-linear one is a single increment from 0, a non-linear one iterates from the last
-converged solution, repeating three moves — reassemble at the current iterate, solve for
-the correction, add it:
+linear one solves $\Arm \, \mathrm{x} = \brm$ once, its known dofs at the Dirichlet
+values; a non-linear one iterates from the last converged solution, repeating three
+moves — reassemble at the current iterate, solve for the correction, add it:
 
 ```python
 x = self._Get_u_n(problem)                      # a copy, so `x += ...` is safe
 self.__trial_solution = (problem, x)            # cleared on exit
 
 for _ in range(maxIter):
-    dx, norm = self.__Solver_Solve_Iter(problem, x)   # Need_Update, A, b(x), solve
+    self.Need_Update(problem)
+    dx, norm = self.__Solve(problem, x)         # A, b(x), known dofs at target − x
     x += dx
     converged = (norm < absTol) or (relNorm < relTol) or (norm_dx < incTol)
     if converged:

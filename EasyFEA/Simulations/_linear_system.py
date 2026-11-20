@@ -11,6 +11,7 @@ from scipy import sparse
 
 from ..Utilities import _types
 from ..Utilities._mpi import (
+    MPI_SIZE,
     Exchange,
     Owned,
     Build_exchange,
@@ -20,28 +21,26 @@ from ..Utilities._mpi import (
     Reduce_sum,
 )
 from ._terms import Same_contributions, _Contribution
+from .Solvers import (
+    ResolType,
+    SolverType,
+    _Check_saddle_point,
+    _PETScSolver,
+    _Solve_Axb,
+    _Solver,
+)
 
 
-class _Entries(NamedTuple):
-    """Sparse entries, summed where they repeat."""
+class _Lagrange(NamedTuple):
+    """A condition `coefs · x[dofs] = value`."""
 
-    rows: _types.IntArray
-    cols: _types.IntArray
-    values: _types.FloatArray
-
-    @staticmethod
-    def Empty() -> "_Entries":
-        return _Entries(np.empty(0, dtype=int), np.empty(0, dtype=int), np.empty(0))
-
-    @staticmethod
-    def Concatenate(pieces: list["_Entries"]) -> "_Entries":
-        if not pieces:
-            return _Entries.Empty()
-        return _Entries(*(np.concatenate(arrays) for arrays in zip(*pieces)))
+    dofs: _types.IntArray
+    coefs: _types.FloatArray
+    value: float
 
 
 class _LinearSystem:
-    """`A x = b` of one problem key, dropped with the mesh: last contributions, A, PETSc numbering, dof exchange and kept solver; `comm` is passed in, never stored."""
+    """`A x = b` of one problem key, dropped with the mesh: last contributions, A, numbering, dof exchange and kept PETSc solver; `comm` is passed in, never stored."""
 
     def __init__(
         self,
@@ -61,26 +60,14 @@ class _LinearSystem:
         self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
         self.__list_contributionA: list[_Contribution] = []
         """the K, C and M contributions A was summed from"""
-        self.__stamp = 0
-        self.__patternStamp = 0
         self.__known: _types.BoolArray | None = None
-        self.__lagrange: tuple = ()
         self.rows: _types.IntArray = np.empty(0, dtype=int)
         """the owned unknowns, in PETSc order"""
         self.ids: _types.IntArray = np.empty(0, dtype=np.int64)
         """PETSc id of each dof, -1 for a known one"""
         self.rowIds: _types.IntArray = np.empty(0, dtype=np.int64)
         """`ids`, -1 at the ghost rows"""
-        self.__numberingStamp = 0
-        self.__derived: tuple | None = None
-        """`(key, matrix, source, inverse)`: the entries `source` of A's then the extra ones, summed at `inverse`"""
-        self.__derivedValues: tuple = ()
-        self.__derivedPatternStamp = 0
-        self.__derivedStamp = 0
-        self.__alpha: tuple[int, float] = (0, 0.0)
-        self.__solver: tuple | None = None
-        """`(ksp, matrix)`"""
-        self.__solverStamps: tuple | None = None
+        self.__petsc = _PETScSolver()
         self.__pinnedFor: _types.BoolArray | None = None
         """the free dofs the pinned ones were found for"""
         self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
@@ -94,10 +81,7 @@ class _LinearSystem:
             "_LinearSystem__A": None,
             "_LinearSystem__list_contributionA": [],
             "_LinearSystem__exchange": None,
-            "_LinearSystem__derived": None,
-            "_LinearSystem__derivedValues": (),
-            "_LinearSystem__solver": None,
-            "_LinearSystem__solverStamps": None,
+            "_LinearSystem__petsc": _PETScSolver(),
         }
 
     def Get_exchange(self, comm) -> Exchange | None:
@@ -111,14 +95,9 @@ class _LinearSystem:
         """Copies onto the ghost rows of a vector of the problem their owners' values. Collective on `comm`."""
         Scatter_forward(values, self.Get_exchange(comm))
 
-    def Set_known(self, known: _types.BoolArray, comm, lagrange: tuple = ()) -> None:
-        """Numbers the owned unknowns rank after rank, the multipliers last; kept while `known` and the Lagrange dofs hold. Collective on `comm`."""
-        changed = (
-            self.__known is None
-            or not np.array_equal(known, self.__known)
-            or len(lagrange) != len(self.__lagrange)
-            or not all(map(np.array_equal, lagrange, self.__lagrange))
-        )
+    def Set_known(self, known: _types.BoolArray, comm) -> None:
+        """Numbers the owned unknowns rank after rank, the multipliers last; kept while `known` holds. Collective on `comm`."""
+        changed = self.__known is None or not np.array_equal(known, self.__known)
         if not Reduce_max(changed, comm):
             return
         owned = np.zeros(known.size, dtype=bool)
@@ -127,49 +106,16 @@ class _LinearSystem:
         # the multipliers on the last rank
         owned[size:] = comm is None or self.__rank == comm.Get_size() - 1
         self.__known = known
-        self.__lagrange = lagrange
         self.rows = np.flatnonzero(owned & ~known)
         ids = np.full(known.size, -1, dtype=np.int64)
         ids[self.rows] = Exscan_sum(self.rows.size, comm) + np.arange(self.rows.size)
         self.Scatter_forward(ids, comm)
         self.ids = ids
         self.rowIds = np.where(owned, ids, -1)
-        self.__numberingStamp += 1
 
-    @property
-    def solver(self) -> tuple | None:
-        """The kept PETSc `(ksp, matrix)`."""
-        return self.__solver
-
-    def __Stamps(self, derived: bool) -> tuple:
-        """Pattern, numbering and values of A or of the derived matrix."""
-        pattern, values = (
-            (("D", self.__derivedPatternStamp), ("D", self.__derivedStamp))
-            if derived
-            else (("A", self.__patternStamp), ("A", self.__stamp))
-        )
-        return pattern, self.__numberingStamp, values
-
-    def Solver_update(self, comm, derived: bool = False) -> tuple[bool, bool]:
-        """Whether the kept solver must be laid out again (new pattern or numbering) and refilled (new values), for A or the derived matrix. Collective on `comm`."""
-        stamps = self.__Stamps(derived)
-        kept = self.__solverStamps
-        relayout = self.__solver is None or kept is None or stamps[:2] != kept[:2]
-        refill = relayout or kept is None or stamps[2] != kept[2]
-        relayout, refill = Reduce_sum(np.array([relayout, refill], dtype=int), comm)
-        return bool(relayout), bool(refill)
-
-    def Set_solver(self, solver: tuple, derived: bool = False) -> None:
-        """Keeps `(ksp, matrix)`, laid out and filled with A or the derived matrix."""
-        self.__solver = solver
-        self.__solverStamps = self.__Stamps(derived)
-
-    def Take_solver(self) -> tuple | None:
-        """The kept solver, no longer kept."""
-        solver = self.__solver
-        self.__solver = None
-        self.__solverStamps = None
-        return solver
+    def Free_solver(self) -> None:
+        """Destroys the kept PETSc solver. Collective."""
+        self.__petsc.Free()
 
     def Set_pinned(
         self, free: _types.BoolArray, dofs: _types.IntArray, weights: dict
@@ -223,119 +169,76 @@ class _LinearSystem:
         ):
             return self.__A
 
-        if key != self.__AKey:
-            self.__AKey = key
-            self.__patternStamp += 1
-
+        self.__AKey = key
         A = _Sum(list_contribution, coefs, Ndof, Get_map)
         A.data.flags.writeable = False
 
         self.__A = A
         self.__ACoefs = coefs
         self.__list_contributionA = list_contribution
-        self.__stamp += 1
         return A
-
-    def Get_alpha(self) -> float:
-        """`max|A.data|` of the kept A, once per A."""
-        assert self.__A is not None
-        if self.__alpha[0] != self.__stamp:
-            self.__alpha = (self.__stamp, float(np.abs(self.__A.data).max(initial=0.0)))
-        return self.__alpha[1]
-
-    def Get_derived(
-        self,
-        extra: _Entries,
-        eliminate: bool,
-        dropped: _types.BoolArray | None = None,
-    ) -> sparse.csr_matrix:
-        """The kept A plus `extra`, the `dropped` rows' entries left out, reduced to the unknowns when `eliminate`; one object, refilled in place."""
-        A = self.__A
-        assert A is not None and self.__known is not None
-        rows, cols, values = extra
-        key = (
-            self.__patternStamp,
-            self.__numberingStamp,
-            eliminate,
-            rows.tobytes(),
-            cols.tobytes(),
-            None if dropped is None else dropped.tobytes(),
-        )
-        if self.__derived is None or self.__derived[0] != key:
-            Ndof = A.shape[0]
-            if eliminate:
-                unknown = np.flatnonzero(~self.__known)
-                index = np.full(Ndof, -1)
-                index[unknown] = np.arange(unknown.size)
-            else:
-                index = np.arange(Ndof)
-            kept = np.ones(Ndof, dtype=bool) if dropped is None else ~dropped
-            matrix, source, inverse = _Derive(
-                A,
-                index,
-                kept,
-                rows,
-                cols,
-            )
-            self.__derived = (key, matrix, source, inverse)
-            self.__derivedValues = ()
-            self.__derivedPatternStamp += 1
-
-        _, matrix, source, inverse = self.__derived
-        valuesKey = (self.__stamp, values.tobytes())
-        if self.__derivedValues != valuesKey:
-            entries = np.concatenate([A.data, values])[source]
-            matrix.data[:] = np.bincount(inverse, entries, matrix.data.size)
-            self.__derivedValues = valuesKey
-            self.__derivedStamp += 1
-        return matrix
 
     def Solve(
         self,
         b: _types.FloatArray,
-        dx: _types.FloatArray,
+        x: _types.FloatArray,
         known: _types.BoolArray,
+        solver: _Solver,
         comm,
-        backend: Callable[
-            [sparse.csr_matrix, _types.FloatArray, _types.IntArray, bool],
-            _types.FloatArray,
-        ],
-        eliminate: bool,
-        extra: _Entries,
-        lagrange: tuple = (),
-        dropped: _types.BoolArray | None = None,
+        lagrange: list[_Lagrange] | None = None,
+        resolution: ResolType = ResolType.r1,
     ) -> float:
-        """Solves `A + extra` for the unknowns into `dx`, which holds the known values; the residual norm over the owned dof rows. `backend(matrix, rhs, rows, derived)` returns x at `rows`. Collective on `comm`."""
+        """Solves the kept A's `A x = b` for x's unknowns in place, x holding the known values and 0 elsewhere; the residual norm over the owned dof rows. Collective on `comm`."""
         A = self.__A
         assert A is not None
-        self.Set_known(known, comm, lagrange)
+        lagrange = lagrange or []
+        size = b.size - len(lagrange)
+        if lagrange:
+            if resolution != ResolType.r2:
+                raise NotImplementedError(
+                    f"{resolution} does not support Lagrange conditions."
+                )
+            A, b = _Border(A, b, lagrange)
         # the known values of the ghosts from their owner
-        self.Scatter_forward(dx, comm)
+        self.Scatter_forward(x, comm)
+        if resolution == ResolType.r3:
+            A, b, known = _Penalty(A, b, x, known)
+        self.Set_known(known, comm)
 
-        residual = b - A @ dx
-        np.subtract.at(residual, extra.rows, extra.values * dx[extra.cols])
-        if dropped is not None:
-            residual[dropped] = 0.0
+        _Check_saddle_point(
+            solver, lambda: bool(lagrange) or self.__Has_zero_diagonal(A, comm)
+        )
+
+        residual = b - A @ x
         # the multipliers past the dofs
-        dofRows = self.rows[self.rows < b.size - len(lagrange)]
-        rhsNorm = _Residual_norm(residual[dofRows], comm)
+        rhsNorm = _Residual_norm(residual[self.rows[self.rows < size]], comm)
 
-        if eliminate:
-            rows = np.flatnonzero(~known)
-            matrix = self.Get_derived(extra, eliminate=True, dropped=dropped)
-            isDerived = True
-        else:
-            # PETSc drops the known by -1
-            rows = self.rows
-            isDerived = extra.rows.size > 0 or dropped is not None
-            matrix = (
-                self.Get_derived(extra, eliminate=False, dropped=dropped)
-                if isDerived
-                else A
+        x0 = np.zeros(b.size)
+        x0[: solver.x0.size] = solver.x0
+        if solver.type == SolverType.petsc:
+            x[self.rows] += self.__petsc.Solve(
+                A,
+                residual,
+                x0,
+                self.ids,
+                self.rowIds,
+                solver.options,
+                comm,
             )
-        dx[rows] += backend(matrix, residual, rows, isDerived)
-        self.Scatter_forward(dx, comm)
+        else:
+            unknown = np.flatnonzero(~known)
+            x[unknown] += _Solve_Axb(
+                A[unknown][:, unknown],
+                residual[unknown],
+                solver._replace(x0=x0[unknown]),
+            )
+        self.Scatter_forward(x, comm)
         return rhsNorm
+
+    def __Has_zero_diagonal(self, A: sparse.csr_matrix, comm) -> bool:
+        """Whether a numbered row has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
+        diagonal = A.diagonal()[self.rows]
+        return Reduce_sum(int(np.count_nonzero(diagonal == 0)), comm) > 0
 
     def Get_operator(
         self,
@@ -450,35 +353,9 @@ def _Sum(
         assert entries.size == inv.size, "A's map does not match its contributions."
         data = np.bincount(inv, weights=entries, minlength=nnz)
         A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
-    # canonical by construction: Solvers skips its fixup
+    # canonical by construction: no sort before the backends
     A.has_canonical_format = True
     return A
-
-
-def _Derive(
-    A: sparse.csr_matrix,
-    index: _types.IntArray,
-    kept: _types.BoolArray,
-    rows: _types.IntArray,
-    cols: _types.IntArray,
-) -> tuple[sparse.csr_matrix, _types.IntArray, _types.IntArray]:
-    """Unfilled pattern of A's `kept` rows plus the extra `(rows, cols)`, renumbered by `index` (-1 dropped); the entries taken and their positions."""
-    rowsA = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
-    rowsD = np.concatenate([index[rowsA], index[rows]])
-    colsD = np.concatenate([index[A.indices], index[cols]])
-    isKept = (rowsD >= 0) & (colsD >= 0)
-    isKept[: rowsA.size] &= kept[rowsA]
-    source = np.flatnonzero(isKept)
-    n = int(np.count_nonzero(index >= 0))
-    positions = rowsD[source] * n + colsD[source]
-    unique, inverse = np.unique(positions, return_inverse=True)
-    indptr = np.zeros(n + 1, dtype=np.int32)
-    np.cumsum(np.bincount(unique // n, minlength=n), out=indptr[1:])
-    matrix = sparse.csr_matrix(
-        (np.zeros(unique.size), (unique % n).astype(np.int32), indptr), shape=(n, n)
-    )
-    matrix.has_canonical_format = True
-    return matrix, source, inverse
 
 
 def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
@@ -502,6 +379,49 @@ def _Scatter(
     if np.iscomplexobj(data):
         raise TypeError("Complex systems are not supported.")
     return np.bincount(rows, weights=data, minlength=Ndof)
+
+
+def _Border(
+    A: sparse.csr_matrix, b: _types.FloatArray, lagrange: list[_Lagrange]
+) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+    """A bordered by the Lagrange conditions and b's multiplier rows, both scaled by `max|A|`."""
+    if MPI_SIZE > 1:
+        raise NotImplementedError(
+            "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
+        )
+    alpha = float(np.abs(A.data).max(initial=0.0))
+    size = b.size - len(lagrange)
+    b = b.copy()
+    rows, cols, values = [], [], []
+    for i, condition in enumerate(lagrange, size):
+        line = np.full(condition.dofs.size, i)
+        rows += [line, condition.dofs]
+        cols += [condition.dofs, line]
+        values += [alpha * condition.coefs] * 2
+        b[i] = alpha * condition.value
+    # A's entries kept, explicit zeros included: the same pattern, the same ordering
+    coo = A.tocoo()
+    bordered = sparse.csr_matrix(
+        (
+            np.concatenate([coo.data, *values]),
+            (np.concatenate([coo.row, *rows]), np.concatenate([coo.col, *cols])),
+        ),
+        shape=A.shape,
+    )
+    return bordered, b
+
+
+def _Penalty(
+    A: sparse.csr_matrix,
+    b: _types.FloatArray,
+    x: _types.FloatArray,
+    known: _types.BoolArray,
+) -> tuple[sparse.csr_matrix, _types.FloatArray, _types.BoolArray]:
+    """A's known rows dropped, 1.0 on their diagonal, b's set to x's: every dof unknown."""
+    weights = known.astype(float)
+    A = (sparse.diags(1.0 - weights) @ A + sparse.diags(weights)).tocsr()
+    b = np.where(known, x, b)
+    return A, b, np.zeros_like(known)
 
 
 def _Residual_norm(residual: _types.FloatArray, comm) -> float:

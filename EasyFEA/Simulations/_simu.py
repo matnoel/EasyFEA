@@ -59,17 +59,9 @@ from ..Models import _IModel
 from ._problem_type import ProblemType
 from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
-from ._linear_system import _Entries, _LinearSystem
+from ._linear_system import _Lagrange, _LinearSystem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
-from .Solvers import (
-    SolverType,
-    ResolType,
-    CAN_USE_PYPARDISO,
-    _Backend,
-    _Check_saddle_point_solver,
-    _Get_PETSc,
-    _PETSc_Free,
-)
+from .Solvers import SolverType, ResolType, CAN_USE_PYPARDISO, _Get_PETSc, _Solver
 
 
 @cache
@@ -1147,7 +1139,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Destroys the solvers kept by the systems of `problems`, every one by default. Collective."""
         for problem, system in self.__linearSystems.items():
             if problems is None or problem in problems:
-                _PETSc_Free(system)
+                system.Free_solver()
 
     def __Drop_linear_systems(self) -> None:
         """Forgets every linear system: the mesh they were built on changed. Collective."""
@@ -1640,51 +1632,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         system = self._Get_linear_system(problem)
         self.__orphanWarned = False
 
-        isNonLinear = self.isNonLinear
-        if isNonLinear:
-            absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
-            name = ", ".join(self.__Fields(problem))
-            if MPI_RANK == 0:
-                Terminal.Section(f"{name} problem at iteration {self.Niter}")
-            x = self._Get_u_n(problem)
+        if self.isNonLinear:
+            x = self.__Solve_Newton(problem)
         else:
-            maxIter = 1
-            x = np.zeros(self.__Get_size(problem))
-
-        tic = Tic()
-        norms: list[float] = []
-        converged = not isNonLinear
-        self.__trial_solution = (problem, x)
-        try:
-            for _ in range(maxIter):
-                dx, rhsNorm = self.__Solver_Solve_Iter(problem, x)
-                x += dx
-                if not isNonLinear:
-                    break
-                norms.append(rhsNorm)
-                relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
-                if MPI_RANK == 0:
-                    print(
-                        f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
-                    )
-                # over the owned rows, so that every rank takes the same branch
-                owned = dx[self.Get_dofs(problem)]
-                dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
-                converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
-                if converged:
-                    break
-        finally:
-            self.__trial_solution = None
-
-        if isNonLinear:
-            timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
-            if not converged:
-                raise AssertionError(
-                    f"Newton raphson algorithm did not converged in {len(norms)} iterations."
-                )
-            self._Iter_Record(
-                newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms
-            )
+            x, _ = self.__Solve(problem)
 
         if isinstance(problem, tuple):
             for field, weights in system.pinnedWeights.items():
@@ -1756,82 +1707,102 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         start = self.__Get_offsets(problem)[problem.index(problemType)]
         return x[start : start + self.__Get_size(problemType)]
 
-    def __Solver_Solve_Iter(
-        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    def __Solve_Newton(
+        self, problem: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
+        """Newton-Raphson from `u_n`: `A dx = −R(x)`, `x += dx` until converged."""
+        absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
+        name = ", ".join(self.__Fields(problem))
+        if MPI_RANK == 0:
+            Terminal.Section(f"{name} problem at iteration {self.Niter}")
+
+        tic = Tic()
+        x = self._Get_u_n(problem)
+        norms: list[float] = []
+        converged = False
+        self.__trial_solution = (problem, x)
+        try:
+            for _ in range(maxIter):
+                self.Need_Update(problem)
+                dx, rhsNorm = self.__Solve(problem, x)
+                x += dx
+                norms.append(rhsNorm)
+                relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
+                if MPI_RANK == 0:
+                    print(
+                        f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
+                    )
+                # over the owned rows, so that every rank takes the same branch
+                owned = dx[self.Get_dofs(problem)]
+                dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
+                converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
+                if converged:
+                    break
+        finally:
+            self.__trial_solution = None
+
+        timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
+        if not converged:
+            raise AssertionError(
+                f"Newton raphson algorithm did not converged in {len(norms)} iterations."
+            )
+        self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
+        return x
+
+    def __Solve(
+        self,
+        problem: ProblemType | tuple[ProblemType, ...],
+        x: _types.FloatArray | None = None,
     ) -> tuple[_types.FloatArray, float]:
-        """Increment of `x` and the residual norm of `A dx = b(x)` under the resolution."""
-        if self.isNonLinear:
-            self.Need_Update(problem)
-        # A refreshed on the system
+        """y of `A y = b`, its known dofs at the Dirichlet values, minus x's when given (Newton's increment), 0 when the scheme solves for a; and b's residual norm."""
         _, b = self._Solver_Get_A_b(problem)
         self.__Warn_orphan_conditions(problem)
-        system = self._Get_linear_system(problem)
-        size, Ndof = x.size, b.size
-        hasLagrange = Ndof > size
-        resolution = self._resolution or (ResolType.r2 if hasLagrange else ResolType.r1)
-        if hasLagrange and resolution != ResolType.r2:
-            raise NotImplementedError(
-                f"{resolution} does not support Lagrange conditions."
-            )
+        size = self.__Get_size(problem)
+        if x is None:
+            x = np.zeros(size)
 
-        dofs = self.__Compose(problem, self.Bc_dofs_Dirichlet, isDofs=True)
-        dofs = np.asarray(dofs, dtype=int)
-        dofsValues = self.__Compose(problem, self.Bc_values_Dirichlet) - x[dofs]
-        if self.timeScheme.unknown == "a":
-            # the solve variable is a^n: constrained DOFs have zero acceleration
-            dofsValues = np.zeros_like(dofsValues)
-        dx = np.zeros(Ndof, dtype=float)
-        np.add.at(dx, dofs, dofsValues)
-
-        known = np.zeros(Ndof, dtype=bool)
+        y = np.zeros(b.size)
+        if self.timeScheme.unknown != "a":
+            dofs = self.__Compose(problem, self.Bc_dofs_Dirichlet, isDofs=True)
+            dofs = np.asarray(dofs, dtype=int)
+            values = self.__Compose(problem, self.Bc_values_Dirichlet) - x[dofs]
+            np.add.at(y, dofs, values)
+        known = np.zeros(b.size, dtype=bool)
         known[self.Bc_dofs_known_unknown(problem)[0]] = True
 
-        extra, lagrange, dropped = _Entries.Empty(), (), None
-        if resolution == ResolType.r2:
-            assert not isinstance(problem, tuple)
-            extra, lagrange = self.__Solver_Lagrange_border(problem, system, b, x)
-        elif resolution == ResolType.r3:
-            # every dof unknown, the known rows 1.0 on the diagonal
-            knownDofs = np.flatnonzero(known)
-            extra = _Entries(knownDofs, knownDofs, np.ones(knownDofs.size))
-            dropped, known = known, np.zeros(Ndof, dtype=bool)
+        lagrange = []
+        if b.size > size:
+            for condition in self.Bc_Lagrange:
+                coefs, dofs = condition.lagrangeCoefs, condition.dofs
+                value = condition.dofsValues[0] - coefs @ x[dofs]
+                lagrange.append(_Lagrange(dofs, coefs, value))
+        resolution = self._resolution or (ResolType.r2 if lagrange else ResolType.r1)
 
-        rhsNorm = system.Solve(
-            b,
-            dx,
-            known,
-            self.mesh.comm,
-            _Backend(self, problem, system),
-            eliminate=self.solver != SolverType.petsc,
-            extra=extra,
-            lagrange=lagrange,
-            dropped=dropped,
+        options = ("", "", "")
+        if self.solver == SolverType.petsc:
+            options = self._Solver_Get_PETSc4Py_Options(problem)
+        lb, ub = self._Solver_Get_lb_ub(problem)
+        solver = _Solver(
+            SolverType(self.solver),
+            options,
+            self._Solver_Get_x0(problem),
+            lb,
+            ub,
         )
-        return dx[:size], rhsNorm
 
-    def __Solver_Lagrange_border(
-        self,
-        problem: ProblemType,
-        system: _LinearSystem,
-        b: _types.FloatArray,
-        x: _types.FloatArray,
-    ) -> tuple[_Entries, tuple]:
-        """A's border by the Lagrange conditions scaled by `max|A|`, their rows of b set on the increment from `x`, and their dofs."""
-        if MPI_SIZE > 1:
-            raise NotImplementedError(
-                "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
-            )
-        _Check_saddle_point_solver(self, problem)
-        alpha = system.Get_alpha()
-        conditions = self.Bc_Lagrange
-        pieces = []
-        for i, condition in enumerate(conditions, x.size):
-            dofs = condition.dofs
-            coefs = alpha * condition.lagrangeCoefs
-            line = np.full(dofs.size, i)
-            pieces += [_Entries(line, dofs, coefs), _Entries(dofs, line, coefs)]
-            b[i] = alpha * condition.dofsValues[0] - coefs @ x[dofs]
-        return _Entries.Concatenate(pieces), tuple(c.dofs for c in conditions)
+        tic = Tic()
+        rhsNorm = self._Get_linear_system(problem).Solve(
+            b,
+            y,
+            known,
+            solver,
+            self.mesh.comm,
+            lagrange=lagrange,
+            resolution=resolution,
+        )
+        backend = ", ".join(options) if self.solver == SolverType.petsc else self.solver
+        tic.Tac("Solver", f"Solve {problem} ({backend})", self._verbosity)
+        return y[:size], rhsNorm
 
     def _Solver_Get_load(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
