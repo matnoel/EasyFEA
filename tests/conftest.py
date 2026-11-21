@@ -37,6 +37,8 @@ def pytest_runtest_makereport(item: pytest.Item, call):
     if MPI_SIZE > 1 and report.failed:
         from EasyFEA.Utilities._mpi import MPI_COMM
 
+        # pytest's global capture would swallow the report, and Abort never flushes it
+        item.config.pluginmanager.getplugin("capturemanager").suspend_global_capture()
         print(f"\n{report.nodeid} FAILED\n{report.longreprtext}", flush=True)
         MPI_COMM.Abort(1)
 
