@@ -1166,7 +1166,8 @@ def test_Simu_Assembly_rejects_a_field_given_twice():
 
 
 def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the_newton_iterate():
-    mesh = Domain((0, 0), (1, 1)).Mesh_2D()
+    domain = Domain((0, 0), (1, 1))
+    mesh = domain.Mesh_2D()
     simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
     u = np.arange(mesh.Nn, dtype=float)
 
@@ -1178,7 +1179,8 @@ def test_Simu__Solver_Get_A_b_takes_the_matrices_of_a_term_declaring_no_R_at_the
 
 
 def test_Simu__Solver_Get_A_b_reads_the_newton_iterate_on_the_field_space():
-    mesh = Domain((0, 0), (1, 1)).Mesh_2D([], ElemType.TRI6)
+    domain = Domain((0, 0), (1, 1))
+    mesh = domain.Mesh_2D([], ElemType.TRI6)
     meshP1 = mesh._With_FunctionSpace(Simulations.WeakForms.problemType, 1)
     simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
     # the vertices only: fewer DOFs than nodes

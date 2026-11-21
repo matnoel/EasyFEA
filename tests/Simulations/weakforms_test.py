@@ -51,14 +51,17 @@ def test_WeakForms_poisson1_is_Thermal_under_a_unit_source(unit_square):
 
 
 def test_WeakForms_on_one_group_of_two_leaves_the_other_group_known():
-    quads = Domain((0, 0), (1, 1), 0.25).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    tris = Domain((1, 0), (2, 1), 0.25).Mesh_2D([], ElemType.TRI3)
+    domainQuads = Domain((0, 0), (1, 1), 0.25)
+    quads = domainQuads.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    domainTris = Domain((1, 0), (2, 1), 0.25)
+    tris = domainTris.Mesh_2D([], ElemType.TRI3)
     mesh = Mesh.Merge([quads, tris])
     field = Field(mesh.dict_groupElem[ElemType.QUAD4], 1)
     weakForms = Models.WeakForms(field, computeK=laplacian_form())
     simu = Simulations.WeakForms(mesh, weakForms)
     simu.solver = SolverType.scipy
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == 0), [1], ["u"])
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    simu.add_dirichlet(nodesLeft, [1], ["u"])
 
     simu.Solve()
 
