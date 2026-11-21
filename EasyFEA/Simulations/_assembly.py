@@ -16,7 +16,6 @@ from ._terms import Same_contributions, Term, _Contribution
 
 if TYPE_CHECKING:
     from ..FEM import _GroupElem
-    from ._simu import _Simu
 
 
 class _Assembly:
@@ -327,23 +326,6 @@ def _Csr_map(
     canon = np.repeat(np.arange(Ndof), np.diff(matrix.indptr)) * Ndof + matrix.indices
     inv = np.searchsorted(canon, rows.astype(np.int64) * Ndof + cols).astype(np.int32)
     return inv, matrix.indices, matrix.indptr, matrix.nnz
-
-
-def _Dof_layout(
-    simu: "_Simu", problemTypes: tuple[ProblemType, ...]
-) -> tuple[tuple[tuple[ProblemType, _FunctionSpace, int, int], ...], int]:
-    """`(problemType, space, dof_n, offset)` of each field, side by side in the given order, and Ndof, every Lagrange dof after them."""
-    layout = []
-    offset = 0
-    for problemType in problemTypes:
-        space = simu._Get_FunctionSpace(problemType)
-        dof_n = simu.Get_dof_n(problemType)
-        layout.append((problemType, space, dof_n, offset))
-        offset += space.Nn * dof_n
-    Ndof = offset + sum(
-        simu._Bc_Lagrange_dim(problemType) for problemType in problemTypes
-    )
-    return tuple(layout), Ndof
 
 
 def _Blocks(
