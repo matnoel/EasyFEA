@@ -13,6 +13,7 @@ from EasyFEA.Simulations import Load_Simu
 
 docsDir = Folder.Dir(__file__, 2)
 examplesDir = Folder.Join(Folder.Dir(docsDir), "examples")
+sgExamplesDir = Folder.Join(docsDir, "examples")  # sphinx-gallery's gallery_dirs
 modelViewerDir = Folder.Join(docsDir, "_static", "model-viewer")
 
 # served at the html root by `html_extra_path`; survives `make clean`, like docs/examples
@@ -328,9 +329,14 @@ class GLTFScraper:
 
 
 def Prepare() -> None:
-    """Writes index.md and the model-viewer the exported html files link to."""
+    """Writes index.md, and forces sphinx-gallery to rerun any item whose export is missing."""
 
     shutil.copytree(modelViewerDir, cacheModelViewerDir, dirs_exist_ok=True)
+
+    for item in list_item:
+        md5File = Folder.Join(sgExamplesDir, f"{item._script}.md5")
+        if not Folder.Exists(item.htmlFile) and Folder.Exists(md5File):
+            os.remove(md5File)
 
     Write_index()
 
