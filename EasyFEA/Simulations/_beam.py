@@ -161,9 +161,6 @@ class Beam(_Simu):
         else:
             return 3
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return self.structure.dof_n
-
     def _Check_dim_mesh_material(self) -> None:
         # In the case of a beam problem, we don't need to check this condition.
         pass
@@ -459,27 +456,24 @@ class Beam(_Simu):
         return center
 
     def Results_Available(self) -> list[str]:
-        options = []
+        options = super().Results_Available()
         dof_n = self.Get_dof_n(self.problemType)
 
-        options.extend(["displacement", "displacement_norm", "displacement_matrix"])
-
         if dof_n == 1:
-            options.extend(["ux"])
+            # one dof per node: no norm nor component from the base
+            options.extend(["displacement_norm", "ux"])
             options.extend(["fx"])
             options.extend(["ux'"])
             options.extend(["N"])
             options.extend(["Sxx"])
 
         elif dof_n == 3:
-            options.extend(["ux", "uy", "rz"])
             options.extend(["fx", "fy", "cz"])
             options.extend(["ux'", "rz'"])
             options.extend(["N", "Ty", "Mz"])
             options.extend(["Sxx", "Sxy"])
 
         elif dof_n == 6:
-            options.extend(["ux", "uy", "uz", "rx", "ry", "rz"])
             options.extend(["fx", "fy", "fz", "cx", "cy", "cz"])
             options.extend(["ux'", "rx'", "ry'", "rz'"])
             options.extend(["N", "Ty", "Tz", "Mx", "My", "Mz"])
@@ -492,25 +486,16 @@ class Beam(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        # begin cases ----------------------------------------------------
-
         dof_n = self.structure.dof_n
         space = self._Get_FunctionSpace()
         dofs = space.Nn * dof_n
-        u_n = space.Get_meshValues(self.displacement, dof_n)
 
-        if result in ["ux", "uy", "uz", "rx", "ry", "rz"]:
-            index = self._indexResult(result)
-            values = u_n[:, index]
-
-        elif result == "displacement":
-            values = u_n.ravel()
-
-        elif result == "displacement_norm":
+        if result == "displacement_norm":
+            # the translations' norm, rotations left out
             values = np.linalg.norm(self.Results_displacement_matrix(), axis=1)
 
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
+        elif result == "ux" and dof_n == 1:
+            values = space.Get_meshValues(self.displacement, dof_n)[:, 0]
 
         elif result in ["fx", "fy", "fz", "cx", "cy", "cz"]:
             force = self.Calc_Reaction(np.arange(dofs))
@@ -578,10 +563,7 @@ class Beam(_Simu):
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
+            return super()._Result(result, nodeValues)
 
         return self.Results_Reshape_values_n(values, nodeValues)
 
@@ -642,14 +624,6 @@ class Beam(_Simu):
             return 5
         else:
             raise ValueError("result error")
-
-    def Results_dict_Energy(self) -> dict[str, float]:
-        return super().Results_dict_Energy()
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn

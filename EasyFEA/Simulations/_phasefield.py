@@ -6,7 +6,7 @@
 import numpy as np
 
 # utilities
-from ..Utilities import Terminal, Folder, Tic, _types
+from ..Utilities import Folder, Tic, _types
 from ..Utilities._mpi import MPI_SIZE, Reduce_max, Reduce_sum
 
 # fem
@@ -151,14 +151,6 @@ class PhaseField(_Simu):
             lb, ub = np.array([]), np.array([])
 
         return lb, ub
-
-    def Get_dof_n(self, problemType=None) -> int:
-        if problemType == self.D:
-            return 1
-        elif problemType in [self.U, None]:
-            return self.dim
-        else:
-            raise ValueError("problem error")
 
     @property
     def phaseFieldModel(self) -> Models.PhaseField:
@@ -502,24 +494,20 @@ class PhaseField(_Simu):
         return bool(Reduce_sum(detected, self.mesh.comm))
 
     def Results_Available(self) -> list[str]:
-        results = []
+        results = super().Results_Available()
         dim = self.dim
 
-        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
-
         if dim == 2:
-            results.extend(["ux", "uy"])
             results.extend(["Sxx", "Syy", "Sxy"])
             results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
-            results.extend(["ux", "uy", "uz"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
         results.extend(["Svm", "Stress", "Evm", "Strain"])
 
-        results.extend(["damage", "psiP", "Psi_Crack"])
+        results.extend(["psiP", "Psi_Crack"])
         results.extend(["Wdef"])
 
         return results
@@ -527,16 +515,6 @@ class PhaseField(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float | None:
-        # begin cases ----------------------------------------------------
-
-        # node values of the displacement (Nn, dim) and the damage (Nn,), through their spaces
-        spaceU = self._Get_FunctionSpace(self.U)
-        spaceD = self._Get_FunctionSpace(self.D)
-        u_n = spaceU.Get_meshValues(self.displacement, self.dim)
-        d_n = spaceD.Get_meshValues(self.damage, 1).ravel()
-
-        values = None
-
         if result in ["Wdef"]:
             return self._Calc_Psi_Elas()
 
@@ -554,21 +532,6 @@ class PhaseField(_Simu):
             )
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
-        elif result == "damage":
-            values = d_n
-
-        elif result in ["ux", "uy", "uz"]:
-            values = u_n[:, self.__indexResult(result)]  # type: ignore [assignment]
-
-        elif result == "displacement":
-            values = u_n.ravel()
-
-        elif result == "displacement_norm":
-            values = np.linalg.norm(u_n, axis=1)
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()  # type: ignore [assignment]
-
         elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and (damaged) stress, computed group by group
             isStress = "S" in result and result != "Strain"
@@ -579,25 +542,7 @@ class PhaseField(_Simu):
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
-
-        return self.Results_Reshape_values_n(values, nodeValues)
-
-    def __indexResult(self, result: str) -> int:
-        if len(result) <= 2:
-            if "x" in result:
-                return 0
-            elif "y" in result:
-                return 1
-            elif "z" in result:
-                return 2
-            else:
-                raise ValueError("result error")
-        else:
-            raise ValueError("result error")
+            return super()._Result(result, nodeValues)
 
     def _Calc_Psi_Elas(self) -> float:
         """Computes of the kinematically admissible damaged deformation energy.\n

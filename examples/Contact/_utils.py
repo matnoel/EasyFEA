@@ -28,8 +28,7 @@ class RigidContact(Simulations.Elastic):
         self._contactMesh: Mesh = None
 
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
-        u_t = self.Get_u_v_a(problemType, x)[0]
-        u = self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim)
+        u = self.Get_u_v_a(problemType, x)[0]
         return super().Get_terms(x, problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1, u=u)
         ]

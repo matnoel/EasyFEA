@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     rz_x = lambda x: F / E / Iz * (L * x - x**2 / 2)
 
-    rz = simu.Result("rz")
+    rz = simu.Result("urz")
     err_rz = np.abs(rz_x(x_n) - rz).max() / np.abs(rz_x(L))
     Terminal.MyPrint(f"\nerr rz: {err_rz * 100:.2e}%")
 

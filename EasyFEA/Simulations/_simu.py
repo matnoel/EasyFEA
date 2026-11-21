@@ -94,7 +94,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     The Thermal class is relatively simple and can serve as a good starting point.\n
     See `Simulations/_thermal.py` for more details.
 
-    To use the interface/inheritance, 10 methods and the class attributes ``problemTypes`` and ``dofFields`` need to be defined.
+    To use the interface/inheritance, 3 methods and the class attributes ``problemTypes`` and ``dofFields`` need to be defined.
 
     General:
     --------
@@ -105,9 +105,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Get_unknowns(self, problemType=None) -> list[str]:
 
-        - def Get_dof_n(self, problemType=None) -> int:
-
-        These functions provides access to the available unknowns and degrees of freedom (dofs).
+        The unknowns of each problem type, one per degree of freedom (dof) of a node: ``Get_dof_n`` is their number.
 
     Solve:
     ------
@@ -132,9 +130,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     Results:
     --------
 
+        - def Results_nodeFields_elementFields(self, details=False) -> tuple[list[str], list[str]]:
+
+        The results displayed in paraview.
+
         - def Results_Available(self) -> list[str]:
 
         - def _Result(self, result: str, nodeValues=True) -> float | _types.FloatArray:
+
+        Optional: by default the dof-field results — each name of ``dofFields`` the time scheme integrates, then ``<name>_norm`` and ``<role><unknown>`` (``ux``, ``vy``) when a node carries several dofs — and ``displacement_matrix``. A subclass extends them, ``[*super().Results_Available(), ...]``, and ends `_Result` with ``return super()._Result(result, nodeValues)``. `_Result` reads the current state only: the base `Result` checks the name and reads a past iteration inside `_Iter_Visit`.
 
         - def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
 
@@ -142,9 +146,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Results_displacement_matrix(self) -> _types.FloatArray:
 
-        - def Results_nodeFields_elementFields(self, details=False) -> tuple[list[str], list[str]]:
-
-        These functions are used to process the results. `_Result` reads the current state only: the base `Result` checks the name and reads a past iteration inside `_Iter_Visit`.
+        Optional: no summary, no energy and a zero displacement by default.
     """
 
     __indexMesh: int
@@ -222,12 +224,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__Get_problem(self._Get_monolithic_problem(problemType))
 
     @abstractmethod
-    def Get_unknowns(self, problemType: ProblemType = None) -> list[str]:
+    def Get_unknowns(self, problemType: ProblemType | None = None) -> list[str]:
         """Returns a list of unknowns available in the simulation."""
 
-    @abstractmethod
     def Get_dof_n(self, problemType: ProblemType | None = None) -> int:
-        """Returns the number of degrees of freedom per node."""
+        """Returns the number of degrees of freedom per node: one per unknown."""
+        return len(self.Get_unknowns(problemType))
 
     def _Get_FunctionSpace(
         self, problemType: ProblemType | None = None
@@ -472,9 +474,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     # Results
 
-    @abstractmethod
     def Results_Available(self) -> list[str]:
-        """Returns a list of available results in the simulation."""
+        """Returns a list of available results in the simulation: the dof-field results and ``displacement_matrix``; a subclass extends it."""
+        return [*self.__Dof_results(), "displacement_matrix"]
+
+    def __Dof_results(self) -> dict[str, tuple[ProblemType, str, str | None]]:
+        """Each dof-field result: its problem type, role and unknown (None the field, ``"_norm"`` its norm); the roles the time scheme integrates, norm and components when a node carries several dofs."""
+        results: dict[str, tuple[ProblemType, str, str | None]] = {}
+        for problemType, names in self.dofFields.items():
+            unknowns = self.Get_unknowns(problemType)
+            for role, name in zip("uva", names):
+                if role not in self.timeScheme.roles:
+                    continue
+                results[name] = (problemType, role, None)
+                if len(unknowns) > 1:
+                    results[f"{name}_norm"] = (problemType, role, "_norm")
+                    for unknown in unknowns:
+                        results[f"{role}{unknown}"] = (problemType, role, unknown)
+        return results
 
     def Result(
         self, result: str, nodeValues: bool = True, iter: int | None = None
@@ -509,27 +526,43 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return self._Result(result, nodeValues)
 
-    @abstractmethod
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        """The available `result` of the current state, at nodes or elements."""
+        """The available `result` of the current state, at nodes or elements: here the dof-field results and ``displacement_matrix``, a subclass handling its own first."""
+        dofResults = self.__Dof_results()
+        if result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
+        elif result in dofResults:
+            problemType, role, unknown = dofResults[result]
+            get = {"u": self._Get_u_n, "v": self._Get_v_n, "a": self._Get_a_n}[role]
+            unknowns = self.Get_unknowns(problemType)
+            values = self._Get_FunctionSpace(problemType).Get_meshValues(
+                get(problemType), len(unknowns)
+            )
+            if unknown is None:
+                values = values.ravel()
+            elif unknown == "_norm":
+                values = np.linalg.norm(values, axis=1)
+            else:
+                values = values[:, unknowns.index(unknown)]
+        else:
+            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
+            return None  # type: ignore [return-value]
+        return self.Results_Reshape_values_n(values, nodeValues)
 
-    @abstractmethod
     def Results_Iter_Summary(
         self,
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        """Returns the values to be displayed in Plot_Iter_Summary."""
+        """Returns the values to be displayed in Plot_Iter_Summary, none by default."""
         return [], []
 
-    @abstractmethod
     def Results_dict_Energy(self) -> dict[str, float]:
-        """Returns a dictionary containing the names and values of the calculated energies."""
+        """Returns a dictionary containing the names and values of the calculated energies, none by default."""
         return {}
 
-    @abstractmethod
     def Results_displacement_matrix(self) -> _types.FloatArray:
-        """Returns displacements as a matrix [dx, dy, dz] (Nn,3)."""
+        """Returns displacements as a matrix [dx, dy, dz] (Nn,3), zero by default."""
         Nn = self.mesh.Nn
         return np.zeros((Nn, 3))
 
@@ -538,7 +571,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         """Returns lists of nodesFields and elementsFields displayed in paraview."""
-        return [], []
 
     # ----------------------------------------------
     # core functions
@@ -1272,7 +1304,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Get_u_v_a(
         self, problemType: ProblemType | None = None, x: TrialSolution | None = None
     ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-        r"""Returns :math:`(\mathrm{u}_t, \vrm_t, \arm_t)` of the trial solution `x` (default the committed one), evaluated at the time scheme's own evaluation point; None for a role the scheme does not integrate."""
+        r"""Returns :math:`(\mathrm{u}_t, \vrm_t, \arm_t)` of the trial solution `x` (default the committed one), evaluated at the time scheme's own evaluation point, as node values (the layout `Kinematics` reads); None for a role the scheme does not integrate."""
 
         if problemType is None:
             problemType = self.problemType
@@ -1282,7 +1314,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
-        return self.timeScheme.Evaluate(x[problemType], u_n, v_n, a_n)
+        u_t, v_t, a_t = self.timeScheme.Evaluate(x[problemType], u_n, v_n, a_n)
+        space = self._Get_FunctionSpace(problemType)
+        dof_n = self.Get_dof_n(problemType)
+        return (
+            space.Get_nodeValues(u_t, dof_n),
+            None if v_t is None else space.Get_nodeValues(v_t, dof_n),
+            None if a_t is None else space.Get_nodeValues(a_t, dof_n),
+        )
 
     def _Committed(self) -> TrialSolution:
         """Each field's committed value of the time scheme's unknown: `u_n`, `v_n` or `a_n`."""

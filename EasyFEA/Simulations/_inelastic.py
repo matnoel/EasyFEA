@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..Utilities import Terminal, Tic, _types
+from ..Utilities import Tic, _types
 
 if TYPE_CHECKING:
     from ..FEM import Mesh
@@ -80,9 +80,6 @@ class InElastic(_Simu):
     def Get_unknowns(self, problemType=None) -> list[str]:
         return {2: ["x", "y"], 3: ["x", "y", "z"]}[self.dim]
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return self.dim
-
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
@@ -133,7 +130,7 @@ class InElastic(_Simu):
         self, u: _types.FloatArray, groupElem: _GroupElem
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
         return self.material.Integrate(
-            Kinematics(groupElem, self.__Node_values(u)),
+            Kinematics(groupElem, u),
             self.__Internal_e_pg(groupElem),
             self.__dt,
             **self.__External_e_pg(groupElem, self._variables.nextExternals),
@@ -169,11 +166,12 @@ class InElastic(_Simu):
         )
 
     def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
-        return {g: self.__Integrate(self.displacement, g)[2] for g in self.__Groups()}
+        u = self.__Node_values(self.displacement)
+        return {g: self.__Integrate(u, g)[2] for g in self.__Groups()}
 
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         """One term: the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
-        return [Term("KR", self.__Assemble, u=x[self.U])]
+        return [Term("KR", self.__Assemble, u=self.Get_u_v_a(self.U, x)[0])]
 
     def __Assemble(
         self,
@@ -202,11 +200,10 @@ class InElastic(_Simu):
         return [name for name, v in virgin.items() if v.shape == (1, 1)]
 
     def Results_Available(self) -> list[str]:
-        results = ["displacement", "displacement_norm", "displacement_matrix"]
+        results = super().Results_Available()
         if self.dim == 2:
-            results.extend(["ux", "uy", "Sxx", "Syy", "Sxy", "Exx", "Eyy", "Exy"])
+            results.extend(["Sxx", "Syy", "Sxy", "Exx", "Eyy", "Exy"])
         else:
-            results.extend(["ux", "uy", "uz"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
         results.extend(["Svm", "Stress", "Evm", "Strain"])
@@ -218,22 +215,9 @@ class InElastic(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        u_n = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
-
-        if result in ["ux", "uy", "uz"]:
-            values = u_n[:, {"x": 0, "y": 1, "z": 2}[result[-1]]]
-
-        elif result == "displacement":
-            values = u_n.ravel()
-
-        elif result == "displacement_norm":
-            values = np.linalg.norm(u_n, axis=1)
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
-
-        elif result in self.material.externalNames:
+        if result in self.material.externalNames:
             values = self.__Solved_externals()[result]
+            return self.Results_Reshape_values_n(values, nodeValues)
 
         elif result in self.__Scalar_states():
             values_e = np.concatenate(
@@ -253,19 +237,7 @@ class InElastic(_Simu):
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore[return-value]
-
-        return self.Results_Reshape_values_n(values, nodeValues)
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
-
-    def Results_dict_Energy(self) -> dict[str, float]:
-        # the contract declares no free energy
-        return {}
+            return super()._Result(result, nodeValues)
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn

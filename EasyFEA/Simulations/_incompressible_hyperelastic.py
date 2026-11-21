@@ -128,9 +128,6 @@ class IncompressibleHyperElastic(_Simu):
             return ["p"]
         return ["x", "y", "z"][: self.dim]
 
-    def Get_dof_n(self, problemType: ProblemType | None = None) -> int:
-        return 1 if problemType == self.P else self.dim
-
     @property
     def matrixType(self) -> MatrixType:
         """Integration rule the tangent and internal force are built at."""
@@ -186,14 +183,14 @@ class IncompressibleHyperElastic(_Simu):
         if problemType == p:
             return []
         u_t = self.Get_u_v_a(u, x)[0]
-        u_n = self._Get_FunctionSpace(u).Get_nodeValues(u_t, self.dim)
+        p_t = self.Get_u_v_a(p, x)[0]
         return [
-            Term("KR", self.__Stress, u=u_n),
+            Term("KR", self.__Stress, u=u_t),
             Term(
                 "KRKKR",
                 self.__MixedIncompressibility,
-                u=x[u],
-                p=x[p],
+                u=u_t,
+                p=p_t,
                 problemTypes=(
                     (u, u),
                     u,
@@ -207,11 +204,9 @@ class IncompressibleHyperElastic(_Simu):
     def __Kinematics(
         self, groupElem: _GroupElem, u: _types.FloatArray, matrixType: MatrixType
     ) -> Kinematics:
-        """Kinematics of u's group `groupElem`, at the explicit rule p is sampled at too."""
-        space_u = self._Get_FunctionSpace(self.U)
-        rule = space_u.Get_rule(groupElem, matrixType)
-        u_n = space_u.Get_nodeValues(u, self.dim)
-        return Kinematics(groupElem, u_n, rule)  # type: ignore [arg-type]
+        """Kinematics of u's group `groupElem` at node values `u`, at the explicit rule p is sampled at too."""
+        rule = self._Get_FunctionSpace(self.U).Get_rule(groupElem, matrixType)
+        return Kinematics(groupElem, u, rule)  # type: ignore [arg-type]
 
     def __Stress(
         self, groupElem: _GroupElem, u: _types.FloatArray
@@ -231,11 +226,8 @@ class IncompressibleHyperElastic(_Simu):
         p: _types.FloatArray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """``∫ p (1 − J) dΩ`` at `u`, `p`: both equations' tangents and residuals."""
-        space = self._Get_FunctionSpace(self.P)
         return Operators.NonLinear.MixedIncompressibility(
-            self.__Kinematics(groupElem, u, self.matrixType),
-            pGroup,
-            space.Get_nodeValues(p, 1),
+            self.__Kinematics(groupElem, u, self.matrixType), pGroup, p
         )
 
     # --------------------------------------------------------------------------
@@ -243,17 +235,13 @@ class IncompressibleHyperElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def Results_Available(self) -> list[str]:
-        unknowns = self.Get_unknowns()
         components = (
             ["xx", "yy", "xy"]
             if self.dim == 2
             else ["xx", "yy", "zz", "yz", "xz", "xy"]
         )
         return [
-            "displacement",
-            "displacement_norm",
-            "displacement_matrix",
-            *(f"u{unknown}" for unknown in unknowns),
+            *super().Results_Available(),
             *(f"S{component}" for component in components),
             *(f"E{component}" for component in components),
             "Svm",
@@ -269,20 +257,8 @@ class IncompressibleHyperElastic(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        space_u = self._Get_FunctionSpace(self.U)
-        u_n = space_u.Get_meshValues(self.displacement, self.dim)
-
         if result == "p":
-            space_p = self._Get_FunctionSpace(self.P)
-            values = space_p.Get_meshValues(self.pressure, 1).ravel()
-        elif result in ("ux", "uy", "uz"):
-            values = u_n[:, "xyz".index(result[1])]
-        elif result == "displacement":
-            values = u_n.ravel()
-        elif result == "displacement_norm":
-            values = np.linalg.norm(u_n, axis=1)
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
+            return super()._Result("pressure", nodeValues)
         elif result == "W":
             return self._Calc_W()
         elif result == "W_e":
@@ -299,7 +275,7 @@ class IncompressibleHyperElastic(_Simu):
             )
             values_e = Result_strain_or_stress_field_e(field, result)
             return self.Results_Reshape_values_e(values_e, nodeValues)
-        else:
+        elif result[0] in "SE":
             field = (
                 self._Calc_SecondPiolaKirchhoff()
                 if result[0] == "S"
@@ -307,16 +283,15 @@ class IncompressibleHyperElastic(_Simu):
             )
             values_e = Result_strain_or_stress_field_e(field, result[-2:])
             return self.Results_Reshape_values_e(values_e, nodeValues)
-
-        return self.Results_Reshape_values_n(values, nodeValues)
+        else:
+            return super()._Result(result, nodeValues)
 
     def __Solved_kinematics(
         self, groupElem: _GroupElem, matrixType: MatrixType | None = None
     ) -> Kinematics:
         """:meth:`__Kinematics` at the solved displacement, at ``self.matrixType`` by default."""
-        return self.__Kinematics(
-            groupElem, self.displacement, matrixType or self.matrixType
-        )
+        u = self._Get_FunctionSpace(self.U).Get_nodeValues(self.displacement, self.dim)
+        return self.__Kinematics(groupElem, u, matrixType or self.matrixType)
 
     def _Calc_W(
         self, returnScalar: bool = True, matrixType: MatrixType = MatrixType.rigi
@@ -374,14 +349,6 @@ class IncompressibleHyperElastic(_Simu):
             return self.material.Compute_dWde(kinematics) - p_e_pg * dJdE_e_pg
 
         return _Field_per_groupElem(S_e_pg, list_groupElem)
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
-
-    def Results_dict_Energy(self) -> dict[str, float]:
-        return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         space_u = self._Get_FunctionSpace(self.U)

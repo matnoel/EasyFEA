@@ -100,7 +100,7 @@ if __name__ == "__main__":
     Matplotlib.Plot_BoundaryConditions(simu)
     Matplotlib.Plot(simu, "ux", deformFactor=5 / depMax)
     Matplotlib.Plot(simu, "uy", deformFactor=5 / depMax)
-    Matplotlib.Plot(simu, "rz", deformFactor=5 / depMax)
+    Matplotlib.Plot(simu, "urz", deformFactor=5 / depMax)
     Matplotlib.Plot(simu, "fx", deformFactor=5 / depMax)
     Matplotlib.Plot(simu, "fy", deformFactor=5 / depMax)
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     Matplotlib.Plot(simu, Sigma_e[:, 0], title="Sxx")
     Matplotlib.Plot(simu, Internal_e[:, 0], title="N")
 
-    ux, uy, rz = simu.Result("ux"), simu.Result("uy"), simu.Result("rz")
+    ux, uy, rz = simu.Result("ux"), simu.Result("uy"), simu.Result("urz")
     fx, fy, cz = simu.Result("fx"), simu.Result("fy"), simu.Result("cz")
 
     for i in range(5):

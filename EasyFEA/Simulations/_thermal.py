@@ -6,7 +6,7 @@
 from typing import TYPE_CHECKING
 
 # utilities
-from ..Utilities import Terminal, _types
+from ..Utilities import _types
 
 # fem
 if TYPE_CHECKING:
@@ -77,16 +77,17 @@ class Thermal(_Simu):
     def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return 1
-
     def _Check_dim_mesh_material(self) -> None:
         pass
 
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
-        nodesField = ["thermal", "thermalDot"]
+        nodesField = [
+            name
+            for role, name in zip("uv", self.dofFields[self.T])
+            if role in self.timeScheme.roles
+        ]
         elementsField: list[str] = []
         return nodesField, elementsField
 
@@ -129,45 +130,3 @@ class Thermal(_Simu):
                 constant=True,
             ),
         ]
-
-    def Results_Available(self) -> list[str]:
-        options = []
-        options.extend(["thermal", "thermalDot", "displacement_matrix"])
-        return options
-
-    def _Result(
-        self, result: str, nodeValues: bool = True
-    ) -> _types.FloatArray | float:
-        # begin cases ----------------------------------------------------
-
-        space = self._Get_FunctionSpace()
-        t_n = space.Get_meshValues(self.thermal, 1).ravel()
-        tDot_n = space.Get_meshValues(self.thermalDot, 1).ravel()
-
-        if result == "thermal":
-            values = t_n
-
-        elif result == "thermalDot":
-            values = tDot_n
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
-
-        else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
-
-        return self.Results_Reshape_values_n(values, nodeValues)
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
-
-    def Results_dict_Energy(self) -> dict[str, float]:
-        return super().Results_dict_Energy()
-
-    def Results_displacement_matrix(self) -> _types.FloatArray:
-        return super().Results_displacement_matrix()

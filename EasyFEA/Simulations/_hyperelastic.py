@@ -7,7 +7,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 # utilities
-from ..Utilities import Terminal, _types
+from ..Utilities import _types
 
 # fem
 if TYPE_CHECKING:
@@ -128,9 +128,6 @@ class HyperElastic(_Simu):
         dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return self.dim
-
     @property
     def matrixType(self) -> MatrixType:
         """Integration rule the tangent and internal force are built at, ``MatrixType.rigi`` by default. Raise it when a field the material reads — fibers, sheets, an active stress — is sampled at a finer rule, so both are evaluated at the same points."""
@@ -178,8 +175,7 @@ class HyperElastic(_Simu):
         if problemType is None:
             problemType = self.problemType
 
-        u_t, v_t, _ = self.Get_u_v_a(problemType, x)
-        u = self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim)
+        u, v_t, _ = self.Get_u_v_a(problemType, x)
 
         terms = [Term("KRC", self.__Stress, u=u, v_t=v_t)]
 
@@ -204,7 +200,6 @@ class HyperElastic(_Simu):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
         """Tangent, internal force and damping of the elastic, active and viscous stresses at the time scheme's evaluation displacement `u`, guarded against an inverted element."""
         material = self.material
-        space = self._Get_FunctionSpace()
         kinematics = Kinematics(groupElem, u, self.matrixType)
         assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
 
@@ -220,7 +215,7 @@ class HyperElastic(_Simu):
 
         if material.eta != 0 and v_t is not None:
             K_v, R_v, C_e = Operators.NonLinear.KelvinVoigtDamping(
-                material, kinematics, space.Get_nodeValues(v_t, self.dim)
+                material, kinematics, v_t
             )
             K_e += K_v
             R_e += R_v
@@ -231,45 +226,15 @@ class HyperElastic(_Simu):
     # Results
     # --------------------------------------------------------------------------
 
-    def __indexResult(self, result: str) -> int:
-        if len(result) <= 2:
-            "Case were ui, vi or ai"
-            if "x" in result:
-                return 0
-            elif "y" in result:
-                return 1
-            elif "z" in result:
-                return 2
-            else:
-                raise ValueError("result error")
-        else:
-            raise ValueError("result error")
-
     def Results_Available(self) -> list[str]:
-        results = []
+        results = super().Results_Available()
         dim = self.dim
 
-        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
-        # only under a time scheme: a static solve has no velocity to report, and
-        # `Results_nodeFields_elementFields` gates them the same way
-        isDynamic = isinstance(self.timeScheme, Hyperbolic._Hyperbolic)
-        if isDynamic:
-            results.extend(["speed", "speed_norm"])
-            results.extend(["accel", "accel_norm"])
-
         if dim == 2:
-            results.extend(["ux", "uy"])
-            if isDynamic:
-                results.extend(["vx", "vy"])
-                results.extend(["ax", "ay"])
             results.extend(["Sxx", "Syy", "Sxy"])
             results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
-            results.extend(["ux", "uy", "uz"])
-            if isDynamic:
-                results.extend(["vx", "vy", "vz"])
-                results.extend(["ax", "ay", "az"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
@@ -282,46 +247,7 @@ class HyperElastic(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        # begin cases ----------------------------------------------------
-
-        space = self._Get_FunctionSpace()
-        u_n = space.Get_meshValues(self.displacement, self.dim)
-        v_n = space.Get_meshValues(self.speed, self.dim)
-        a_n = space.Get_meshValues(self.accel, self.dim)
-
-        values = None
-
-        if result in ["ux", "uy", "uz"]:
-            values = u_n[:, self.__indexResult(result)]
-
-        elif result == "displacement":
-            values = u_n.ravel()
-
-        elif result == "displacement_norm":
-            values = np.linalg.norm(u_n, axis=1)
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
-
-        elif result in ["vx", "vy", "vz"]:
-            values = v_n[:, self.__indexResult(result)]
-
-        elif result == "speed":
-            values = v_n.ravel()
-
-        elif result == "speed_norm":
-            values = np.linalg.norm(v_n, axis=1)
-
-        elif result in ["ax", "ay", "az"]:
-            values = a_n[:, self.__indexResult(result)]
-
-        elif result == "accel":
-            values = a_n.ravel()
-
-        elif result == "accel_norm":
-            values = np.linalg.norm(a_n, axis=1)
-
-        elif result in ["W"]:
+        if result in ["W"]:
             return self._Calc_W()
 
         elif result == "W_e":
@@ -355,12 +281,7 @@ class HyperElastic(_Simu):
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
-
-        return self.Results_Reshape_values_n(values, nodeValues)
+            return super()._Result(result, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
         r"""Computes the hyperelastic strain energy.
@@ -439,14 +360,6 @@ class HyperElastic(_Simu):
             return S_e_pg
 
         return _Field_per_groupElem(S_e_pg, space.Get_list_groupElem())
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
-
-    def Results_dict_Energy(self):
-        return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn

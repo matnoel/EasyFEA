@@ -131,8 +131,7 @@ class Ventricle(Simulations.HyperElastic):
         # `constant=True` builds the contribution once and reuses it while its arguments are unchanged
         epi = Term("K", Operators.Bilinear.MassAlongNormal, dim=2, tag="epi", constant=True)
         # the iterate, by node, at the time scheme's evaluation point
-        u_t = self.Get_u_v_a(problemType, x)[0]
-        u = self._Get_FunctionSpace().Get_nodeValues(u_t, self.dim)
+        u = self.Get_u_v_a(problemType, x)[0]
         return super().Get_terms(x, problemType) + [
             epi.Scaled(1e8),          # stiffness
             epi.Scaled(5e3, "C"),     # damping, from the same integration
@@ -174,8 +173,7 @@ class RigidContact(Simulations.Elastic):
     def Get_terms(
         self, x: TrialSolution, problemType: ProblemType | None = None
     ) -> list[Term]:
-        u_t = self.Get_u_v_a(problemType, x)[0]
-        u = self._Get_FunctionSpace().Get_nodeValues(u_t, self.dim)
+        u = self.Get_u_v_a(problemType, x)[0]
         return super().Get_terms(x, problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1, u=u)
         ]
@@ -204,7 +202,8 @@ starting point; consult
 [\_thermal.py](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_thermal.py)
 for implementation details.
 
-The complete interface to implement (all methods are abstract):
+The complete interface to implement (abstract unless marked optional; `Get_dof_n`
+defaults to the number of unknowns):
 
 ```python
 import numpy as np
@@ -222,10 +221,7 @@ class MySimulation(_Simu):
     # --- problem definition ---
 
     def Get_unknowns(self, problemType=None) -> list[str]:
-        ...
-
-    def Get_dof_n(self, problemType=None) -> int:
-        ...
+        ...  # Get_dof_n is their number
 
     # --- physics (see below for details) ---
 
@@ -234,11 +230,20 @@ class MySimulation(_Simu):
 
     # --- post-processing ---
 
-    def Results_Available(self) -> list[str]:
+    def Results_nodeFields_elementFields(self, details=False):
         ...
 
+    # --- optional: the dof-field results of `dofFields` by default, extend them ---
+
+    def Results_Available(self) -> list[str]:
+        return [*super().Results_Available(), "my_result"]
+
     def _Result(self, result: str, nodeValues=True):
-        ...
+        if result == "my_result":
+            ...
+        return super()._Result(result, nodeValues)
+
+    # --- optional: no summary, no energy, zero displacement by default ---
 
     def Results_Iter_Summary(self):
         ...
@@ -247,9 +252,6 @@ class MySimulation(_Simu):
         ...
 
     def Results_displacement_matrix(self):
-        ...
-
-    def Results_nodeFields_elementFields(self, details=False):
         ...
 ```
 
@@ -268,7 +270,9 @@ dofFields = {U: ("displacement", "speed", "accel")}
 parabolic, u, v and a when hyperbolic) and `Set_Iter` restores them, a role not saved as
 zero: neither is yours to write. A problem without time derivatives declares u alone,
 e.g. `{U: ("displacement",), P: ("pressure",)}`. The names are the keys of
-`simu.Get_results(i)`.
+`simu.Get_results(i)`, and the base results: each name the scheme integrates, then
+`<name>_norm` and one component per unknown, `<role><unknown>` (`ux`, `vy`), when a node
+carries several dofs.
 
 ### Internal and external variables
 

@@ -93,7 +93,7 @@ class Term:
 
     A term spanning several fields is handed one group per field, in the order its blocks name them.
 
-    The operator gets exactly the kwargs given here, plus ``elements`` when ``tag`` is set: the iterate it reads is passed explicitly, e.g. ``Term("KR", self.__Stress, u=u)`` with ``u`` from :py:meth:`_Simu.Get_u_v_a`.
+    The operator gets exactly the kwargs given here, plus ``elements`` when ``tag`` is set: the iterate it reads is passed explicitly, e.g. ``Term("KR", self.__Stress, u=u)`` with ``u`` the node values from :py:meth:`_Simu.Get_u_v_a`.
     """
 
     def __init__(

@@ -169,7 +169,7 @@ def test_Beam_euler_bernoulli_matches_its_closed_form(subtests):
                     exact = case.fields
 
                     assert rel_error(simu.Result("uy"), exact.uy(x_n)) < TOL
-                    assert rel_error(simu.Result("rz"), exact.rz(x_n)) < TOL
+                    assert rel_error(simu.Result("urz"), exact.rz(x_n)) < TOL
                     Ty = simu.Result("Ty", nodeValues=False)
                     assert rel_error(Ty, exact.Ty(x_e)) < TOL
                     if case.loadPoint is not None:
@@ -209,7 +209,7 @@ def test_Beam_timoshenko_adds_the_shear_deflection(subtests):
                     x_n, x_e = _x_nodes_and_centers(simu.mesh)
 
                     assert rel_error(simu.Result("uy"), exact.uy(x_n)) < tol
-                    assert rel_error(simu.Result("rz"), exact.rz(x_n)) < tol
+                    assert rel_error(simu.Result("urz"), exact.rz(x_n)) < tol
                     Ty = simu.Result("Ty", nodeValues=False)
                     assert rel_error(Ty, exact.Ty(x_e)) < tol
                     if case.loadPoint is not None:
@@ -239,7 +239,7 @@ def test_Beam_slender_timoshenko_cantilever_on_a_tri6_section():
     x_n, x_e = _x_nodes_and_centers(mesh)
     exact = _reference.timoshenko(_reference.cantilever_tip(L_EB, F, EI), kGA)
     assert rel_error(simu.Result("uy"), exact.uy(x_n)) < 1e-9
-    assert rel_error(simu.Result("rz"), exact.rz(x_n)) < 1e-9
+    assert rel_error(simu.Result("urz"), exact.rz(x_n)) < 1e-9
     assert rel_error(simu.Result("Mz", nodeValues=False), exact.Mz(x_e)) < TOL
     assert rel_error(simu.Result("Ty", nodeValues=False), exact.Ty(x_e)) < TOL
 
@@ -528,7 +528,7 @@ def test_Beam_add_connection_hinged_lets_the_joint_rotate(subtests):
             _load_the_joint(simu)
 
             assert rel_error(simu.Result("uy")[nodesJoint], half.uy(a)) < 1e-9
-            rz = simu.Result("rz")[nodesJoint]
+            rz = simu.Result("urz")[nodesJoint]
             assert rel_error(rz, half.rz(a) * np.array([1, -1])) < 1e-9
 
 
@@ -563,7 +563,7 @@ def test_Beam_add_connection_fixed_welds_two_collinear_beams():
 
     welded = _reference.fixed_fixed(2 * a, a, F, EI)
     assert rel_error(simu.Result("uy")[nodesJoint], welded.uy(a)) < 1e-9
-    assert rel_error(simu.Result("rz")[nodesJoint], 0.0, scale=1e-3) < 1e-9
+    assert rel_error(simu.Result("urz")[nodesJoint], 0.0, scale=1e-3) < 1e-9
 
 
 def test_Beam_add_connection_ties_only_the_given_unknowns():

@@ -630,13 +630,13 @@ class _Ventricle(Simulations.HyperElastic):
         pressure: float,
     ) -> Term:
         """Follower pressure on `tag` at `x`: it tracks the deformed normal, so it is rebuilt at every Newton iteration."""
-        u_t = self.Get_u_v_a(problemType, x)[0]
+        u = self.Get_u_v_a(problemType, x)[0]
         return Term(
             "KR",
             Operators.NonLinear.FollowingPressure,
             dim=2,
             tag=tag,
-            u=self._Get_FunctionSpace(problemType).Get_nodeValues(u_t, self.dim),
+            u=u,
             pressure=pressure,
             matrixType=MatrixType.mass,
         )

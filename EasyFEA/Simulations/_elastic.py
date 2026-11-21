@@ -7,7 +7,7 @@ from typing import Callable, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Folder, Terminal, Tic, _types
+from ..Utilities import Folder, Tic, _types
 
 # fem
 if TYPE_CHECKING:
@@ -95,9 +95,6 @@ class Elastic(_Simu):
         dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return self.dim
-
     @property
     def material(self) -> _Elastic:
         """elastic material"""
@@ -156,24 +153,14 @@ class Elastic(_Simu):
         self.Need_Update()
 
     def Results_Available(self) -> list[str]:
-        results = []
+        results = super().Results_Available()
         dim = self.dim
 
-        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
-        results.extend(["speed", "speed_norm"])
-        results.extend(["accel", "accel_norm"])
-
         if dim == 2:
-            results.extend(["ux", "uy"])
-            results.extend(["vx", "vy"])
-            results.extend(["ax", "ay"])
             results.extend(["Sxx", "Syy", "Sxy"])
             results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
-            results.extend(["ux", "uy", "uz"])
-            results.extend(["vx", "vy", "vz"])
-            results.extend(["ax", "ay", "az"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
@@ -186,46 +173,7 @@ class Elastic(_Simu):
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        # begin cases ----------------------------------------------------
-
-        space = self._Get_FunctionSpace()
-        u_n = space.Get_meshValues(self.displacement, self.dim)
-        v_n = space.Get_meshValues(self.speed, self.dim)
-        a_n = space.Get_meshValues(self.accel, self.dim)
-
-        values = None
-
-        if result in ["ux", "uy", "uz"]:
-            values = u_n[:, self.__indexResult(result)]
-
-        elif result == "displacement":
-            values = u_n.ravel()
-
-        elif result == "displacement_norm":
-            values = np.linalg.norm(u_n, axis=1)
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
-
-        elif result in ["vx", "vy", "vz"]:
-            values = v_n[:, self.__indexResult(result)]
-
-        elif result == "speed":
-            values = v_n.ravel()
-
-        elif result == "speed_norm":
-            values = np.linalg.norm(v_n, axis=1)
-
-        elif result in ["ax", "ay", "az"]:
-            values = a_n[:, self.__indexResult(result)]
-
-        elif result == "accel":
-            values = a_n.ravel()
-
-        elif result == "accel_norm":
-            values = np.linalg.norm(a_n, axis=1)
-
-        elif result in ["Wdef"]:
+        if result in ["Wdef"]:
             return self._Calc_Psi_Elas()
 
         elif result == "Wdef_e":
@@ -254,12 +202,7 @@ class Elastic(_Simu):
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
-
-        return self.Results_Reshape_values_n(values, nodeValues)
+            return super()._Result(result, nodeValues)
 
     def _Calc_Psi_Elas(
         self,
@@ -382,20 +325,6 @@ class Elastic(_Simu):
             space.Get_list_groupElem(),
         )
 
-    def __indexResult(self, result: str) -> int:
-        if len(result) <= 2:
-            "Case were ui, vi or ai"
-            if "x" in result:
-                return 0
-            elif "y" in result:
-                return 1
-            elif "z" in result:
-                return 2
-            else:
-                raise ValueError("result error")
-        else:
-            raise ValueError("result error")
-
     def Results_dict_Energy(self) -> dict[str, float]:
         dict_energy = {r"$\Psi_{elas}$": self._Calc_Psi_Elas()}
         return dict_energy
@@ -430,11 +359,6 @@ class Elastic(_Simu):
             summary += f"\nUz min = {dz.min():.2e}"  # type: ignore [union-attr]
 
         return summary
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn

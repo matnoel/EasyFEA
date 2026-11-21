@@ -136,7 +136,8 @@ $\Arm$ until a change marks them stale or the time-scheme coefficients change. T
 iterate reaches them as the trial solution,
 {py:data}`~EasyFEA.Simulations.TrialSolution`: a dict of each field's value, passed to
 {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` — the solved fields at `x`, the others
-committed.
+committed. {py:meth}`~EasyFEA.Simulations._Simu.Get_u_v_a` evaluates a field of it at
+the time scheme's point, as node values, the layout the operators read.
 
 ### What the norm measures
 

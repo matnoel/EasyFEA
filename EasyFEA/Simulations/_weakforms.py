@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Terminal, Tic, _types
+from ..Utilities import Tic, _types
 
 # fem
 if TYPE_CHECKING:
@@ -87,13 +87,14 @@ class WeakForms(_Simu):
         else:
             raise ValueError("Unknown dof_n configuration.")
 
-    def Get_dof_n(self, problemType=None) -> int:
-        return self.weakForms.field.dof_n
-
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
-        nodesField = ["u", "v", "a"]
+        nodesField = [
+            name
+            for role, name in zip("uva", self.dofFields[self.U])
+            if role in self.timeScheme.roles
+        ]
         elementsField: list[str] = []
         return nodesField, elementsField
 
@@ -176,89 +177,6 @@ class WeakForms(_Simu):
         values_e = form.Integrate_e(field)
         tic.Tac("Matrix", "Integrate the weak form.", self._verbosity)
         return values_e
-
-    def Results_Available(self) -> list[str]:
-        options = []
-        options.extend(["u", "v", "a", "displacement_matrix"])
-
-        dof_n = self.weakForms.field.dof_n
-
-        if dof_n == 1:
-            pass
-        elif 1 < dof_n <= 3:
-            sols = ["u", "v", "a"]
-            dofs = ["x", "y", "z"]
-            [
-                options.append(f"{sols[s]}{dofs[d]}")  # type: ignore [func-returns-value]
-                for s in range(3)
-                for d in range(dof_n)
-            ]
-        else:
-            raise ValueError("Unknown dof_n configuration.")
-
-        return options
-
-    def __indexResult(self, result: str) -> int:
-        if len(result) <= 2:
-            "Case were ui, vi or ai"
-            if "x" in result:
-                return 0
-            elif "y" in result:
-                return 1
-            elif "z" in result:
-                return 2
-            else:
-                raise ValueError("result error")
-        else:
-            raise ValueError("result error")
-
-    def _Result(
-        self, result: str, nodeValues: bool = True
-    ) -> _types.FloatArray | float:
-        # begin cases ----------------------------------------------------
-
-        space = self._Get_FunctionSpace()
-        dof_n = self.Get_dof_n()
-        u_n = space.Get_meshValues(self.u, dof_n)
-        v_n = space.Get_meshValues(self.v, dof_n)
-        a_n = space.Get_meshValues(self.a, dof_n)
-
-        if result == "u":
-            values = u_n.ravel()
-
-        elif result in ["ux", "uy", "uz"]:
-            values = u_n[:, self.__indexResult(result)]
-
-        elif result == "v":
-            values = v_n.ravel()
-
-        elif result in ["vx", "vy", "vz"]:
-            values = v_n[:, self.__indexResult(result)]
-
-        elif result == "a":
-            values = a_n.ravel()
-
-        elif result in ["ax", "ay", "az"]:
-            values = a_n[:, self.__indexResult(result)]
-
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()
-
-        else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
-
-        # end cases ----------------------------------------------------
-
-        return self.Results_Reshape_values_n(values, nodeValues)
-
-    def Results_Iter_Summary(
-        self,
-    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        return super().Results_Iter_Summary()
-
-    def Results_dict_Energy(self) -> dict[str, float]:
-        return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
 
