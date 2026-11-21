@@ -31,7 +31,7 @@ from EasyFEA import (
 from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
 from EasyFEA.Simulations import ProblemType, Term, TrialSolution
 from EasyFEA.Utilities import _params
-from EasyFEA.Utilities._mpi import MPI_RANK
+from EasyFEA.Utilities._mpi import MPI_COMM, MPI_RANK, MPI_SIZE
 from EasyFEA.Utilities._types import FloatArray, IntArray
 
 RESULTS_DIR = Folder.Join(Folder.Dir(), "results")
@@ -318,6 +318,8 @@ def Get_biventricular(
             sheet_n = dataVtk["s0"][idx]
             Simulations.Save_pickle(fiber_n, saveFolder, "fiber_n")
             Simulations.Save_pickle(sheet_n, saveFolder, "sheet_n")
+    if MPI_SIZE > 1:
+        MPI_COMM.Barrier()
 
     mesh = Mesher().Mesh_Import_mesh(gmshFile)
 
@@ -356,8 +358,9 @@ def Get_biventricular(
         mesh.Set_Tag(nodes, tag2)
 
     # get fibers
-    fiber_n = Simulations.Load_pickle(saveFolder, "fiber_n")
-    sheet_n = Simulations.Load_pickle(saveFolder, "sheet_n")
+    nodes = mesh.globalNodes
+    fiber_n = Simulations.Load_pickle(saveFolder, "fiber_n")[nodes]
+    sheet_n = Simulations.Load_pickle(saveFolder, "sheet_n")[nodes]
 
     fibers_e_pg = mesh.groupElem.Interpolate_e_pg(fiber_n, matrixType)
     sheets_e_pg = mesh.groupElem.Interpolate_e_pg(sheet_n, matrixType)
