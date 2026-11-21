@@ -21,7 +21,6 @@ build:
       # - uv pip install pypardiso
     pre_build:
       - git lfs pull
-      - python docs/gallery/generate.py
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:

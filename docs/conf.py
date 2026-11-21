@@ -15,6 +15,9 @@ from EasyFEA.Geoms import _Init_Geoms_NInstance
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
 import trame_pyvista  # noqa: F401  # raises on a trame-vtk/VTK mismatch, which the gallery would otherwise hide by going static
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "gallery"))
+import gltf_gallery  # noqa: E402
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -50,7 +53,7 @@ suppress_warnings = [
 # -- Auto doc ---------------------------------------------------
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "_cache", "Thumbs.db", ".DS_Store"]
 
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#automatically-document-modules
 autodoc_default_options = {
@@ -189,12 +192,14 @@ class ResetEasyFEA:
 
 resetEasyFEA = ResetEasyFEA()
 
+gltf_gallery.Prepare()
+
 # https://sphinx-gallery.github.io/stable/configuration.html
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "examples",
     "abort_on_example_error": True,
-    "image_scrapers": (DynamicScraper(), "matplotlib"),
+    "image_scrapers": (DynamicScraper(), "matplotlib", gltf_gallery.GLTFScraper()),
     "download_all_examples": False,
     "remove_config_comments": True,
     "filename_pattern": r".*\.py",
@@ -255,6 +260,7 @@ html_sidebars = {
 html_title = "EasyFEA"
 
 html_static_path = ["_static"]
+html_extra_path = [os.path.relpath(gltf_gallery.extraDir, os.path.dirname(__file__))]
 html_css_files = ["custom.css", "gallery.css"]
 
 # -- Latex -------------------------------------------------
