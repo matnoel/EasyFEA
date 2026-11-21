@@ -12,7 +12,7 @@ from scipy import sparse
 from ..FEM._function_space import _FunctionSpace
 from ..Utilities import _types
 from ._problem_type import ProblemType
-from ._terms import Same_contributions, Term, _Contribution
+from ._terms import Term, _Contribution
 
 if TYPE_CHECKING:
     from ..FEM import _GroupElem
@@ -28,12 +28,6 @@ class _Assembly:
         """`(field, space, dof_n, offset)` of each field, side by side"""
         self.size = sum(space.Nn * dof_n for _, space, dof_n, _ in layout)
         """number of dofs of the fields"""
-        self.__A: sparse.csr_matrix | None = None
-        self.__AKey: tuple = ()
-        """`contributing` of A's map"""
-        self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
-        self.__list_contributionA: list[_Contribution] = []
-        """the K, C and M contributions A was summed from"""
         self.__maps: dict[tuple, tuple[np.ndarray, np.ndarray, np.ndarray, int]] = {}
         """`{contributing: csr map}`"""
         self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
@@ -64,28 +58,14 @@ class _Assembly:
         list_contribution: list[_Contribution],
         coefs: tuple[float, float, float],
     ) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` from the contributions, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
+        """`coefK·K + coefC·C + coefM·M` from the contributions, on the map of every group it fills; read-only."""
         matrices = [
             contribution
             for contribution in list_contribution
             if contribution.slot in "KCM"
         ]
-        key = _Contributing(matrices)
-        if (
-            self.__A is not None
-            and key == self.__AKey
-            and coefs == self.__ACoefs
-            and Same_contributions(self.__list_contributionA, matrices)
-        ):
-            return self.__A
-
-        self.__AKey = key
         A = _Sum(matrices, coefs, self.size, self.__Get_map)
         A.data.flags.writeable = False
-
-        self.__A = A
-        self.__ACoefs = coefs
-        self.__list_contributionA = matrices
         return A
 
     def __Get_map(

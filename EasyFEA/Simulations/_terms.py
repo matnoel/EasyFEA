@@ -52,21 +52,6 @@ class _Contribution:
         return (-self.coef if self.slot == "R" else self.coef) * self.array
 
 
-def Same_contributions(a: list[_Contribution], b: list[_Contribution]) -> bool:
-    """Whether the ``K``, ``C`` and ``M`` contributions of `a` and `b` are the same cached arrays, coefficients, blocks and groups, every term constant."""
-    a, b = (
-        [contribution for contribution in x if contribution.slot in "KCM"]
-        for x in (a, b)
-    )
-    return len(a) == len(b) and all(
-        x.term.constant
-        and y.term.constant
-        and x.array is y.array
-        and (x.slot, x.block, x.group, x.coef) == (y.slot, y.block, y.group, y.coef)
-        for x, y in zip(a, b)
-    )
-
-
 _SLOTS = "KCMFR"
 """Slot letters, one per array the operator returns. ``K``/``C``/``M`` are the stiffness, damping and mass matrices; ``F`` is an external load, added to the right-hand side as-is; ``R`` is an **internal** force, so it reaches ``F`` negated. Every nonlinear operator returns an ``R`` — it is the residual of ``A·Δu = -R(u)`` — and ``F`` is reserved for genuine loads such as a phase-field source."""
 

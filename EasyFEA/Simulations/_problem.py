@@ -4,6 +4,7 @@
 
 """Fields of a simulation solved as one system: their system, assembly and contributions."""
 
+from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
@@ -12,7 +13,8 @@ from scipy import sparse
 
 from ..FEM import BoundaryCondition, Operators
 from ..FEM._function_space import _FunctionSpace
-from ..Solvers import Constraints, LagrangeConstraint, System
+from ..Solvers import Constraints, LagrangeConstraint, Newton, System
+from ..Solvers._backends import _Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
 from ._assembly import _Assembly, _Blocks
@@ -29,8 +31,11 @@ def _Field_size(simu: "_Simu", field: ProblemType) -> int:
     return simu._Get_FunctionSpace(field).Nn * simu.Get_dof_n(field)
 
 
-class _Problem:
+class _Problem(ABC):
     """Fields of a simulation solved as one system ``[u | p | … | Lagrange]``: its system, assembly and contributions, kept until the mesh changes."""
+
+    isNonLinear: bool
+    """whether the terms read the iterate"""
 
     def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
         if len(set(fields)) < len(fields):
@@ -38,8 +43,7 @@ class _Problem:
         self.simu = simu
         self.fields = fields
         self.needUpdate = True
-        """whether the kept contributions are stale"""
-        self.__list_contribution: list[_Contribution] = []
+        """whether the contributions changed since last integrated"""
         self.orphanWarned = False
         """the current solve already warned about conditions on orphan dofs"""
         self.__pinnedFor: _types.BoolArray | None = None
@@ -183,54 +187,48 @@ class _Problem:
     # Contributions
     # ----------------------------------------------
 
-    def Get_contributions(self, x: TrialSolution | None = None) -> list[_Contribution]:
-        """The fields' contributions, kept, rebuilt at `x` (default committed) when stale."""
-        if self.needUpdate:
-            if x is None:
-                x = self.simu._Committed()
-            self.__list_contribution = self.simu._Get_list_contribution(self.fields, x)
-            self.needUpdate = False
-        return self.__list_contribution
+    def _Integrate(self, trial: TrialSolution | None = None) -> list[_Contribution]:
+        """The fields' contributions integrated at `trial` (default committed)."""
+        if trial is None:
+            trial = self.simu._Committed()
+        self.needUpdate = False
+        return self.simu._Get_list_contribution(self.fields, trial)
 
-    def Get_A(self, x: TrialSolution | None = None) -> sparse.csr_matrix:
-        """A for the time scheme, summed from the contributions (rebuilt at `x` when stale) and kept by the assembly."""
-        list_contribution = self.Get_contributions(x)
+    @abstractmethod
+    def Get_contributions(self) -> list[_Contribution]:
+        """The fields' contributions at the committed state."""
+
+    def Need_Update(self) -> None:
+        """Marks the contributions stale."""
+        self.needUpdate = True
+
+    def Sum_A(self, list_contribution: list[_Contribution]) -> sparse.csr_matrix:
+        """A for the time scheme, summed from `list_contribution`; Lagrange rows included."""
         return self.Pad(
             self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
         )
 
-    def Get_load(self, x: TrialSolution | None = None) -> _types.FloatArray:
-        """External load, Neumann + the terms' F, the contributions rebuilt at `x` when stale; Lagrange rows included."""
+    def Sum_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
+        """External load, Neumann + the F of `list_contribution`; Lagrange rows included."""
         simu = self.simu
-        assembly = self.assembly
-        list_contribution = self.Get_contributions(x)
-        Ndof = self.Ndof
         dofs = self.Compose(simu.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.Compose(simu.Bc_values_Neumann)
 
-        load = np.zeros(Ndof, dtype=float)
+        load = np.zeros(self.Ndof, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
-        load[: self.size] += assembly.Get_load(list_contribution)
+        load[: self.size] += self.assembly.Get_load(list_contribution)
         return load
 
-    def Get_b(self, trial: TrialSolution | None = None) -> _types.FloatArray:
-        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at 0 when linear; Lagrange rows included."""
+    def Sum_b(
+        self,
+        list_contribution: list[_Contribution],
+        load: _types.FloatArray,
+        x: _types.FloatArray,
+    ) -> _types.FloatArray:
+        """b of `A dx = b` at the iterate x: `load` minus the internal forces of `list_contribution`; Lagrange rows included."""
         simu = self.simu
         tic = Tic()
 
-        if trial is None:
-            trial = simu._Committed()
-        load = self.Get_load(trial)
-        list_contribution = self.Get_contributions()
-        if simu.isNonLinear:
-            x = self.Compose(trial.__getitem__)
-        elif any(contribution.slot == "R" for contribution in list_contribution):
-            # R is integrated at u_n, not at x = 0
-            raise ValueError(
-                "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`."
-            )
-        else:
-            x = np.zeros(self.size)
         u_n = simu._Get_u_n(self.problemType)
         v_n = simu._Get_v_n(self.problemType)
         a_n = simu._Get_a_n(self.problemType)
@@ -247,29 +245,23 @@ class _Problem:
 
         return b
 
-    def Get_A_b(
-        self, x: TrialSolution | None = None
-    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b at `x` (default committed), the contributions rebuilt at `x` when stale."""
-        b = self.Get_b(x)
-        return self.Get_A(x), b
+    def Get_A(self) -> sparse.csr_matrix:
+        """A for the time scheme at the committed state; Lagrange rows included."""
+        return self.Sum_A(self.Get_contributions())
+
+    def Get_load(self) -> _types.FloatArray:
+        """External load at the committed state, Neumann + the terms' F; Lagrange rows included."""
+        return self.Sum_load(self.Get_contributions())
 
     def Get_product(
         self, fields: tuple[_types.FloatArray | None, ...]
     ) -> _types.FloatArray:
-        """`K·u + C·v + M·a` of the kept contributions, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
+        """`K·u + C·v + M·a` of the committed contributions, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
         return self.assembly.Get_product(self.Get_contributions(), fields)
 
     # ----------------------------------------------
     # Solve
     # ----------------------------------------------
-
-    def Linearize(
-        self, x: _types.FloatArray
-    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """Nonlinear only: the tangent and residual of `A dx = b`, integrated at the iterate x."""
-        self.simu.Need_Update(self.problemType)
-        return self.Get_A_b(self.Trial(x))
 
     def Constraints(self, x: _types.FloatArray | None = None) -> Constraints:
         """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
@@ -298,13 +290,17 @@ class _Problem:
 
     def Orphan_dofs(self) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        connected = self.assembly.Connected_rows(self.Get_contributions())
+        connected = self._Connected_rows()
         lagrange = self.Compose(
             lambda field: BoundaryCondition.Get_dofs(field, self.simu.Bc_Lagrange),  # type: ignore [arg-type]
             isDofs=True,
         )
         connected[np.asarray(lagrange, dtype=int)] = True
         return np.flatnonzero(~connected)
+
+    def _Connected_rows(self) -> _types.BoolArray:
+        """Rows a K, C or M contribution fills; a copy."""
+        return self.assembly.Connected_rows(self.Get_contributions())
 
     def __Warn_orphan_conditions(self) -> None:
         """Warns once per solve when a load or a Dirichlet condition touches an orphan dof. Collective on `mesh.comm`."""
@@ -399,3 +395,117 @@ class _Problem:
                 weights[owned].sum(), comm
             )
             values -= mean
+
+
+class _LinearProblem(_Problem):
+    """A problem whose terms do not read the iterate: its contributions and A kept until dropped, A also on new time-scheme coefs."""
+
+    isNonLinear = False
+
+    def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
+        super().__init__(simu, fields)
+        self.__list_contribution: list[_Contribution] | None = None
+        self.__A: sparse.csr_matrix | None = None
+        """A before the Lagrange rows, read-only"""
+        self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+    def Need_Update(self) -> None:
+        """Forgets the contributions and A."""
+        super().Need_Update()
+        self.__list_contribution = None
+        self.__A = None
+
+    def Get_contributions(self) -> list[_Contribution]:
+        """The fields' contributions, kept."""
+        if self.__list_contribution is None:
+            self.__list_contribution = self._Integrate()
+        return self.__list_contribution
+
+    def Get_A(self) -> sparse.csr_matrix:
+        """A for the time scheme, kept: the same object while the contributions and coefs hold; Lagrange rows included."""
+        coefs = self.simu.timeScheme.coefs
+        if self.__A is None or coefs != self.__ACoefs:
+            self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
+            self.__ACoefs = coefs
+        return self.Pad(self.__A)
+
+    def Get_A_b(self) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """A and b of `A x = b`; b at x = 0, never kept."""
+        list_contribution = self.Get_contributions()
+        if any(contribution.slot == "R" for contribution in list_contribution):
+            # R is integrated at u_n, not at x = 0
+            raise ValueError(
+                "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`, or declare a force independent of u in the F slot."
+            )
+        load = self.Sum_load(list_contribution)
+        b = self.Sum_b(list_contribution, load, np.zeros(self.size))
+        return self.Get_A(), b
+
+    def Solve(self, backend: _Backend) -> _types.FloatArray:
+        """x of `A x = b`, one solve."""
+        simu = self.simu
+        tic = Tic()
+        A, b = self.Get_A_b()
+        x, _ = self.system.Solve(
+            A,
+            b,
+            np.zeros(self.size),
+            self.Constraints(),
+            backend,
+            simu.mesh.comm,
+        )
+        tic.Tac("Solver", f"Solve {self.problemType} ({backend})", simu._verbosity)
+        return x
+
+
+class _NonLinearProblem(_Problem):
+    """A problem whose terms read the iterate: its contributions integrated on each read, never kept."""
+
+    isNonLinear = True
+
+    def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
+        super().__init__(simu, fields)
+        self.__connected: _types.BoolArray | None = None
+        """rows the contributions fill, kept from the first integration: structure only, the same at any iterate"""
+
+    def Need_Update(self) -> None:
+        """Marks the contributions stale, forgets the connected rows."""
+        super().Need_Update()
+        self.__connected = None
+
+    def _Connected_rows(self) -> _types.BoolArray:
+        """Rows a K, C or M contribution fills, kept; a copy."""
+        if self.__connected is None:
+            self.__connected = super()._Connected_rows()
+        return self.__connected.copy()
+
+    def Get_contributions(self) -> list[_Contribution]:
+        """The fields' contributions at the committed state, integrated, never kept."""
+        return self._Integrate()
+
+    def Get_A_b(
+        self, x: _types.FloatArray | None = None
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """K_t and R = load − f_int at the iterate x (default committed), integrated, never kept."""
+        trial = self.simu._Committed() if x is None else self.Trial(x)
+        list_contribution = self._Integrate(trial)
+        if self.__connected is None:
+            self.__connected = self.assembly.Connected_rows(list_contribution)
+        load = self.Sum_load(list_contribution)
+        b = self.Sum_b(list_contribution, load, self.Compose(trial.__getitem__))
+        return self.Sum_A(list_contribution), b
+
+    def Solve(
+        self, backend: _Backend, tol: tuple[float, float, float, int]
+    ) -> tuple[_types.FloatArray, list[float]]:
+        """Newton from `u_n`: x and b's norms."""
+        simu = self.simu
+        return Newton(
+            self.Get_A_b,
+            self.Constraints,
+            self.system,
+            backend,
+            simu._Get_u_n(self.problemType),
+            simu.mesh.comm,
+            tol,
+        )

@@ -56,14 +56,12 @@ from ._problem_type import ProblemType, TrialSolution
 from . import _iterations
 from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
-from ._problem import _Field_size, _Problem
+from ._problem import _Field_size, _LinearProblem, _NonLinearProblem, _Problem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
     ResolType,
-    System,
     Get_backend,
-    Newton,
 )
 from ..Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
 
@@ -128,7 +126,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - _externalNames
 
-        Optional, none by default: the internal variables per group the current solution reaches, and the names of the external variables `Set_external` accepts. `_Commit_Internal_and_External_states` makes the trial internal variables and the external variables set the committed ones of `_variables` at the end of a converged `Solve`; `Save_Iter` stores the committed ones, `Set_Iter` restores copies, then calls `_Iter_Restored`.
+        Optional, none by default: the internal variables per group the current solution reaches, and the names of the external variables `Set_external` accepts. `_Commit_Internal_and_External_states` makes the trial internal variables and the external variables set the committed ones of `_variables` at the end of a converged `Solve`; `Save_Iter` stores the committed ones, `Set_Iter` restores copies.
 
     Results:
     --------
@@ -154,7 +152,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __variables: _iterations.Variables
     __wholeRows: dict[int, list[_iterations.Rows]] = {}
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
-    __problems: dict[tuple[ProblemType, ...], _Problem] = {}
+    __problems: dict[tuple[ProblemType, ...], _LinearProblem | _NonLinearProblem] = {}
     """By fields, their `_Problem`; replaced, never written in place."""
     _resolution: ResolType | None = None
     """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
@@ -197,18 +195,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Get_problem(
         self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> _Problem:
-        """The `_Problem` of exactly these fields, kept until the mesh changes."""
+    ) -> _LinearProblem | _NonLinearProblem:
+        """The `_Problem` of exactly these fields, kept until the mesh or `isNonLinear` changes."""
         fields = problemType if isinstance(problemType, tuple) else (problemType,)
         problem = self.__problems.get(fields)
-        if problem is None:
-            problem = _Problem(self, fields)
+        if problem is None or problem.isNonLinear != self.isNonLinear:
+            if problem is not None:
+                problem.Free()
+            problem = (
+                _NonLinearProblem(self, fields)
+                if self.isNonLinear
+                else _LinearProblem(self, fields)
+            )
             self.__problems = {**self.__problems, fields: problem}
         return problem
 
     def __Problem(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> _Problem:
+    ) -> _LinearProblem | _NonLinearProblem:
         """The `_Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
         return self.__Get_problem(self._Get_monolithic_problem(problemType))
 
@@ -354,7 +358,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return _iterations.Get_scalars(self.__list_results, iter, None)
 
     def Set_Iter(self, iter: int = -1) -> dict:
-        """Sets the simulation to the saved iteration `iter` (the last by default) and returns its entries, as `Get_results`; collective on a partitioned mesh."""
+        """Sets the simulation to the saved iteration `iter` (the last by default), dropping every problem's contributions, and returns its entries, as `Get_results`; collective on a partitioned mesh."""
         iteration = self.__Read(iter)
         self.__Restore(iteration)
         return _iterations.Flat(iteration)
@@ -429,18 +433,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @contextmanager
     def _Iter_Visit(self) -> Iterator[None]:
-        """Binds every attribute back on exit, so that a `Set_Iter` inside only reads; exact as long as nothing is written in place."""
+        """Binds every attribute back on exit, so that a `Set_Iter` inside only reads; exact as long as nothing is written in place. Runs with an empty problem set: those built inside are dropped unfreed, the live solvers never freed."""
         live = dict(self.__dict__)
+        self.__problems = {}
         try:
             yield
         finally:
             self.__dict__.clear()
             self.__dict__.update(live)
-            # a reader inside rebuilt the linear systems' contributions in place
-            self.Need_Update()
-
-    def _Iter_Restored(self) -> None:
-        """Called by `Set_Iter` once a saved iteration is restored, to drop what the subclass derived from the state before; nothing by default."""
 
     def __Restore(self, iteration: _iterations.Iteration) -> None:
         """Sets the simulation to copies of the saved `iteration`, a dof field it lacks to zero."""
@@ -463,7 +463,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.mesh.dim)
         }
         self.__variables = self.__variables.Restored(iteration, groups)
-        self._Iter_Restored()
+        self.Need_Update()
 
     # Results
 
@@ -1059,7 +1059,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Need_Update(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> None:
-        """Marks stale the contributions of every problem sharing a field with `problemType`, of every problem by default: its next reader rebuilds them."""
+        """Drops the contributions of every problem sharing a field with `problemType`, of every problem by default: its next reader rebuilds them."""
         fields = None
         if problemType is not None:
             fields = set(
@@ -1067,7 +1067,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
         for problem in self.__problems.values():
             if fields is None or not fields.isdisjoint(problem.fields):
-                problem.needUpdate = True
+                problem.Need_Update()
 
     @property
     def needUpdate(self) -> bool:
@@ -1452,25 +1452,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem.Check_monolithic()
         problem.orphanWarned = False
 
-        system = problem.system
         backend = self.__Get_backend(problem.problemType)
-        comm = self.mesh.comm
-        if self.isNonLinear:
-            x = self.__Newton(problem, system, backend)
+        if isinstance(problem, _NonLinearProblem):
+            x = self.__Newton(problem, backend)
         else:
-            tic = Tic()
-            A, b = problem.Get_A_b()
-            x, _ = system.Solve(
-                A,
-                b,
-                np.zeros(problem.size),
-                problem.Constraints(),
-                backend,
-                comm,
-            )
-            tic.Tac(
-                "Solver", f"Solve {problem.problemType} ({backend})", self._verbosity
-            )
+            x = problem.Solve(backend)
 
         if len(problem.fields) > 1:
             problem.Shift_pinned(x)
@@ -1487,22 +1473,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return solutions[0]
 
     def __Newton(
-        self, problem: _Problem, system: System, backend: _Backend
+        self, problem: _NonLinearProblem, backend: _Backend
     ) -> _types.FloatArray:
         """Newton from `u_n`, its norms and time recorded for the next saved iteration."""
         name = ", ".join(problem.fields)
         if MPI_RANK == 0:
             Terminal.Section(f"{name} problem at iteration {self.Niter}")
         tic = Tic()
-        x, norms = Newton(
-            problem.Linearize,
-            problem.Constraints,
-            system,
-            backend,
-            self._Get_u_n(problem.problemType),
-            self.mesh.comm,
-            self.__Solver_Get_Newton_Raphson_Params(),
-        )
+        x, norms = problem.Solve(backend, self.__Solver_Get_Newton_Raphson_Params())
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x
@@ -1535,18 +1513,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | tuple[ProblemType, ...] | None = None,
         x: TrialSolution | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b before Dirichlet at the trial solution `x` (default committed), of the monolithic problem holding `problemType` or of the fields given; A is the object the solve uses, never write into it."""
+        """A and b before Dirichlet of the monolithic problem holding `problemType` or of the fields given: linear, the kept A (the object the solve uses, never write into it) and b, `x` refused; nonlinear, K_t and R with the problem's fields at the trial solution `x` (default committed), the others committed, never kept."""
         if isinstance(problemType, tuple) and len(problemType) > 1:
             problem = self.__Get_problem(problemType)
         else:
             problem = self.__Problem(problemType)
-        if x is None:
-            return problem.Get_A_b()
-        # contributions at x are not kept: the readers after this one see the committed state
-        self.Need_Update(problem.problemType)
-        A, b = problem.Get_A_b(x)
-        self.Need_Update(problem.problemType)
-        return A, b
+        if isinstance(problem, _NonLinearProblem):
+            return problem.Get_A_b(
+                None if x is None else problem.Compose(x.__getitem__)
+            )
+        if x is not None:
+            raise ValueError("A linear problem's A and b do not depend on x.")
+        return problem.Get_A_b()
 
     def _Solver_Set_PETSc4Py_Options(
         self,

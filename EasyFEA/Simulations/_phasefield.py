@@ -505,9 +505,6 @@ class PhaseField(_Simu):
         detected = int(d_nodes.size > 0 and np.any(d_nodes >= threshold))
         return bool(Reduce_sum(detected, self.mesh.comm))
 
-    def _Iter_Restored(self) -> None:
-        self.Need_Update()
-
     def Results_Available(self) -> list[str]:
         results = []
         dim = self.dim

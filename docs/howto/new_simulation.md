@@ -295,15 +295,13 @@ trial internal variables and the external variables set the committed
 results read; a `Solve` override calls `_Commit_Internal_and_External_states()` once
 converged. `Save_Iter` stores the committed ones, by kind, beside the dof fields and the
 scalars (`simu.Get_results(i)` shows them as `internal/<elemType>/<name>` and
-`external/<name>`), `Set_Iter` restores copies, then calls `_Iter_Restored()`, to
-override for anything derived from the previous state.
+`external/<name>`), `Set_Iter` restores copies and drops every problem's contributions.
 
 Key the internal variables by the groups of the default problem's space, on which
 `Set_Iter` restores them. {py:class}`~EasyFEA.Simulations.PhaseField` is the full
 example: beside the `_Trial_internals` above, its staggered `Solve` records its loop
 with `_Iter_Record(...)`, stored by the next `Save_Iter` and restored by `Set_Iter`, and
-calls `_Commit_Internal_and_External_states()` once converged; its `_Iter_Restored()`
-marks its assembled matrices stale.
+calls `_Commit_Internal_and_External_states()` once converged.
 
 The scalars of a saved iteration (the record, `indexMesh`) are written with it and kept
 in memory too: `Results_Iter_Summary` reads them with `_Get_results_scalars(i)`, which

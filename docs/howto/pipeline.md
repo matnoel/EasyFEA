@@ -127,11 +127,14 @@ for _ in range(maxIter):
 ```
 
 Integrating at x is what makes this Newton rather than a fixed-point iteration: a
-nonlinear simulation's `Get_A_b(x)` invalidates the cached matrices, so the terms are
-re-evaluated, giving the tangent **and** the residual at the new iterate. The iterate
-reaches them as the trial solution, {py:data}`~EasyFEA.Simulations.TrialSolution`: a
-dict of each field's value, passed to {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` —
-the solved fields at `x`, the others committed.
+nonlinear problem keeps no contributions, so each `Get_A_b(x)` re-evaluates the terms,
+giving the tangent **and** the residual at the new iterate, and a reader after the solve
+integrates again at the committed state. A linear problem keeps its contributions and
+$\Arm$ until a change marks them stale or the time-scheme coefficients change. The
+iterate reaches them as the trial solution,
+{py:data}`~EasyFEA.Simulations.TrialSolution`: a dict of each field's value, passed to
+{py:meth}`~EasyFEA.Simulations._Simu.Get_terms` — the solved fields at `x`, the others
+committed.
 
 ### What the norm measures
 
