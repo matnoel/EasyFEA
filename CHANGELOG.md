@@ -4,177 +4,67 @@ This document describes the changes made to the project.
 
 ## Unreleased
 
-### MPI
+### MPI (issue #73)
 
-- `Reduce_sum`, `Reduce_min`, `Reduce_max` and `Allgather` take a required `comm`:
-  `Reduce_sum(value, mesh.comm)`, `None` reduces nothing. `mesh.comm` is the ranks'
-  communicator on a partitioned mesh, `None` otherwise (serial, gathered).
-- `Simu.Calc_Resultant(dofs)`: the resultant of the internal force over `dofs`,
-  identical on every rank. `Calc_Reaction(dofs)` returns the rows of `dofs` under MPI as
-  in serial, so `np.sum(Calc_Reaction(dofs))` is the rank's share: use `Calc_Resultant`.
-- A rank's mesh is its partition's serial mesh: nodes in local ids sorted by global id,
-  ghosts included. `mesh.coord`, `connect`, tags, `Nodes_*` selections, dof vectors,
-  results and matrices have the rank's size, so `mesh.coord[nodes]` and
-  `Result(...)[nodes]` line up as in serial; no array of the whole mesh's size is left
-  on a rank. `Mesh.Merge` refuses a partitioned mesh; Paraview pieces write the global
-  ids as `GlobalPointIds`.
-- `mesh.globalNodes`: the global id of each node, read-only, so
-  `values[mesh.globalNodes]` reads a whole-mesh nodal file on the rank's nodes;
-  `arange(Nn)` when never partitioned. Groups store the global ids and owner ranks of
-  their elements and of the rank's nodes, and `isPartitioned`, which is never written: a
-  pickled or saved mesh loads detached, and `_Mesh_Get_Meshes` pieces never communicate
-  under mpirun. `_rankPartition` is gone.
-- `_GroupElem.Ncoords` renamed `Nn`, the size of the node numbering; the group's own
-  node count is `nodes.size`.
-- `_GroupElem._global_to_local_nodes` renamed `_nodesIdx`, a read-only property.
-- PETSc, serial and MPI, keeps its matrix and solver between solves: refilled when `A`
-  changes, rebuilt when the known dofs or the mesh do. LU factors are kept, so a Newmark
-  step with a constant `A` takes ~20 ms instead of ~1 s (47k dofs). GAMG reuses its
-  interpolation on a refill (PETSc's default): iterative solutions move within the
-  solver tolerance. PETSc options set elsewhere after the first solve are read only when
-  `_Solver_Set_PETSc4Py_Options` is called again.
-- `Result` on a rank gives its rows, ghosts included, equal to the serial ones: nodal
-  averages of element values are exact at the partition interfaces.
-  `Results_Reshape_values` split into `Results_Reshape_values_n` and
-  `Results_Reshape_values_e`, the caller stating where the values are: no longer guessed
-  from their size, which could pick elements for node values (one HEXA27).
-- `Movie_simu` (Matplotlib, PyVista) and `Save_simu` of GLTF, USD and Vizir need a
-  gathered simulation, as `Plot_Energy`: rank 0 alone would hang on the results'
-  collectives.
-- Paraview `.pvd` timesteps are the iteration indices, also when `N` samples them (was
-  the file position).
-- Saved iterations: each rank writes the rows it owns to `Rank{r}/Results/`, mapped by
-  its mesh in `Rank{r}/Meshes/`, so nothing is stored twice; `Set_Iter` and
-  `Get_results` are collective, ghost rows from their owners. Scalars are held by rank
-  0's entries only and no longer written to results files (serial too). `Save` writes
-  `Rank{r}/simulation.pickle`, the iterations kept in memory with it; `Load_Simu` under
-  mpirun resumes a run saved over as many ranks and raises on another count. Runs saved
-  per rank before (`_rank{r}` files) are no longer read; serial runs still are.
-  `Mesh.Save` of a partitioned mesh writes `folder/Rank{r}/filename.pickle` (was
-  `filename_rank{r}.pickle`).
-- A serial `Load_Simu` of a run saved over N ranks reads its N `Rank{r}/` folders and
-  returns the whole simulation. After `_Gather`, `Set_Iter` reads every saved iteration
-  whole, memory and folder, so `Movie_simu` works; `_Gather` and the serial read build
-  the whole mesh with one function.
+- A rank holds only its partition, as a serial mesh in local ids (ghosts included):
+  `mesh.coord`, `connect`, tags, dof vectors, results and matrices have the rank's size,
+  so `Result(...)[nodes]` lines up as in serial. `mesh.globalNodes` gives each node's
+  global id: read a whole-mesh nodal file with `values[mesh.globalNodes]`.
 - Every simulation solves over the ranks as in serial: PhaseField, Thermal, Beam and
-  WeakForms join Elastic, HyperElastic and InElastic. A beam section meshed under mpirun
-  is shared by the ranks: its area, inertias and shear factor are summed over them,
-  once, when the beam is made. DIC refuses a mesh shared by the ranks, beam connections
-  (Lagrange conditions) refuse one too, as PhaseField's `BoundConstrain`.
-- `_Gather` and a serial read of a run over the ranks keep the element tags and node
-  tags and the group classes (beam elements), and the internal variables stay `FeArray`s
-  (PhaseField's `psiP` was wrong after `_Gather`).
-- `_Gather` called again returns on every rank, not only on rank 0; it refuses a
-  parameter given per node (it places per-element ones only).
-- Beam `mass` and `center` sum each element once over the ranks.
-- `Save` over the ranks removes a serial save of the same name in the folder, which a
-  later `Load_Simu` would read first; `Load_Simu` raises on every rank when a file is
-  empty or corrupted.
+  WeakForms join Elastic, HyperElastic and InElastic. DIC, `Mesh.Merge` and beam
+  connections refuse a partitioned mesh.
+- **Breaking:** `Reduce_sum`, `Reduce_min`, `Reduce_max`, `Allgather` take a required
+  `comm` → `Reduce_sum(value, mesh.comm)`.
+- **Breaking:** `Calc_Reaction(dofs)` returns the rank's rows; for the total use
+  `simu.Calc_Resultant(dofs)`, identical on every rank.
+- PETSc keeps its matrix and solver between solves (LU factors included): a step with an
+  unchanged `A` costs a solve, not a factorisation.
+- `Movie_simu`, and GLTF, USD, Vizir `Save_simu`, need a gathered simulation, as
+  `Plot_Energy`. Paraview `.pvd` timesteps are the iteration indices.
 
-### Simulations
+### Saved iterations (issue #73)
 
-- A Beam can be saved: its section is no longer observed by the simulation computing its
-  shear factors.
-- A form made with `@BiLinearForm` or `@LinearForm` at module level pickles, so a
-  WeakForms simulation using one can be saved.
+- Under MPI each rank saves its own rows in `Rank{r}/`; `Load_Simu` resumes on the same
+  number of ranks, and a serial `Load_Simu` reads the whole run.
+- **Breaking:** runs saved per rank before 8.0 (`_rank{r}` files) are no longer read;
+  partitioned `Mesh.Save` writes `folder/Rank{r}/filename.pickle`.
+- Beam simulations and WeakForms using a module-level `@BiLinearForm`/`@LinearForm` can
+  be saved.
 
-### Linear system (#74)
+### Linear system (issue #74)
 
-- `TimeSchemes` package: `Elliptic`, `Parabolic(dt, alpha)` and `Hyperbolic.Newmark`,
-  `HHT`, `Midpoint`, `EulerImplicit`, `EulerExplicit`; a scheme is a subclass
-  implementing `Evaluate` and `Evaluate_np1`. `simu.timeScheme` reads the one set. `HHT`
-  is the former `AlgoType.hht_newmark` (Doyen, Ern & Piperno 2011, α ∈ [0, 1/3], β and γ
-  derived from α): the former `AlgoType.hht`, which shifted u, v and a with Newmark's β
-  and γ, damped nothing. `Solver_Set_Hyperbolic_Algorithm(dt, scheme, **params)` takes
-  the scheme class:
-  `Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.HHT, alpha=0.1)`; invalid
-  parameters are refused when set. `AlgoType` and `simu.algo` are removed.
-- `Fold_terms` (`Integrate_terms` since #75) returns a flat list of contributions,
-  unsummed: each with its `slot` (`KCMFR`), `block` `(rows, cols)`, `group`, `array` (a
-  constant term's cached array, never copied) and `coef` (thickness times the term's
-  scale). Filter it by slot, block or group; an `R` stays in `R`, negated into `F` by
-  `Assembly`.
-- `_Construct_local_matrix_system` is removed: `Get_terms` is the only extension point
-  of assembly.
-- `Get_K_C_M_F` is removed. `Assembly(problemType)` returns `K`, `C`, `M` (csr, one
-  pattern) and `F` as a 1-D array, built on each call and never read by a solve: `A` and
-  `b` are summed from the contributions, no sparse `K`, `C`, `M` stored.
-- `Calc_Energy(slot, x, problemType=None, dofs=None)` takes the slot (`"K"` strain,
-  `"M"` kinetic), not a matrix. `Calc_Reaction` and `Calc_Resultant` take `slots`, the
-  scheme's by default; `Calc_Reaction()` leaves out the Lagrange rows.
-- `Need_Update(problemType=None)` marks stale the problems sharing a field with
-  `problemType`, every problem by default (was a bool).
-- `mesh.orphanNodes` is removed. A dof in no element and no Lagrange condition is known,
-  0 unless a Dirichlet value sets it, under every resolution; a load or a Dirichlet
-  condition on one warns once per solve.
-- Lagrange conditions, or any saddle point, raise `ValueError` unless the solver factors
-  it: pypardiso, scipy, or PETSc `preonly`, `lu` with an external package (mumps or
-  superlu_dist under MPI).
-- `Solvers.Solve_simu`, `_Solver_Apply_Dirichlet`, `_Solver_Apply_Neumann` and
-  `_Solver_Solve_Newton_Raphson` are removed: linear and Newton solves take one path,
-  `_Solver_Get_A_b(problemType)` gives `A` and `b` before Dirichlet.
-- `_Solver_Set(solverType, problemType)` sets one problem's solver, `None` back to
-  `solver`. PhaseField's damage on `lsq_linear` (`BoundConstrain`) no longer swaps the
-  displacement's solver, whose PETSc solver is kept between staggered iterations.
-- Newmark step with a constant `A`, 47k dofs, PETSc LU: 23 → 19 ms (Rayleigh 30 → 21
-  ms), `b` from element products on the kept contributions. Newton steps unchanged,
-  PhaseField's ~1 % slower (energies by element products).
+- **Breaking:** `TimeSchemes` package replaces `AlgoType` and `simu.algo` →
+  `Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.HHT, alpha=0.1)`. `HHT`
+  now damps (the former `AlgoType.hht` did not); custom schemes subclass a scheme.
+- **Breaking:** `Get_K_C_M_F` removed → `Assembly(problemType)` returns `K, C, M, F`.
+- **Breaking:** `Calc_Energy(slot, ...)` takes `"K"` (strain) or `"M"` (kinetic), not a
+  matrix.
+- **Breaking:** `mesh.orphanNodes` removed: dofs in no element are known 0, with a
+  warning if loaded or constrained.
+- `Need_Update(problemType=None)` marks one problem stale, every one by default.
+- Lagrange conditions raise unless the solver factors a saddle point (pypardiso, scipy,
+  PETSc direct).
 
-### Solve pipeline (#75)
+### Solve pipeline (issue #75)
 
-- `EasyFEA.Solvers` package, mesh-free: `SolverType`, `ResolType`, `System` (the linear
-  system over the ranks), `Constraints(knownDofs, knownValues, list_lagrangeConstraint)`
-  of `LagrangeConstraint(dofs, coefs, value)`, `Newton`, `NotConvergedError`, and the
-  `NonlinearStrategy`, `NonlinearProblem` protocols. `EasyFEA.Simulations.Solvers` is
-  removed: import from `EasyFEA.Solvers`.
-- `Get_terms(self, x, problemType=None)`: the trial solution `x` (a `TrialSolution`, one
-  raw unknown per problem type) is passed explicitly; `_Solver_Get_trial_solution` is
-  removed. Operators no longer receive `u` or `elements` by name: read the iterate with
-  `Get_u_v_a(problemType, x)`, `elements` is passed only to a term with a `tag`.
-- `Get_u_v_a(problemType=None, x=None)` returns node values, `x` defaulting to the
-  committed solution.
-- `Fold_terms` is renamed `Integrate_terms`. `Assembly`, `_Solver_Get_load` and
-  `_Solver_Get_A_b(problemType, x)` return the problem's dofs only: the Lagrange rows
-  are added by `System` when it solves. `_Solver_Get_A_b` of a linear problem refuses
-  `x`. Fields solved as one system refuse a non-elliptic scheme and Lagrange conditions
-  when solved, no longer in `Assembly` or `Calc_Energy`.
-- `_Solver_Set_Newton_Raphson_Algorithm(...)` is removed:
-  `simu.Solver_Set_Nonlinear_Strategy(Newton(absTol, relTol, incTol, maxIter), problemType=None)`
-  sets the strategy of one monolithic problem (default every one), `None` solves it
-  linearly again; a `NonlinearStrategy` is any callable
-  `strategy(problem, backend, x0) -> (x, norms)`, e.g. a line search. `isNonLinear` is
-  true when a problem has one. `Newton(verbosity=False)` prints nothing. A strategy on a
-  problem with solver bounds (PhaseField's `BoundConstrain`) is refused.
-- `Solve(x0=None)`: a nonlinear problem's Newton starts from `x0`'s fields, `u_n` for
-  the others; a linear one refuses `x0`. `Get_x0` and its overrides are removed. Newton
-  raises `NotConvergedError` (an `AssertionError`) when it does not converge.
-- A Dirichlet dof given k > 1 times under Newton targets the sum of its values (was off
-  by (k − 1) · x).
-- After Newton, and after `Set_Iter` on a nonlinear simulation, `Calc_Energy`,
-  `Assembly` and the load read the committed solution (were the previous iterate's or
-  the last solve's). PhaseField's `convOption=2` with Lagrange conditions on the
-  displacement no longer fails an assert.
-- `Get_dof_n`, `Results_Iter_Summary`, `Results_dict_Energy` and
-  `Results_displacement_matrix` have defaults, `Results_Available` and `_Result` give
-  the dof-field results: a subclass extends them only where it adds results.
-  Displacement, speed and acceleration results are listed from the simulation's fields
-  and its time scheme: speed and acceleration only under a scheme integrating them (a
-  static Elastic or Thermal lists none); components are `f"{role}{unknown}"`, Beam's
-  rotations `urx`, `ury`, `urz` (were `rx`, `ry`, `rz`). `Stress_names(dim)` and
-  `Strain_names(dim)` list the Voigt components.
-- `Result` raises `ValueError` on a name the simulation does not list (was a print and
-  `None`). IncompressibleHyperElastic's pressure result, Paraview field included, is
-  `pressure` (was `p`).
-- `Mesh_Optim(DoMesh, criterion, iterMax=20, coef=1/2) -> Mesh`: remeshes until
-  `criterion(mesh) -> (converged, error_e)` converges, the `.pos` files in a temporary
-  folder; a criterion that is not callable is refused before meshing, an `error_e` with
-  no positive value raises. `Mesh_Optim_ZZ1` and the `ZZ1`, `ZZ1_e` results are removed:
-  see `examples/LinearizedElasticity/MeshOptim1.py`.
-- WeakForms integrates each term on its field's group: a mixed mesh's other groups no
-  longer make the system singular.
-- Speed unchanged: median step time, newmark 18.9 → 18.7 ms, Rayleigh 20.3 → 20.5 ms,
-  PhaseField 307 → 303 ms, Saint Venant-Kirchhoff Newton 4.61 → 4.66 s, within the runs'
-  spread.
+- **Breaking:** new `EasyFEA.Solvers` package → `from EasyFEA.Solvers import ...`
+  (`EasyFEA.Simulations.Solvers` removed).
+- **Breaking:** custom simulations: `Get_terms(self, x, problemType=None)` gets the
+  trial solution; read it with `Get_u_v_a(problemType, x)` (node values). Operators no
+  longer receive `u` or `elements` implicitly.
+- **Breaking:** Newton settings → `simu.Solver_Set_Nonlinear_Strategy(Newton(...))`, per
+  problem; any `strategy(problem, backend, x0)` callable plugs in (e.g. a line search).
+  Non-convergence raises `NotConvergedError`.
+- **Breaking:** `Get_x0` removed → `Solve(x0=...)` gives a nonlinear start.
+- Custom simulations: `Get_dof_n` and the `Results_*` methods have defaults; extend them
+  only to add results.
+- **Breaking:** `Result` raises `ValueError` on an unknown name. Beam rotations are
+  `urx, ury, urz`; IncompressibleHyperElastic pressure is `pressure`.
+- **Breaking:** `Mesh_Optim(DoMesh, criterion, ...)` takes a callable criterion;
+  `Mesh_Optim_ZZ1` and `ZZ1` results removed → see
+  `examples/LinearizedElasticity/MeshOptim1.py`.
+- Fixes: a Dirichlet dof given twice under Newton; energies and loads after Newton or
+  `Set_Iter` read the committed solution; WeakForms on mixed meshes no longer singular.
 
 ## 7.3.0 (November 13, 2026):
 
