@@ -225,9 +225,6 @@ class MySimulation(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         ...
 
-    def Get_x0(self, problemType=None):
-        ...
-
     # --- physics (see below for details) ---
 
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:

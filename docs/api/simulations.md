@@ -260,4 +260,13 @@ can serve as a good starting point.
 
 .. autofunction:: EasyFEA.Solvers.Get_backend
 
+.. autoclass:: EasyFEA.Solvers.Problem
+   :members:
+
+.. autofunction:: EasyFEA.Solvers.Linear
+
+.. autofunction:: EasyFEA.Solvers.Newton
+
+.. autoclass:: EasyFEA.Solvers.NotConvergedError
+
 ```

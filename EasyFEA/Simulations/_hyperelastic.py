@@ -172,9 +172,6 @@ class HyperElastic(_Simu):
     # Solve
     # --------------------------------------------------------------------------
 
-    def Get_x0(self, problemType=None):
-        return self.displacement
-
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         r"""Terms of ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``.
 

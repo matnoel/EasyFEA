@@ -458,13 +458,6 @@ class Beam(_Simu):
 
         return center
 
-    def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Nn * self.Get_dof_n(problemType)
-        if self.displacement.size != size:
-            return np.zeros(size)
-        else:
-            return self.displacement
-
     def Results_Available(self) -> list[str]:
         options = []
         dof_n = self.Get_dof_n(self.problemType)

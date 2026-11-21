@@ -14,7 +14,7 @@ from typing import Any, Callable, Iterator, NamedTuple
 import numpy as np
 from scipy import sparse
 import textwrap
-from functools import cache
+from functools import cache, partial
 
 from ..__about__ import __version__
 
@@ -60,8 +60,17 @@ from . import _iterations
 from ._terms import Term, Fold_terms, _Contribution
 from ._assembly import _Assembly, _Blocks, _Dof_layout
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
-from ..Solvers import SolverType, ResolType, Constraints, Lagrange, System, Get_backend
-from ..Solvers._backends import CAN_USE_PYPARDISO, _Get_PETSc
+from ..Solvers import (
+    SolverType,
+    ResolType,
+    Constraints,
+    Lagrange,
+    System,
+    Get_backend,
+    Linear,
+    Newton,
+)
+from ..Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
 
 
 @cache
@@ -108,8 +117,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     Solve:
     ------
-
-        - def Get_x0(self, problemType=None):
 
         - def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
 
@@ -245,17 +252,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             for field in self.__Fields(problemType)
         )
 
-    def __Get_Ndof(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> int:
-        """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
-        if problemType is None:
-            problemType = self.problemType
-        fields = self.__Fields(problemType)
-        return self.__Get_size(problemType) + sum(
-            [self._Bc_Lagrange_dim(field) for field in fields]
-        )
-
     def Calc_Energy(
         self,
         slot: str,
@@ -338,18 +334,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = np.asarray(dofs, dtype=int)
         resultant = float(np.sum(reaction[dofs[isOwned[dofs]]]))
         return Reduce_sum(resultant, self.mesh.comm)
-
-    @abstractmethod
-    def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
-        """Returns the solution from the previous iteration."""
-        size = self.__Get_size(problemType)
-        return np.zeros(size)
-
-    def _Solver_Get_x0(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> _types.FloatArray:
-        """:py:meth:`Get_x0` of each field of the problem, end to end."""
-        return self.__Compose(problemType, self.Get_x0)
 
     def _Solver_Get_lb_ub(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -1594,10 +1578,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__Check_monolithic(problem)
         self.__orphanWarned = False
 
+        simuProblem = _SimuProblem(
+            self.__Get_size(problem),
+            partial(self.__Linearize, problem),
+            partial(self.__Constraints, problem),
+        )
+        system = self._Get_linear_system(problem)
+        backend = self.__Get_backend(problem)
+        comm = self.mesh.comm
         if self.isNonLinear:
-            x = self.__Solve_Newton(problem)
+            x = self.__Newton(problem, simuProblem, system, backend)
         else:
-            x, _ = self.__Solve(problem)
+            tic = Tic()
+            x = Linear(simuProblem, system, backend, comm)
+            tic.Tac("Solver", f"Solve {problem} ({backend})", self._verbosity)
 
         if isinstance(problem, tuple):
             for field, weights in self.__Get_assembly(problem).pinnedWeights.items():
@@ -1653,60 +1647,48 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
         return weights
 
-    def __Solve_Newton(
-        self, problem: ProblemType | tuple[ProblemType, ...]
+    def __Newton(
+        self,
+        problem: ProblemType | tuple[ProblemType, ...],
+        simuProblem: "_SimuProblem",
+        system: System,
+        backend: _Backend,
     ) -> _types.FloatArray:
-        """Newton-Raphson from `u_n`: `A dx = −R(x)`, `x += dx` until converged."""
-        absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
+        """Newton from `u_n`, its norms and time recorded for the next saved iteration."""
         name = ", ".join(self.__Fields(problem))
         if MPI_RANK == 0:
             Terminal.Section(f"{name} problem at iteration {self.Niter}")
-
         tic = Tic()
-        x = self._Get_u_n(problem)
-        norms: list[float] = []
-        converged = False
-        for _ in range(maxIter):
-            self.Need_Update(problem)
-            dx, rhsNorm = self.__Solve(problem, x)
-            x += dx
-            norms.append(rhsNorm)
-            relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
-            if MPI_RANK == 0:
-                print(
-                    f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
-                )
-            # over the owned rows, so that every rank takes the same branch
-            owned = dx[self.Get_dofs(problem)]
-            dxNorm = np.sqrt(Reduce_sum(owned @ owned, self.mesh.comm))
-            converged = rhsNorm < absTol or relNorm < relTol or dxNorm < incTol
-            if converged:
-                break
-
+        x, norms = Newton(
+            simuProblem,
+            system,
+            backend,
+            self._Get_u_n(problem),
+            self.mesh.comm,
+            *self.__Solver_Get_Newton_Raphson_Params(),
+        )
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
-        if not converged:
-            raise AssertionError(
-                f"Newton raphson algorithm did not converged in {len(norms)} iterations."
-            )
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x
 
-    def __Solve(
-        self,
-        problem: ProblemType | tuple[ProblemType, ...],
-        x: _types.FloatArray | None = None,
-    ) -> tuple[_types.FloatArray, float]:
-        """dx of `A dx = b` at x (default 0, dx the solution), `x + dx` at the Dirichlet values, x's when the scheme solves for a; and b's residual norm."""
-        trial = None if x is None else self.__Trial(problem, x)
-        A, b = self.__Get_A_b(problem, trial)
+    def __Linearize(
+        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """A, b of `A dx = b` at the iterate x, refolded there when nonlinear; a linear problem's terms see the committed state, refolded only when stale."""
+        if not self.isNonLinear:
+            b = self.__Get_b(problem, iterate=x)
+            return self.__Get_A(problem), b
+        self.Need_Update(problem)
+        return self.__Get_A_b(problem, self.__Trial(problem, x))
+
+    def __Constraints(
+        self, problem: ProblemType | tuple[ProblemType, ...], x: _types.FloatArray
+    ) -> Constraints:
+        """The known dofs at the Dirichlet values, orphan and pinned ones at x, every one at x when the scheme solves for a; the Lagrange conditions."""
         self.__Warn_orphan_conditions(problem)
         size = self.__Get_size(problem)
-        if x is None:
-            x = np.zeros(size)
-
         known = np.zeros(size, dtype=bool)
         known[self.Bc_dofs_known_unknown(problem)[0]] = True
-        # orphan and pinned dofs stay at x, as every one when the scheme solves for a
         target = x.copy()
         if self.timeScheme.unknown != "a":
             dofs = self.__Compose(problem, self.Bc_dofs_Dirichlet, isDofs=True)
@@ -1714,38 +1696,28 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             target[dofs] = 0.0
             np.add.at(target, dofs, self.__Compose(problem, self.Bc_values_Dirichlet))
 
-        lagrange = ()
-        if b.size > size:
-            lagrange = tuple(
-                Lagrange(c.dofs, c.lagrangeCoefs, c.dofsValues[0])
-                for c in self.Bc_Lagrange
-            )
-        constraints = Constraints(known, target[known], lagrange, self._resolution)
+        fields = self.__Fields(problem)
+        lagrange = tuple(
+            Lagrange(c.dofs, c.lagrangeCoefs, c.dofsValues[0])
+            for c in self.Bc_Lagrange
+            if c.problemType in fields
+        )
+        return Constraints(known, target[known], lagrange, self._resolution)
 
+    def __Get_backend(self, problem: ProblemType | tuple[ProblemType, ...]) -> _Backend:
+        """The backend of the problem's solver type, options and bounds; guess `u_n` for a linear solve, 0 for Newton's increment."""
         solverType = self._Solver_Get(problem)
         options = None
         if solverType == SolverType.petsc:
             options = self._Solver_Get_PETSc4Py_Options(problem)
         lb, ub = self._Solver_Get_lb_ub(problem)
-        backend = Get_backend(
+        return Get_backend(
             solverType,
             options,
             lb,
             ub,
-            self._Solver_Get_x0(problem),
+            None if self.isNonLinear else self._Get_u_n(problem),
         )
-
-        tic = Tic()
-        dx, rhsNorm = self._Get_linear_system(problem).Solve(
-            A,
-            b,
-            x,
-            constraints,
-            backend,
-            self.mesh.comm,
-        )
-        tic.Tac("Solver", f"Solve {problem} ({backend})", self._verbosity)
-        return dx, rhsNorm
 
     def _Solver_Get_load(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
@@ -1773,8 +1745,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         problemType: ProblemType | tuple[ProblemType, ...],
         trial: TrialSolution | None = None,
+        iterate: _types.FloatArray | None = None,
     ) -> _types.FloatArray:
-        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at 0 when linear; Lagrange rows included."""
+        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at `iterate` (default 0) when linear; Lagrange rows included."""
         tic = Tic()
 
         if trial is None:
@@ -1788,8 +1761,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             raise ValueError(
                 "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`."
             )
-        else:
+        elif iterate is None:
             x = np.zeros(self.__Get_size(problemType))
+        else:
+            x = iterate
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
@@ -2177,8 +2152,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Adds Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
-        # triger the update because when we use lagrange multiplier we need to update the matrix system
-        self.Need_Update()
 
     def _Bc_Lagrange_dim(self, problemType: ProblemType = None) -> int:
         """Calculates the dimension required to resize the system to use Lagrange multipliers."""
@@ -3372,3 +3345,13 @@ class _RankPart(NamedTuple):
     """The iterations kept in memory, by index."""
     parameters: list[list[tuple[_types.IntArray, np.ndarray]] | None]
     """Each parameter's values per group with their element global ids, None unless one per element."""
+
+
+class _SimuProblem(NamedTuple):
+    """A problem key of a simulation as a `Solvers.Problem`, over the simulation's own linearization and constraints."""
+
+    size: int
+    Linearize: Callable[
+        [_types.FloatArray], tuple[sparse.csr_matrix, _types.FloatArray]
+    ]
+    Constraints: Callable[[_types.FloatArray], Constraints]

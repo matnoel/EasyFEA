@@ -106,7 +106,7 @@ def test_Term_repr_names_the_operator_its_tag_and_its_group():
 def test_Term_rejects_a_constant_bound_method():
     simu = Simu()
     with pytest.raises(TypeError, match="bound method"):
-        Term("K", simu.Get_x0, constant=True)
+        Term("K", simu.Get_unknowns, constant=True)
 
 
 def test_Term_rejects_a_constant_argument_it_cannot_compare(subtests):

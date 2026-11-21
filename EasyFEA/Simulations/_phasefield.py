@@ -178,21 +178,6 @@ class PhaseField(_Simu):
         [di, ...]"""
         return self._Get_u_n(self.D)
 
-    def Get_x0(self, problemType=None):
-        if problemType == self.D:
-            size = self._Get_FunctionSpace(problemType).Nn
-            if self.damage.size != size:
-                return np.zeros(size)
-            else:
-                return self.damage
-        elif problemType in [self.U, None]:
-            space = self._Get_FunctionSpace(self.U)
-            size = space.Nn * self.dim
-            if self.displacement.size != size:
-                return np.zeros(size)
-            else:
-                return self.displacement
-
     def Solve(
         self, tolConv=1.0, maxIter=500, convOption=2
     ) -> tuple[_types.FloatArray, _types.FloatArray, bool]:

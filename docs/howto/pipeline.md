@@ -103,29 +103,36 @@ ______________________________________________________________________
 
 ## Non-linear convergence
 
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` drives every solve: a
-linear one solves $\Arm \, \mathrm{x} = \brm$ once, its known dofs at the Dirichlet
-values; a non-linear one iterates from the last converged solution, repeating three
-moves — reassemble at the current iterate, solve for the correction, add it:
+{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` drives every solve
+through a driver of {py:mod}`EasyFEA.Solvers`, the simulation adapted as a
+{py:class}`~EasyFEA.Solvers.Problem` (`Linearize(x) -> (A, b)`, `Constraints(x)`):
+{py:func}`~EasyFEA.Solvers.Linear` solves $\Arm \, \mathrm{x} = \brm$ once, its known
+dofs at the Dirichlet values; {py:func}`~EasyFEA.Solvers.Newton` iterates from the last
+converged solution, repeating three moves — reassemble at the current iterate, solve for
+the correction, add it:
 
 ```python
-x = self._Get_u_n(problem)                      # a copy, so `x += ...` is safe
-
 for _ in range(maxIter):
-    self.Need_Update(problem)
-    dx, norm = self.__Solve(problem, x)         # A(x), b(x), known dofs at target − x
+    A, b = problem.Linearize(x)                 # refolded at x
+    dx, norm = system.Solve(
+        A,
+        b,
+        x,
+        problem.Constraints(x),
+        backend,
+        comm,
+    )
     x += dx
-    converged = (norm < absTol) or (relNorm < relTol) or (norm_dx < incTol)
-    if converged:
-        break
+    if norm < absTol or relNorm < relTol or system.Norm(dx, comm) < incTol:
+        return x, norms
 ```
 
-`Need_Update()` is what makes this Newton rather than a fixed-point iteration: it
-invalidates the cached matrices, so the terms are re-evaluated, giving the tangent
-**and** the residual at the new iterate. The iterate reaches them as the trial solution,
-{py:data}`~EasyFEA.Simulations.TrialSolution`: a dict of each field's value, passed to
-{py:meth}`~EasyFEA.Simulations._Simu.Get_terms` — the solved fields at `x`, the others
-committed.
+Refolding at x is what makes this Newton rather than a fixed-point iteration: a
+nonlinear simulation's `Linearize` invalidates the cached matrices, so the terms are
+re-evaluated, giving the tangent **and** the residual at the new iterate. The iterate
+reaches them as the trial solution, {py:data}`~EasyFEA.Simulations.TrialSolution`: a
+dict of each field's value, passed to {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` —
+the solved fields at `x`, the others committed.
 
 ### What the norm measures
 
@@ -155,7 +162,8 @@ The defaults are {py:class}`~EasyFEA.Simulations.HyperElastic`'s and are set per
 simulation. `absTol` compares a force in the model's own units, so it is
 scale-dependent: on a large or stiff model it may never fire and `relTol` does the work.
 `incTol` is the backstop for a residual that stalls on a round-off floor. Exhausting
-`maxIter` raises an `AssertionError`: a partially converged result is never returned.
+`maxIter` raises {py:class}`~EasyFEA.Solvers.NotConvergedError`, an `AssertionError`: a
+partially converged result is never returned.
 
 ```{note}
 Convergence is tested on the residual at the iterate *before* `u += delta_u`, so on exit `u` has taken one more step than the last reported norm describes. The returned solution is slightly better than the printed value suggests.

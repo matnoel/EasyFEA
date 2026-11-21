@@ -155,13 +155,6 @@ class Elastic(_Simu):
         self.__coefK = coefK
         self.Need_Update()
 
-    def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Nn * self.dim
-        if self.displacement.size != size:
-            return np.zeros(size)
-        else:
-            return self.displacement
-
     def Results_Available(self) -> list[str]:
         results = []
         dim = self.dim

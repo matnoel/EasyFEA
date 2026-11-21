@@ -80,12 +80,6 @@ class InElastic(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
 
-    def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Nn * self.dim
-        if self.displacement.size != size:
-            return np.zeros(size)
-        return self.displacement
-
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:

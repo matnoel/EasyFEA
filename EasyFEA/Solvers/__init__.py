@@ -7,3 +7,4 @@
 from ._backends import SolverType, Get_backend
 from ._constraints import ResolType, Constraints, Lagrange
 from ._system import System
+from ._drivers import Problem, Linear, Newton, NotConvergedError

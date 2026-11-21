@@ -177,9 +177,6 @@ class IncompressibleHyperElastic(_Simu):
     # Solve
     # --------------------------------------------------------------------------
 
-    def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
-        return self.pressure if problemType == self.P else self.displacement
-
     def Get_terms(
         self, x: TrialSolution, problemType: ProblemType | None = None
     ) -> list[Term]:

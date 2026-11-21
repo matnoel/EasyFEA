@@ -116,9 +116,6 @@ class WeakForms(_Simu):
         """node field a = d2udt2"""
         return self._Get_a_n(self.problemType)
 
-    def Get_x0(self, problemType=None):
-        return self.u
-
     @property
     def thickness(self) -> float:
         """The weak form's own thickness, keyed on the **ambient** dimension: a form written on a surface embedded in 3D integrates over that surface already, so nothing is left to scale."""

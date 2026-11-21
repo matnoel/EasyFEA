@@ -4,7 +4,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from typing import TYPE_CHECKING
-import numpy as np
 
 # utilities
 from ..Utilities import Terminal, _types
@@ -112,13 +111,6 @@ class Thermal(_Simu):
     def thickness(self) -> float:
         """The model thickness on a 2D mesh, 1 otherwise."""
         return self.thermalModel.thickness if self.mesh.dim == 2 else 1.0
-
-    def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Nn
-        if self.thermal.size != size:
-            return np.zeros(size)
-        else:
-            return self.thermal
 
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         thermalModel = self.thermalModel

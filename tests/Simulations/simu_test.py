@@ -397,13 +397,6 @@ def test_Simu_Calc_Reaction_is_not_implemented_when_nonlinear():
         simu.Calc_Reaction()
 
 
-def test_Simu_Get_x0_is_the_current_solution():
-    simu = _injected("Elastic")
-
-    assert np.array_equal(simu.Get_x0(), simu.displacement)
-    assert simu.displacement.any()
-
-
 def test_Simu_Get_terms_of_Elastic_are_its_stiffness_mass_and_damping():
     simu = _elastic_bar()
     x = {simu.problemType: simu.displacement}
@@ -1669,18 +1662,6 @@ def test_Simu__Get_FunctionSpace_is_the_space_of_the_problem_type():
     assert simu._Get_FunctionSpace(PRESSURE) is mesh._Get_FunctionSpace(PRESSURE)
     assert simu._Get_FunctionSpace(PRESSURE).Nn == 9
     assert simu._Get_FunctionSpace().Nn == mesh.Nn == 25
-
-
-def test_Simu__Solver_Get_x0_puts_the_fields_end_to_end():
-    simu = _incompressible_square()
-    U = simu.problemType
-    simu._Set_solutions(U, np.arange(simu.displacement.size, dtype=float))
-    simu._Set_solutions(PRESSURE, np.full(simu.pressure.size, 7.0))
-
-    x0 = simu._Solver_Get_x0((U, PRESSURE))
-
-    assert np.array_equal(simu._Solver_Get_x0(U), simu.displacement)
-    assert np.array_equal(x0, np.concatenate([simu.displacement, simu.pressure]))
 
 
 def test_Simu__Solver_Get_lb_ub_puts_the_fields_end_to_end():

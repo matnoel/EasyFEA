@@ -12,6 +12,7 @@ from ..Utilities._mpi import (
     MPI_SIZE,
     Exchange,
     Owned,
+    Sum_owned,
     Build_exchange,
     Scatter_forward,
     Exscan_sum,
@@ -88,6 +89,10 @@ class System:
         """The known dofs `Set_known` numbered around."""
         assert self.__known is not None
         return self.__known
+
+    def Norm(self, values: _types.FloatArray, comm) -> float:
+        """2-norm of the owned rows of a vector of the problem, the same on every rank. Collective on `comm`."""
+        return float(np.sqrt(Sum_owned(values**2, self.__owners, self.__rank, comm)))
 
     def Free(self) -> None:
         """Destroys the kept PETSc solver. Collective."""
