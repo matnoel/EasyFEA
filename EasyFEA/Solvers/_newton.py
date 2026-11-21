@@ -2,13 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Newton-Raphson over callables, through a `System`."""
+"""Nonlinear strategies over a `NonlinearProblem`, through its `System`: Newton-Raphson."""
 
-from typing import Callable
+from typing import Any, Protocol
 
 from scipy import sparse
 
-from ..Utilities import _types
+from ..Utilities import _params, _types
 from ..Utilities._mpi import MPI_RANK
 from ._backends import _Backend
 from ._constraints import Constraints
@@ -19,36 +19,86 @@ class NotConvergedError(AssertionError):
     """Newton ran out of iterations."""
 
 
-def Newton(
-    Get_A_b: Callable[[_types.FloatArray], tuple[sparse.csr_matrix, _types.FloatArray]],
-    Get_constraints: Callable[[_types.FloatArray], Constraints],
-    system: System,
-    backend: _Backend,
-    x: _types.FloatArray,
-    comm,
-    tol: tuple[float, float, float, int],
-) -> tuple[_types.FloatArray, list[float]]:
-    """Newton-Raphson from x, `x += dx` until b's norm, its ratio to the first or the owned `|dx|` is under its tolerance, `tol = (absTol, relTol, incTol, maxIter)`; x and b's norms. Collective on `comm`."""
-    absTol, relTol, incTol, maxIter = tol
-    x = x.copy()
-    norms: list[float] = []
-    for _ in range(maxIter):
-        A, b = Get_A_b(x)
-        dx, rhsNorm = system.Solve(
-            A,
-            b,
-            x,
-            Get_constraints(x),
-            backend,
-            comm,
-        )
-        x += dx
-        norms.append(rhsNorm)
-        relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
-        if MPI_RANK == 0:
-            print(f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}")
-        if rhsNorm < absTol or relNorm < relTol or system.Norm(dx, comm) < incTol:
-            return x, norms
-    raise NotConvergedError(
-        f"Newton raphson algorithm did not converged in {len(norms)} iterations."
-    )
+class NonlinearProblem(Protocol):
+    """What a nonlinear strategy reads: A and b at an iterate, its constraints, the system and `comm` (None = no reduction)."""
+
+    @property
+    def system(self) -> System: ...
+
+    @property
+    def comm(self) -> Any: ...
+
+    def Get_A_b(
+        self, x: _types.FloatArray
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]: ...
+
+    def Constraints(self, x: _types.FloatArray) -> Constraints: ...
+
+
+class NonlinearStrategy(Protocol):
+    """Solves a `NonlinearProblem` from `x0`: x and b's norm per iteration. Collective on `problem.comm`."""
+
+    def __call__(
+        self, problem: NonlinearProblem, backend: _Backend, x0: _types.FloatArray
+    ) -> tuple[_types.FloatArray, list[float]]: ...
+
+
+class Newton:
+    """Newton-Raphson, `x += dx` until b's norm, its ratio to the first or the owned `|dx|` is under its tolerance."""
+
+    absTol = _params.IntervalooScalarParameter(0, 1)
+    """tolerance on b's norm"""
+
+    relTol = _params.IntervalooScalarParameter(0, 1)
+    """tolerance on b's norm over the first"""
+
+    incTol = _params.IntervalooScalarParameter(0, 1)
+    """tolerance on the owned `|dx|`"""
+
+    maxIter = _params.IntAboveParameter(1)
+    """iterations before `NotConvergedError`"""
+
+    def __init__(
+        self,
+        absTol: float = 1.0e-6,
+        relTol: float = 1.0e-10,
+        incTol: float = 1.0e-11,
+        maxIter: int = 20,
+        verbosity: bool = True,
+    ) -> None:
+        self.absTol = absTol
+        self.relTol = relTol
+        self.incTol = incTol
+        self.maxIter = maxIter
+        self.verbosity = verbosity
+
+    def __call__(
+        self, problem: NonlinearProblem, backend: _Backend, x0: _types.FloatArray
+    ) -> tuple[_types.FloatArray, list[float]]:
+        system, comm = problem.system, problem.comm
+        x = x0.copy()
+        norms: list[float] = []
+        for _ in range(self.maxIter):
+            A, b = problem.Get_A_b(x)
+            dx, rhsNorm = system.Solve(
+                A,
+                b,
+                x,
+                problem.Constraints(x),
+                backend,
+                comm,
+            )
+            x += dx
+            norms.append(rhsNorm)
+            relNorm = rhsNorm / norms[0] if norms[0] > 0 else 0.0
+            if self.verbosity and MPI_RANK == 0:
+                print(
+                    f"At Newton iteration {len(norms)} relative norm is {relNorm:14.12e}"
+                )
+            if (
+                rhsNorm < self.absTol
+                or relNorm < self.relTol
+                or system.Norm(dx, comm) < self.incTol
+            ):
+                return x, norms
+        raise NotConvergedError(f"Newton did not converge in {len(norms)} iterations.")

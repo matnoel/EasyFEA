@@ -18,6 +18,7 @@ from ..FEM import Field, _GroupElem, _Form
 from .. import Models
 
 # simu
+from ..Solvers import Newton
 from ._simu import _Simu
 from ._terms import Term
 from ._problem_type import ProblemType, TrialSolution
@@ -69,7 +70,7 @@ class WeakForms(_Simu):
         super().__init__(mesh, model, folder, verbosity)
 
         if isNonLinear:
-            self._Solver_Set_Newton_Raphson_Algorithm(absTol=tolConv, maxIter=maxIter)
+            self.Solver_Set_Nonlinear_Strategy(Newton(absTol=tolConv, maxIter=maxIter))
 
     def _Check_dim_mesh_material(self) -> None:
         pass

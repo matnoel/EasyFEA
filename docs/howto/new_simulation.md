@@ -159,6 +159,8 @@ Ready-made operators live in {py:mod}`EasyFEA.FEM.Operators` (`Bilinear`, `Linea
 {py:class}`~EasyFEA.Simulations.Elastic` the same way:
 
 ```python
+from EasyFEA.Solvers import Newton
+
 class RigidContact(Simulations.Elastic):
 
     penalty = _params.ScalarParameter()
@@ -166,7 +168,7 @@ class RigidContact(Simulations.Elastic):
     def __init__(self, mesh, model, penalty):
         super().__init__(mesh, model)
         # contact makes the problem nonlinear: Newton-Raphson, so the `R` slot is used
-        self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
+        self.Solver_Set_Nonlinear_Strategy(Newton(absTol=1e-5, maxIter=50))
         self.penalty = penalty
 
     def Get_terms(

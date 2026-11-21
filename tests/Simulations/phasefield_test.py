@@ -52,6 +52,18 @@ def _simu(
     return simu
 
 
+def test_PhaseField_bounded_damage_refuses_a_nonlinear_strategy(make_mesh_2D):
+    from EasyFEA.Solvers import Newton
+
+    mesh = _quad4(make_mesh_2D)
+    simu = _simu(mesh)
+    simu.phaseFieldModel.solver = Models.PhaseField.SolverType.BoundConstrain
+    simu.Solver_Set_Nonlinear_Strategy(Newton())
+
+    with pytest.raises(NotImplementedError, match="bounds"):
+        simu.Solve()
+
+
 def _quad4(make_mesh_2D) -> Mesh:
     return make_mesh_2D(elemType=ElemType.QUAD4, isOrganised=True)
 

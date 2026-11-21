@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 # simu
 from ..FEM import _GroupElem
+from ..Solvers import Newton
 from ._simu import _Simu
 from .TimeSchemes import Hyperbolic
 from ._terms import Term
@@ -113,11 +114,8 @@ class HyperElastic(_Simu):
 
         super().__init__(mesh, model, folder, verbosity)
 
-        self._Solver_Set_Newton_Raphson_Algorithm(
-            absTol=absTol,
-            relTol=relTol,
-            incTol=incTol,
-            maxIter=maxIter,
+        self.Solver_Set_Nonlinear_Strategy(
+            Newton(absTol=absTol, relTol=relTol, incTol=incTol, maxIter=maxIter)
         )
 
         self.matrixType = MatrixType.rigi

@@ -62,6 +62,7 @@ from ..Solvers import (
     SolverType,
     ResolType,
     Get_backend,
+    NonlinearStrategy,
 )
 from ..Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
 
@@ -198,15 +199,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Get_problem(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _LinearProblem | _NonLinearProblem:
-        """The `_Problem` of exactly these fields, kept until the mesh or `isNonLinear` changes."""
+        """The `_Problem` of exactly these fields, kept until the mesh changes or their key gains or loses a nonlinear strategy."""
         fields = problemType if isinstance(problemType, tuple) else (problemType,)
+        key = fields[0] if len(fields) == 1 else fields
+        isNonLinear = key in self.__dict_strategy
         problem = self.__dict_problem.get(fields)
-        if problem is None or problem.isNonLinear != self.isNonLinear:
+        if problem is None or problem.isNonLinear != isNonLinear:
             if problem is not None:
                 problem.Free()
             problem = (
                 _NonLinearProblem(self, fields)
-                if self.isNonLinear
+                if isNonLinear
                 else _LinearProblem(self, fields)
             )
             self.__dict_problem = {**self.__dict_problem, fields: problem}
@@ -254,7 +257,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Get_reaction(self, problem: _Problem, slots: str | None) -> _types.FloatArray:
         """Internal force of the slots (default the scheme's), complete on owned rows only."""
-        if self.isNonLinear:
+        if problem.isNonLinear:
             raise NotImplementedError
         if slots is None:
             roles = self.timeScheme.roles
@@ -657,9 +660,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__timeScheme: _TimeScheme = Elliptic()
 
-        self.__isNonLinear = False
-        """System type during simulation."""
-        # a simulation is by default linear
+        self.__dict_strategy: dict[
+            ProblemType | tuple[ProblemType, ...], NonlinearStrategy
+        ] = {}
+        """Nonlinear strategy of each nonlinear problem key; a key absent is linear."""
 
         # Solver used
         self.__dict_solver: dict[ProblemType | tuple[ProblemType, ...], SolverType] = {}
@@ -1287,62 +1291,63 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ]
         return {problemType: get(problemType) for problemType in self.problemTypes}
 
-    def _Solver_Set_Newton_Raphson_Algorithm(
+    def Solver_Set_Nonlinear_Strategy(
         self,
-        absTol: float = 1.0e-6,
-        relTol: float = 1.0e-10,
-        incTol: float = 1.0e-11,
-        maxIter: int = 20,
+        strategy: NonlinearStrategy | None,
+        problemType: ProblemType | tuple[ProblemType, ...] | None = None,
     ) -> None:
-        """Sets the algorithm's resolution properties for an non linear problem.\n
+        """Solves the monolithic problem holding `problemType` (default every one) with `strategy`, e.g. :class:`Solvers.Newton`; `None` = linear again."""
+        if strategy is not None:
+            if not callable(strategy):
+                raise TypeError(f"{strategy!r} is not a nonlinear strategy.")
+            assert self.timeScheme.unknown == "u", (
+                f"{type(self.timeScheme).__name__} solves for {self.timeScheme.unknown}: only for linear simulations."
+            )
+        keys = (
+            [
+                self._Get_monolithic_problem(fields)
+                for fields in self._Get_monolithic_problems()
+            ]
+            if problemType is None
+            else [self._Get_monolithic_problem(problemType)]
+        )
+        dict_strategy = {k: v for k, v in self.__dict_strategy.items() if k not in keys}
+        if strategy is not None:
+            dict_strategy.update(dict.fromkeys(keys, strategy))
+            self._Iter_Record(newtonIter=None, timeIter=None, list_norm_r=None)
+        self.__dict_strategy = dict_strategy
 
-        Used to solve A(u) Δu = - R(u).
-
-        Parameters
-        ----------
-        absTol : float, optional
-            absolute tolerance, by default 1e-6
-        relTol : float, optional
-            relative tolerance, by default 1e-10
-        incTol : float, optional
-            incremental tolerance, by default 1e-11
-        maxIter : int, optional
-            maximum iteration, by default 20
-        """
-
-        self.__isNonLinear = True
-
-        assert 0 < absTol < 1, "absTol must be between 0 and 1."
-        assert 0 < relTol < 1, "relTol must be between 0 and 1."
-        assert 0 < incTol < 1, "incTol must be between 0 and 1."
-        assert maxIter > 1, "maxIter must be > 1."
-
-        self.__newtonRaphsonParams = (absTol, relTol, incTol, maxIter)
-
-        self._Iter_Record(newtonIter=None, timeIter=None, list_norm_r=None)
-
-    def __Solver_Get_Newton_Raphson_Params(self) -> tuple[float, float, float, int]:
-        """Returns (absTol, relTol, incTol, maxIter) Newton Raphson properties."""
-        assert self.__isNonLinear, "the current simulation is not non linear."
-
-        return self.__newtonRaphsonParams
+    def _Solver_Get_Nonlinear_Strategy(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> NonlinearStrategy | None:
+        """Nonlinear strategy of the monolithic problem holding `problemType` (default the simulation's), None when linear."""
+        return self.__dict_strategy.get(self._Get_monolithic_problem(problemType))
 
     @property
-    def isNonLinear(self):
-        """Returns whether the simulation is non linear."""
-        return self.__isNonLinear
+    def isNonLinear(self) -> bool:
+        """Whether a problem of the simulation is solved by a nonlinear strategy."""
+        return any(
+            self._Get_monolithic_problem(fields) in self.__dict_strategy
+            for fields in self._Get_monolithic_problems()
+        )
 
-    def Solve(self) -> _types.FloatArray:
-        """Computes the solution field for the current boundary conditions, solving each monolithic problem in turn.
+    def Solve(self, x0: TrialSolution | None = None) -> _types.FloatArray:
+        """Solves each monolithic problem in turn for the current boundary conditions and returns the simulation's problem type's solution; a nonlinear one starts from `x0`'s fields, `u_n` for the others."""
 
-        Returns
-        -------
-        _types.FloatArray
-            The solution of the simulation's problem type.
-        """
-
+        if x0 is not None:
+            if not set(x0) <= set(self.problemTypes):
+                raise ValueError(
+                    f"{set(x0) - set(self.problemTypes)} are not problems of this simulation."
+                )
+            for fields in self._Get_monolithic_problems():
+                if self._Solver_Get_Nonlinear_Strategy(fields) is None and not set(
+                    fields
+                ).isdisjoint(x0):
+                    raise ValueError(
+                        f"{', '.join(fields)} is linear: solved directly, it takes no x0."
+                    )
         for fields in self._Get_monolithic_problems():
-            self._Solver_Solve_problemType(fields)
+            self._Solver_Solve_problemType(fields, x0)
 
         self._Commit_Internal_and_External_states()
 
@@ -1434,10 +1439,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__Set_a_n(field, a)
 
     def _Solver_Solve_problemType(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self,
+        problemType: ProblemType | tuple[ProblemType, ...],
+        x0: TrialSolution | None = None,
     ) -> _types.FloatArray:
-        """Solves the monolithic problem holding `problemType`.\n
-        It is recommended to call the resolution via the Solve() function."""
+        """Solves the monolithic problem holding `problemType`, nonlinear from `x0` (checked by :meth:`Solve`); called by :meth:`Solve`."""
 
         if MPI_SIZE > 1 and self.isGathered:
             raise RuntimeError(
@@ -1450,7 +1456,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         backend = self.__Get_backend(problem.problemType)
         try:
             if isinstance(problem, _NonLinearProblem):
-                x = self.__Newton(problem, backend)
+                x = self.__Nonlinear(problem, backend, x0)
             else:
                 x = problem.Solve(backend)
         finally:
@@ -1470,15 +1476,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return solutions[0]
 
-    def __Newton(
-        self, problem: _NonLinearProblem, backend: _Backend
+    def __Nonlinear(
+        self,
+        problem: _NonLinearProblem,
+        backend: _Backend,
+        x0: TrialSolution | None,
     ) -> _types.FloatArray:
-        """Newton from `u_n`, its norms and time recorded for the next saved iteration."""
+        """The key's strategy from `x0`'s fields, `u_n` for the others; its norms and time recorded for the next saved iteration."""
+        strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemType)
+        assert strategy is not None
+        x0 = x0 or {}
+        start = problem.Compose(
+            lambda field: x0[field] if field in x0 else self._Get_u_n(field)
+        )
         name = ", ".join(problem.fields)
         if MPI_RANK == 0:
             Terminal.Section(f"{name} problem at iteration {self.Niter}")
         tic = Tic()
-        x, norms = problem.Solve(backend, self.__Solver_Get_Newton_Raphson_Params())
+        x, norms = problem.Solve(backend, strategy, start)
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x
@@ -1492,12 +1507,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if solverType == SolverType.petsc:
             options = self._Solver_Get_PETSc4Py_Options(problemType)
         lb, ub = self._Solver_Get_lb_ub(problemType)
+        nonLinear = self._Solver_Get_Nonlinear_Strategy(problemType) is not None
+        if nonLinear and np.size(lb) + np.size(ub) > 0:
+            raise NotImplementedError(
+                "The solver's bounds hold the solution, a nonlinear strategy solves for its increment: solve this problem linearly, Solver_Set_Nonlinear_Strategy(None, problemType)."
+            )
         return Get_backend(
             solverType,
             options,
             lb,
             ub,
-            None if self.isNonLinear else self._Get_u_n(problemType),
+            None if nonLinear else self._Get_u_n(problemType),
         )
 
     def _Solver_Get_load(

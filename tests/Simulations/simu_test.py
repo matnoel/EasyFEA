@@ -28,7 +28,9 @@ from EasyFEA import (
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations import Integrate_terms
-from EasyFEA.Solvers._backends import CAN_USE_PYPARDISO, _Get_PETSc
+from EasyFEA.Simulations._problem import _NonLinearProblem
+from EasyFEA.Solvers import Newton
+from EasyFEA.Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
 from EasyFEA.Utilities import MPI_SIZE
 
 from _numerics import rel_error
@@ -92,6 +94,17 @@ def _hyperelastic(dynamic: bool) -> Simulations.HyperElastic:
     return simu
 
 
+def test_Simu_Solve_with_a_silent_Newton_prints_no_iteration(capsys):
+    from EasyFEA.Solvers import Newton
+
+    simu = _hyperelastic(False)
+    simu.Solver_Set_Nonlinear_Strategy(Newton(verbosity=False))
+
+    simu.Solve()
+
+    assert "Newton iteration" not in capsys.readouterr().out
+
+
 def _inelastic() -> Simulations.InElastic:
     elastic = Models.Elastic.Isotropic(2, E, v)
     behavior = Models.InElastic.Maxwell(elastic, [0.3], [1.0])
@@ -118,11 +131,11 @@ def _thermal(transient: bool = False) -> Simulations.Thermal:
     return simu
 
 
-def _phasefield() -> Simulations.PhaseField:
+def _phasefield(split: str = "He") -> Simulations.PhaseField:
     material = Models.Elastic.Isotropic(2, E, v)
     pfm = Models.PhaseField(
         material,
-        "He",
+        split,
         "AT2",
         Gc=1.0,
         l0=0.5,
@@ -1097,7 +1110,7 @@ def test_Simu__Solver_Get_A_b_subtracts_an_internal_force_Assembly_leaves_out(
         simu.Need_Update()
         return simu.Assembly()[3], simu._Solver_Get_A_b()[1]
 
-    monkeypatch.setattr(type(simu), "isNonLinear", True)
+    simu.Solver_Set_Nonlinear_Strategy(Newton())
     (load, b_load), (F, b_force) = F_b("KF"), F_b("KR")
 
     assert np.abs(load).max() > 0
@@ -1184,7 +1197,8 @@ def test_Simu__Solver_Get_A_b_reads_a_block_term_on_its_column_field(monkeypatch
     simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
     mesh = simu.mesh
     x = {U: np.arange(2 * mesh.Nn) / 7.0, D: np.ones(mesh.Nn)}
-    monkeypatch.setattr(type(simu), "isNonLinear", True)
+    monkeypatch.setattr(simu, "_Get_monolithic_problems", lambda: [(U, D)])
+    simu.Solver_Set_Nonlinear_Strategy(Newton())
 
     K, _, _, F = simu.Assembly((U, D))
     _, b = simu._Solver_Get_A_b((U, D), x)
@@ -1474,23 +1488,149 @@ def test_TimeSchemes_Parabolic_coefs():
     assert TimeSchemes.Parabolic(DT, alpha=0.5).coefs == (1, 1 / (0.5 * DT), 0)
 
 
-def test_Simu__Solver_Set_Newton_Raphson_Algorithm_solves_a_linear_problem():
+def test_Simu_Solver_Set_Nonlinear_Strategy_solves_a_linear_problem():
     linear = _elastic_bar()
     newton = _elastic_bar()
 
-    newton._Solver_Set_Newton_Raphson_Algorithm()
+    newton.Solver_Set_Nonlinear_Strategy(Newton())
 
     assert newton.isNonLinear
     assert rel_error(newton.Solve(), linear.Solve()) < 1e-10
-    with pytest.raises(AssertionError, match="maxIter"):
-        newton._Solver_Set_Newton_Raphson_Algorithm(maxIter=1)
-    with pytest.raises(AssertionError, match="absTol"):
-        newton._Solver_Set_Newton_Raphson_Algorithm(absTol=2.0)
 
 
 def test_Simu_isNonLinear_per_simulation():
     assert not _elastic_bar().isNonLinear
     assert _hyperelastic(False).isNonLinear
+
+
+class _RecordingNewton:
+    """Newton recording the fields of each problem it solves, and its last x and norms."""
+
+    def __init__(self) -> None:
+        self.newton = Newton()
+        self.fields: list[tuple[str, ...]] = []
+        self.x = np.empty(0)
+        self.norms: list[float] = []
+
+    def __call__(
+        self, problem: _NonLinearProblem, backend: _Backend, x0: np.ndarray
+    ) -> tuple[np.ndarray, list[float]]:
+        self.fields.append(problem.fields)
+        self.x, self.norms = self.newton(problem, backend, x0)
+        return self.x, self.norms
+
+
+def _phasefield_bounded() -> Simulations.PhaseField:
+    """Unsplit (u linear given d), solved directly, the damage bounded by `lsq_linear`."""
+    simu = _phasefield("Bourdin")
+    simu.phaseFieldModel.solver = simu.phaseFieldModel.SolverType.BoundConstrain
+    simu.solver = SolverType.scipy
+    return simu
+
+
+def _second_solve(
+    simu: Simulations.PhaseField,
+) -> tuple[np.ndarray, np.ndarray, bool]:
+    """The damage grows from the history the first solve leaves."""
+    simu.Solve()
+    return simu.Solve()
+
+
+def test_Simu_Solver_Set_Nonlinear_Strategy_calls_a_custom_strategy():
+    simu = _hyperelastic(False)
+    strategy = _RecordingNewton()
+
+    simu.Solver_Set_Nonlinear_Strategy(strategy)
+    u = simu.Solve()
+
+    record = simu._variables.record
+    assert strategy.fields == [(simu.problemType,)]
+    assert record["newtonIter"] == len(strategy.norms) > 1
+    assert record["list_norm_r"] == strategy.norms
+    assert np.array_equal(u, strategy.x)
+
+
+def test_Simu_Solver_Set_Nonlinear_Strategy_on_one_key_leaves_the_other_linear():
+    U, D = Simulations.PhaseField.U, Simulations.PhaseField.D
+    simu = _phasefield_bounded()
+    strategy = _RecordingNewton()
+
+    simu.Solver_Set_Nonlinear_Strategy(strategy, U)
+    u, d, _ = _second_solve(simu)
+
+    expected_u, expected_d, _ = _second_solve(_phasefield_bounded())
+    assert strategy.fields and set(strategy.fields) == {(U,)}
+    assert simu._Solver_Get_Nonlinear_Strategy(D) is None
+    assert simu._Solver_Get(D) == SolverType.lsq_linear
+    assert d.any()
+    assert rel_error(u, expected_u) < 1e-10
+    assert rel_error(d, expected_d) < 1e-10
+
+
+def test_Simu_Solver_Set_Nonlinear_Strategy_None_reverts_to_linear():
+    simu = _hyperelastic(False)
+
+    simu.Solver_Set_Nonlinear_Strategy(None)
+
+    assert not simu.isNonLinear
+    assert simu._Solver_Get_Nonlinear_Strategy() is None
+    with pytest.raises(ValueError, match="needs a nonlinear strategy"):
+        simu.Solve()
+
+
+def test_Simu_Solver_Set_Nonlinear_Strategy_None_on_one_key_keeps_the_other():
+    U, D = Simulations.PhaseField.U, Simulations.PhaseField.D
+    simu = _phasefield()
+    newton = Newton()
+    simu.Solver_Set_Nonlinear_Strategy(newton)
+
+    simu.Solver_Set_Nonlinear_Strategy(None, D)
+
+    assert simu._Solver_Get_Nonlinear_Strategy(U) is newton
+    assert simu._Solver_Get_Nonlinear_Strategy(D) is None
+
+
+def test_Simu_Solver_Set_Nonlinear_Strategy_is_unused_once_the_problems_regroup(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    U, D = Simulations.PhaseField.U, Simulations.PhaseField.D
+    simu = _phasefield()
+    strategy = _RecordingNewton()
+    monkeypatch.setattr(simu, "_Get_monolithic_problems", lambda: [(U, D)])
+
+    simu.Solver_Set_Nonlinear_Strategy(strategy)
+    monkeypatch.undo()
+    simu._Solver_Solve_problemType(U)
+
+    assert not simu.isNonLinear
+    assert simu._Solver_Get_Nonlinear_Strategy(U) is None
+    assert strategy.fields == []
+
+
+def test_Simu_Solve_from_a_converged_x0_takes_one_newton_iteration():
+    converged = _hyperelastic(False)
+    u = converged.Solve()
+    simu = _hyperelastic(False)
+
+    simu.Solve(x0={simu.problemType: u})
+
+    assert converged._variables.record["newtonIter"] > 1
+    assert simu._variables.record["newtonIter"] == 1
+    assert rel_error(simu.displacement, u) < 1e-12
+
+
+def test_Simu_Solve_refuses_x0_on_a_linear_problem_before_any_solve():
+    U, D = Simulations.PhaseField.U, Simulations.PhaseField.D
+    simu = _phasefield()
+    strategy = _RecordingNewton()
+    simu.Solver_Set_Nonlinear_Strategy(strategy, U)
+
+    # PhaseField.Solve takes no x0: the base Solve, U solved before D
+    with pytest.raises(ValueError, match="is linear"):
+        Simulations._Simu.Solve(simu, x0={D: np.zeros(simu.mesh.Nn)})
+
+    assert strategy.fields == []
+    assert not simu.displacement.any()
 
 
 def test_Simu_Solve_returns_the_solution(subtests):
@@ -1570,11 +1710,13 @@ def test_Simu_Solve_newton_accepts_a_zero_first_residual(recwarn):
 
 def test_Simu_Solve_newton_raises_when_it_does_not_converge():
     simu = _hyperelastic(False)
-    simu._Solver_Set_Newton_Raphson_Algorithm(1e-14, 1e-14, 1e-14, maxIter=2)
+    simu.Solver_Set_Nonlinear_Strategy(
+        Newton(absTol=1e-14, relTol=1e-14, incTol=1e-14, maxIter=2)
+    )
     simu.Bc_Init()
     _reference.pull_bar(simu, 0.5)
 
-    with pytest.raises(AssertionError, match="did not converged"):
+    with pytest.raises(AssertionError, match="Newton did not converge"):
         simu.Solve()
 
 

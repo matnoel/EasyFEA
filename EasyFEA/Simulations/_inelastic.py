@@ -16,6 +16,7 @@ from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 from ..Models.InElastic._behavior import _Behavior
 
+from ..Solvers import Newton
 from ._simu import _Simu
 from ._terms import Term
 from ._problem_type import ProblemType, TrialSolution
@@ -47,7 +48,9 @@ class InElastic(_Simu):
         assert isinstance(model, _Behavior), "model must be a _Behavior"
         super().__init__(mesh, model, folder, verbosity)
 
-        self._Solver_Set_Newton_Raphson_Algorithm(absTol, relTol, incTol, maxIter)
+        self.Solver_Set_Nonlinear_Strategy(
+            Newton(absTol=absTol, relTol=relTol, incTol=incTol, maxIter=maxIter)
+        )
 
         self.__dt = 0.0
 

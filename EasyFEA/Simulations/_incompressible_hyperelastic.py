@@ -18,6 +18,7 @@ from ..FEM import (
 from ..FEM._kelvin_mandel import Tensor_to_Kelvin
 from ..Models.HyperElastic._laws import _HyperElastic
 from ..Utilities import _types
+from ..Solvers import Newton
 from ._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu
 from ._terms import Term
@@ -70,8 +71,8 @@ class IncompressibleHyperElastic(_Simu):
                 "This simulation is static and elastic: set eta and active_stress to 0."
             )
         super().__init__(mesh, model, folder, verbosity)
-        self._Solver_Set_Newton_Raphson_Algorithm(
-            absTol=absTol, relTol=relTol, incTol=incTol, maxIter=maxIter
+        self.Solver_Set_Nonlinear_Strategy(
+            Newton(absTol=absTol, relTol=relTol, incTol=incTol, maxIter=maxIter)
         )
         self.matrixType = MatrixType.mass
 

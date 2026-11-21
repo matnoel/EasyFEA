@@ -114,6 +114,14 @@ def _CheckIsInIntervaloc(value: float | Iterable, inf, sup) -> None:
     assert np.all((inf < values) & (values <= sup)), errorText
 
 
+def _CheckIsIntAbove(value: int, inf: int) -> None:
+    """Checks whether the value is an int > inf"""
+    assert isinstance(value, (int, np.integer)) and not isinstance(value, bool), (
+        "Must be an int."
+    )
+    assert value > inf, f"Must be > {inf}!"
+
+
 def _CheckIsInValues(value, values: Iterable) -> None:
     """Checks whether the value is in [inf, sup]"""
     errorText = f"{value} Must be in {values}"
@@ -208,6 +216,14 @@ class StrictlyPositiveScalarParameter(_Parameter):
 class NegativeParameter(_Parameter):
     def _checker(self, value):
         _CheckIsNegative(value)
+
+
+class IntAboveParameter(_Parameter):
+    def __init__(self, inf: int):
+        self.__inf = inf
+
+    def _checker(self, value):
+        _CheckIsIntAbove(value, self.__inf)
 
 
 class ParameterInValues(_Parameter):

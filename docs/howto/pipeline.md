@@ -31,9 +31,10 @@ high-level operations:
 3. **Solve** — pass $\Arm \, \xrm = \brm$ to the linear algebra backend (scipy, PETSc,
    pypardiso) and store the solution.
 
-For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped in a
-Newton–Raphson loop that repeats until the residual converges — see
-{ref}`howto-pipeline-newton`.
+For **non-linear** problems (a nonlinear strategy set with
+`simu.Solver_Set_Nonlinear_Strategy(Newton())`, then `simu.isNonLinear` is `True`), the
+strategy repeats steps 1–3 until the residual converges (Newton–Raphson for `Newton`) —
+see {ref}`howto-pipeline-newton`.
 
 ______________________________________________________________________
 
@@ -105,19 +106,20 @@ ______________________________________________________________________
 
 {py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` solves a linear problem
 with one {py:meth}`~EasyFEA.Solvers.System.Solve` of $\Arm \, \mathrm{x} = \brm$, its
-known dofs at the Dirichlet values. A nonlinear one goes through
-{py:func}`~EasyFEA.Solvers.Newton`, given two callables of the iterate, `Get_A_b(x)` and
-`Get_constraints(x)`; it iterates from the last converged solution, repeating three
-moves — reassemble at the current iterate, solve for the correction, add it:
+known dofs at the Dirichlet values. A nonlinear one goes through its strategy, set by
+`Solver_Set_Nonlinear_Strategy`, e.g. {py:class}`~EasyFEA.Solvers.Newton`, given the
+problem (`problem.Get_A_b(x)`, `problem.Constraints(x)`); it iterates from the last
+converged solution, or from `simu.Solve(x0=...)`, repeating three moves — reassemble at
+the current iterate, solve for the correction, add it:
 
 ```python
 for _ in range(maxIter):
-    A, b = Get_A_b(x)                           # integrated at x
+    A, b = problem.Get_A_b(x)                   # integrated at x
     dx, norm = system.Solve(
         A,
         b,
         x,
-        Get_constraints(x),
+        problem.Constraints(x),
         backend,
         comm,
     )

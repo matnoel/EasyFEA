@@ -13,7 +13,7 @@ from scipy import sparse
 
 from ..FEM import BoundaryCondition, Operators
 from ..FEM._function_space import _FunctionSpace
-from ..Solvers import Constraints, LagrangeConstraint, Newton, System
+from ..Solvers import Constraints, LagrangeConstraint, NonlinearStrategy, System
 from ..Solvers._backends import _Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
@@ -80,12 +80,17 @@ class _Problem(ABC):
             offset += space.Nn * dof_n
         return tuple(layout)
 
+    @property
+    def comm(self):
+        """The mesh's communicator, None = no reduction."""
+        return self.simu.mesh.comm
+
     @cached_property
     def system(self) -> System:
         """The linear system."""
         owners, rank = self.Get_dof_owners()
         globalIds = None
-        if self.simu.mesh.comm is not None:
+        if self.comm is not None:
             globalIds = self.__Get_dof_globalIds()
         return System(owners, rank, globalIds)
 
@@ -440,7 +445,7 @@ class _LinearProblem(_Problem):
         if any(contribution.slot == "R" for contribution in list_contribution):
             # R is integrated at u_n, not at x = 0
             raise ValueError(
-                "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`, or declare a force independent of u in the F slot."
+                "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
             )
         load = self.Sum_load(list_contribution)
         b = self.Sum_b(list_contribution, load, np.zeros(self.size))
@@ -483,16 +488,7 @@ class _NonLinearProblem(_Problem):
         return self.Sum_A(list_contribution), b
 
     def Solve(
-        self, backend: _Backend, tol: tuple[float, float, float, int]
+        self, backend: _Backend, strategy: NonlinearStrategy, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]:
-        """Newton from `u_n`: x and b's norms."""
-        simu = self.simu
-        return Newton(
-            self.Get_A_b,
-            self.Constraints,
-            self.system,
-            backend,
-            simu._Get_u_n(self.problemType),
-            simu.mesh.comm,
-            tol,
-        )
+        """The strategy from `x0`: x and b's norms."""
+        return strategy(self, backend, x0)

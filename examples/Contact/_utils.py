@@ -10,6 +10,7 @@ from EasyFEA import Simulations
 from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem, FeArray
 from EasyFEA.Utilities import _params, _types
 from EasyFEA.Simulations import Term, TrialSolution
+from EasyFEA.Solvers import Newton
 
 
 class RigidContact(Simulations.Elastic):
@@ -22,7 +23,7 @@ class RigidContact(Simulations.Elastic):
 
     def __init__(self, mesh, model, penalty, **kwargs):
         super().__init__(mesh, model, **kwargs)
-        self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
+        self.Solver_Set_Nonlinear_Strategy(Newton(absTol=1e-5, maxIter=50))
         self.penalty = penalty
         self._contactMesh: Mesh = None
 

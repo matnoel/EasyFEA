@@ -12,6 +12,7 @@ import pytest
 
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import MatrixType
+from EasyFEA.Solvers import Newton
 from EasyFEA.Geoms import Domain
 from EasyFEA.Models.Elastic import Isotropic
 from EasyFEA.Models.InElastic import (
@@ -357,9 +358,11 @@ def test_InElastic_an_unconverged_solve_commits_nothing(mesh2D: Mesh):
     )
     _pull(simu, mesh2D, 0.5)
     p = simu.Result("p", nodeValues=False)
-    simu._Solver_Set_Newton_Raphson_Algorithm(1e-6, 1e-10, 1e-11, maxIter=2)
+    simu.Solver_Set_Nonlinear_Strategy(
+        Newton(absTol=1e-6, relTol=1e-10, incTol=1e-11, maxIter=2)
+    )
 
-    with pytest.raises(AssertionError, match="did not converged"):
+    with pytest.raises(AssertionError, match="Newton did not converge"):
         _pull(simu, mesh2D, 2.0)
     assert p.max() > 0
     assert np.allclose(simu.Result("p", nodeValues=False), p, rtol=1e-12)
