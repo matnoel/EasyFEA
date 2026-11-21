@@ -806,13 +806,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         size = _Field_size(self, problemType)
         assert values.shape[0] == size, f"Must be size {size}"
 
+    def __Composed(
+        self,
+        store: dict[ProblemType, _types.FloatArray],
+        problemType: ProblemType | tuple[ProblemType, ...],
+    ) -> _types.FloatArray:
+        """A copy of `store`'s values of `problemType`, a tuple's fields end to end through its problem."""
+        if not isinstance(problemType, tuple):
+            return store[problemType].copy()
+        return self.__Get_problem(problemType).Compose(store.__getitem__).copy()
+
     def _Get_u_n(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
         """Returns the solution associated with the given problem, its fields end to end."""
-        return (
-            self.__Get_problem(problemType).Compose(self.__dict_u_n.__getitem__).copy()
-        )
+        return self.__Composed(self.__dict_u_n, problemType)
 
     def __Set_u_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
@@ -823,9 +831,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
         """Returns the speed solution associated with the given problem, its fields end to end."""
-        return (
-            self.__Get_problem(problemType).Compose(self.__dict_v_n.__getitem__).copy()
-        )
+        return self.__Composed(self.__dict_v_n, problemType)
 
     def __Set_v_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
@@ -836,9 +842,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
         """Returns the acceleration solution associated with the given problem, its fields end to end."""
-        return (
-            self.__Get_problem(problemType).Compose(self.__dict_a_n.__getitem__).copy()
-        )
+        return self.__Composed(self.__dict_a_n, problemType)
 
     def __Set_a_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
@@ -953,6 +957,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                         )
                         for g, part in zip(sources, np.split(value, splits))
                     ]
+                )
+            elif np.ndim(value) > 0 and len(value) == mesh.Nn:
+                raise NotImplementedError(
+                    f"{type(owner).__name__}.{name} has one value per node: _Gather places per-element parameters only."
                 )
             else:
                 parameters.append(None)
@@ -1329,10 +1337,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Committed(self) -> TrialSolution:
         """Each field's committed value of the time scheme's unknown: `u_n`, `v_n` or `a_n`."""
-        get = {"u": self._Get_u_n, "v": self._Get_v_n, "a": self._Get_a_n}[
-            self.timeScheme.unknown
-        ]
-        return {problemType: get(problemType) for problemType in self.problemTypes}
+        return {
+            problemType: self.__Committed_unknown(problemType)
+            for problemType in self.problemTypes
+        }
 
     def Solver_Set_Nonlinear_Strategy(
         self,
@@ -1497,13 +1505,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem.Check_monolithic()
 
         backend = self.__Get_backend(problem.problemType)
-        try:
-            if isinstance(problem, _NonLinearProblem):
-                x = self.__Nonlinear(problem, backend, x0)
-            else:
-                x = problem.Solve(backend)
-        finally:
-            problem.Warn_orphan_conditions()
+        # collective: before the solve, which may raise on one rank only
+        problem.Warn_orphan_conditions()
+        if isinstance(problem, _NonLinearProblem):
+            x = self.__Nonlinear(problem, backend, x0)
+        else:
+            x = problem.Solve(backend)
 
         if len(problem.fields) > 1:
             problem.Shift_pinned(x)
@@ -1560,8 +1567,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             options,
             lb,
             ub,
-            None if nonLinear else self._Get_u_n(problemType),
+            None if nonLinear else self.__Committed_unknown(problemType),
         )
+
+    def __Committed_unknown(
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
+        """The committed value of what the time scheme solves for, `u_n`, `v_n` or `a_n`."""
+        get = {"u": self._Get_u_n, "v": self._Get_v_n, "a": self._Get_a_n}
+        return get[self.timeScheme.unknown](problemType)
 
     def _Solver_Get_load(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None

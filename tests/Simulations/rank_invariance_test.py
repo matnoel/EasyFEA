@@ -529,6 +529,16 @@ def test_Gather_twice_leaves_every_rank_as_the_first_did():
     np.testing.assert_array_equal(simu.displacement, displacement)
 
 
+@pytest.mark.mpi
+def test_Gather_refuses_a_parameter_per_node():
+    pytest.importorskip("petsc4py")
+    simu = _elastic()
+    simu.rho = np.ones(simu.mesh.Nn)
+
+    with pytest.raises(NotImplementedError, match="rho"):
+        simu._Gather()
+
+
 def _globalElements(mesh) -> np.ndarray:
     """Global id of each of the rank's elements, in `Result(..., nodeValues=False)` order."""
     (groupElem,) = mesh.Get_list_groupElem(mesh.dim)

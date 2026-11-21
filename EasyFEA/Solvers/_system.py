@@ -9,7 +9,6 @@ from scipy import sparse
 
 from ..Utilities import _types
 from ..Utilities._mpi import (
-    MPI_SIZE,
     Exchange,
     Owned,
     Sum_owned,
@@ -121,7 +120,7 @@ class System:
                 )
                 for lagrangeConstraint in list_lagrangeConstraint
             ]
-            A, b = _Border(A, b, shifted)
+            A, b = _Border(A, b, shifted, comm)
         knownDofs = constraints.knownDofs
         known = np.zeros(b.size, dtype=bool)
         known[knownDofs] = True
@@ -156,9 +155,10 @@ def _Border(
     A: sparse.csr_matrix,
     b: _types.FloatArray,
     list_lagrangeConstraint: list[LagrangeConstraint],
+    comm,
 ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
     """A and b grown by one row per Lagrange constraint, A bordered, both scaled by `max|A|`."""
-    if MPI_SIZE > 1:
+    if comm is not None:
         raise NotImplementedError(
             "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
         )
