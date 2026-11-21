@@ -258,7 +258,7 @@ can serve as a good starting point.
 .. autoclass:: EasyFEA.Solvers.System
    :members: Solve
 
-.. autofunction:: EasyFEA.Solvers.Get_backend
+.. autoclass:: EasyFEA.Solvers.Backend
 
 .. autofunction:: EasyFEA.Solvers.Newton
 

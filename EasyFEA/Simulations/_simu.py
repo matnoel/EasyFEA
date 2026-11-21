@@ -61,10 +61,10 @@ from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
     ResolType,
-    Get_backend,
+    Backend,
     NonlinearStrategy,
 )
-from ..Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
+from ..Solvers._backends import CAN_USE_PYPARDISO, Get_backend, _Get_PETSc
 
 
 @cache
@@ -1529,7 +1529,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Nonlinear(
         self,
         problem: _NonLinearProblem,
-        backend: _Backend,
+        backend: Backend,
         x0: TrialSolution | None,
     ) -> _types.FloatArray:
         """The key's strategy from `x0`'s fields, `u_n` for the others; its norms and time recorded for the next saved iteration."""
@@ -1550,7 +1550,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Get_backend(
         self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> _Backend:
+    ) -> Backend:
         """The backend of the problem's solver type, options and bounds; guess `u_n` for a linear solve, 0 for Newton's increment."""
         solverType = self._Solver_Get(problemType)
         options = None

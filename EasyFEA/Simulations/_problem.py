@@ -14,7 +14,7 @@ from scipy import sparse
 from ..FEM import BoundaryCondition, Operators
 from ..FEM._function_space import _FunctionSpace
 from ..Solvers import Constraints, LagrangeConstraint, NonlinearStrategy, System
-from ..Solvers._backends import _Backend
+from ..Solvers._backends import Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
 from ._assembly import _Assembly, _Blocks, _Size
@@ -451,7 +451,7 @@ class _LinearProblem(_Problem):
         b = self.Sum_b(list_contribution, load, np.zeros(self.size))
         return self.Get_A(), b
 
-    def Solve(self, backend: _Backend) -> _types.FloatArray:
+    def Solve(self, backend: Backend) -> _types.FloatArray:
         """x of `A x = b`, one solve."""
         simu = self.simu
         tic = Tic()
@@ -488,7 +488,7 @@ class _NonLinearProblem(_Problem):
         return self.Sum_A(list_contribution), b
 
     def Solve(
-        self, backend: _Backend, strategy: NonlinearStrategy, x0: _types.FloatArray
+        self, backend: Backend, strategy: NonlinearStrategy, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]:
         """The strategy from `x0`: x and b's norms."""
         return strategy(self, backend, x0)

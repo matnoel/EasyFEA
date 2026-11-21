@@ -4,7 +4,7 @@
 
 """Mesh-free linear algebra: backends, constraints, the system `A x = b` and nonlinear strategies."""
 
-from ._backends import SolverType, Get_backend
+from ._backends import SolverType, Backend
 from ._constraints import ResolType, Constraints, LagrangeConstraint
 from ._system import System
 from ._newton import (

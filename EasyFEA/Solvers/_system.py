@@ -18,7 +18,7 @@ from ..Utilities._mpi import (
     Reduce_max,
     Reduce_sum,
 )
-from ._backends import _Backend, _PETScSolver
+from ._backends import Backend, _PETScSolver
 from ._constraints import Constraints, LagrangeConstraint, ResolType
 
 
@@ -103,7 +103,7 @@ class System:
         b: _types.FloatArray,
         x: _types.FloatArray,
         constraints: Constraints,
-        backend: _Backend,
+        backend: Backend,
         comm,
     ) -> tuple[_types.FloatArray, float]:
         """dx of `A dx = b` at x, `x + dx` meeting the constraints, A and b grown by one row per Lagrange constraint; b's residual norm over the owned dof rows. Collective on `comm`."""

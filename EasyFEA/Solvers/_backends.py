@@ -75,7 +75,7 @@ class SolverType(str, Enum):
         return self.name
 
 
-class _Backend(ABC):
+class Backend(ABC):
     """Solves `A y = b` for a `System`; `x0` the guess of y (an increment under Newton), padded with 0 past it."""
 
     def __init__(self, type: SolverType, x0: _types.FloatArray | None = None) -> None:
@@ -118,7 +118,7 @@ class _Backend(ABC):
         return x0
 
 
-class _Serial(_Backend):
+class _Serial(Backend):
     """A serial backend, on every unknown."""
 
     def Solve(self, A, b, system, comm):
@@ -185,7 +185,7 @@ class _LsqLinear(_Serial):
         )["x"]
 
 
-class _PETSc(_Backend):
+class _PETSc(Backend):
     """PETSc's KSP with `(ksp, pc, factor)` options, kept by the system, on its owned unknowns."""
 
     def __init__(self, options: tuple[str, str, str], x0=None) -> None:
@@ -226,7 +226,7 @@ def Get_backend(
     lb: _types.AnyArray | _types.Numbers | None = None,
     ub: _types.AnyArray | _types.Numbers | None = None,
     x0: _types.FloatArray | None = None,
-) -> _Backend:
+) -> Backend:
     """The backend of a solver type: PETSc's `(ksp, pc, factor)` `options`, lsq_linear's bounds `lb`, `ub`, an initial guess `x0`."""
     solverType = SolverType(solverType)
     if solverType == SolverType.petsc:

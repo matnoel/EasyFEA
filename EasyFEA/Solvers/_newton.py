@@ -10,7 +10,7 @@ from scipy import sparse
 
 from ..Utilities import _params, _types
 from ..Utilities._mpi import MPI_RANK
-from ._backends import _Backend
+from ._backends import Backend
 from ._constraints import Constraints
 from ._system import System
 
@@ -39,7 +39,7 @@ class NonlinearStrategy(Protocol):
     """Solves a `NonlinearProblem` from `x0`: x and b's norm per iteration. Collective on `problem.comm`."""
 
     def __call__(
-        self, problem: NonlinearProblem, backend: _Backend, x0: _types.FloatArray
+        self, problem: NonlinearProblem, backend: Backend, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]: ...
 
 
@@ -73,7 +73,7 @@ class Newton:
         self.verbosity = verbosity
 
     def __call__(
-        self, problem: NonlinearProblem, backend: _Backend, x0: _types.FloatArray
+        self, problem: NonlinearProblem, backend: Backend, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]:
         system, comm = problem.system, problem.comm
         x = x0.copy()
