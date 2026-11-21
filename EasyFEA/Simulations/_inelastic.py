@@ -13,7 +13,12 @@ if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
-from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
+from ._utils import (
+    Result_strain_or_stress_field_e,
+    Stress_names,
+    Strain_names,
+    _Field_per_groupElem,
+)
 from ..Models.InElastic._behavior import _Behavior
 
 from ..Solvers import Newton
@@ -200,13 +205,11 @@ class InElastic(_Simu):
         return [name for name, v in virgin.items() if v.shape == (1, 1)]
 
     def Results_Available(self) -> list[str]:
-        results = super().Results_Available()
-        if self.dim == 2:
-            results.extend(["Sxx", "Syy", "Sxy", "Exx", "Eyy", "Exy"])
-        else:
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
-        results.extend(["Svm", "Stress", "Evm", "Strain"])
+        results = [
+            *super().Results_Available(),
+            *Stress_names(self.dim),
+            *Strain_names(self.dim),
+        ]
         # scalar internal variables are plottable
         results.extend(self.__Scalar_states())
         results.extend(self.material.externalNames)
@@ -228,12 +231,12 @@ class InElastic(_Simu):
             )
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
-        elif ("S" in result or "E" in result) and "_norm" not in result:
-            isStress = "S" in result and result != "Strain"
-            res = result if result in ["Strain", "Stress"] else result[-2:]
+        elif result in Stress_names(self.dim):
+            values_e = Result_strain_or_stress_field_e(self._Calc_Sigma(), result)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
-            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values_e = Result_strain_or_stress_field_e(field, res)
+        elif result in Strain_names(self.dim):
+            values_e = Result_strain_or_stress_field_e(self._Calc_Epsilon(), result)
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:

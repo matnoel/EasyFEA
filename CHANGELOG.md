@@ -64,6 +64,12 @@ This document describes the changes made to the project.
 - `_Gather` and a serial read of a run over the ranks keep the element tags and node
   tags and the group classes (beam elements), and the internal variables stay `FeArray`s
   (PhaseField's `psiP` was wrong after `_Gather`).
+- `_Gather` called again returns on every rank, not only on rank 0; it refuses a
+  parameter given per node (it places per-element ones only).
+- Beam `mass` and `center` sum each element once over the ranks.
+- `Save` over the ranks removes a serial save of the same name in the folder, which a
+  later `Load_Simu` would read first; `Load_Simu` raises on every rank when a file is
+  empty or corrupted.
 
 ### Simulations
 
@@ -83,10 +89,11 @@ This document describes the changes made to the project.
   the scheme class:
   `Solver_Set_Hyperbolic_Algorithm(dt, TimeSchemes.Hyperbolic.HHT, alpha=0.1)`; invalid
   parameters are refused when set. `AlgoType` and `simu.algo` are removed.
-- `Fold_terms` returns a flat list of contributions, unsummed: each with its `slot`
-  (`KCMFR`), `block` `(rows, cols)`, `group`, `array` (a constant term's cached array,
-  never copied) and `coef` (thickness times the term's scale). Filter it by slot, block
-  or group; an `R` stays in `R`, negated into `F` by `Assembly`.
+- `Fold_terms` (`Integrate_terms` since #75) returns a flat list of contributions,
+  unsummed: each with its `slot` (`KCMFR`), `block` `(rows, cols)`, `group`, `array` (a
+  constant term's cached array, never copied) and `coef` (thickness times the term's
+  scale). Filter it by slot, block or group; an `R` stays in `R`, negated into `F` by
+  `Assembly`.
 - `_Construct_local_matrix_system` is removed: `Get_terms` is the only extension point
   of assembly.
 - `Get_K_C_M_F` is removed. `Assembly(problemType)` returns `K`, `C`, `M` (csr, one
@@ -112,6 +119,62 @@ This document describes the changes made to the project.
 - Newmark step with a constant `A`, 47k dofs, PETSc LU: 23 → 19 ms (Rayleigh 30 → 21
   ms), `b` from element products on the kept contributions. Newton steps unchanged,
   PhaseField's ~1 % slower (energies by element products).
+
+### Solve pipeline (#75)
+
+- `EasyFEA.Solvers` package, mesh-free: `SolverType`, `ResolType`, `System` (the linear
+  system over the ranks), `Constraints(knownDofs, knownValues, list_lagrangeConstraint)`
+  of `LagrangeConstraint(dofs, coefs, value)`, `Newton`, `NotConvergedError`, and the
+  `NonlinearStrategy`, `NonlinearProblem` protocols. `EasyFEA.Simulations.Solvers` is
+  removed: import from `EasyFEA.Solvers`.
+- `Get_terms(self, x, problemType=None)`: the trial solution `x` (a `TrialSolution`, one
+  raw unknown per problem type) is passed explicitly; `_Solver_Get_trial_solution` is
+  removed. Operators no longer receive `u` or `elements` by name: read the iterate with
+  `Get_u_v_a(problemType, x)`, `elements` is passed only to a term with a `tag`.
+- `Get_u_v_a(problemType=None, x=None)` returns node values, `x` defaulting to the
+  committed solution.
+- `Fold_terms` is renamed `Integrate_terms`. `Assembly`, `_Solver_Get_load` and
+  `_Solver_Get_A_b(problemType, x)` return the problem's dofs only: the Lagrange rows
+  are added by `System` when it solves. `_Solver_Get_A_b` of a linear problem refuses
+  `x`. Fields solved as one system refuse a non-elliptic scheme and Lagrange conditions
+  when solved, no longer in `Assembly` or `Calc_Energy`.
+- `_Solver_Set_Newton_Raphson_Algorithm(...)` is removed:
+  `simu.Solver_Set_Nonlinear_Strategy(Newton(absTol, relTol, incTol, maxIter), problemType=None)`
+  sets the strategy of one monolithic problem (default every one), `None` solves it
+  linearly again; a `NonlinearStrategy` is any callable
+  `strategy(problem, backend, x0) -> (x, norms)`, e.g. a line search. `isNonLinear` is
+  true when a problem has one. `Newton(verbosity=False)` prints nothing. A strategy on a
+  problem with solver bounds (PhaseField's `BoundConstrain`) is refused.
+- `Solve(x0=None)`: a nonlinear problem's Newton starts from `x0`'s fields, `u_n` for
+  the others; a linear one refuses `x0`. `Get_x0` and its overrides are removed. Newton
+  raises `NotConvergedError` (an `AssertionError`) when it does not converge.
+- A Dirichlet dof given k > 1 times under Newton targets the sum of its values (was off
+  by (k − 1) · x).
+- After Newton, and after `Set_Iter` on a nonlinear simulation, `Calc_Energy`,
+  `Assembly` and the load read the committed solution (were the previous iterate's or
+  the last solve's). PhaseField's `convOption=2` with Lagrange conditions on the
+  displacement no longer fails an assert.
+- `Get_dof_n`, `Results_Iter_Summary`, `Results_dict_Energy` and
+  `Results_displacement_matrix` have defaults, `Results_Available` and `_Result` give
+  the dof-field results: a subclass extends them only where it adds results.
+  Displacement, speed and acceleration results are listed from the simulation's fields
+  and its time scheme: speed and acceleration only under a scheme integrating them (a
+  static Elastic or Thermal lists none); components are `f"{role}{unknown}"`, Beam's
+  rotations `urx`, `ury`, `urz` (were `rx`, `ry`, `rz`). `Stress_names(dim)` and
+  `Strain_names(dim)` list the Voigt components.
+- `Result` raises `ValueError` on a name the simulation does not list (was a print and
+  `None`). IncompressibleHyperElastic's pressure result, Paraview field included, is
+  `pressure` (was `p`).
+- `Mesh_Optim(DoMesh, criterion, iterMax=20, coef=1/2) -> Mesh`: remeshes until
+  `criterion(mesh) -> (converged, error_e)` converges, the `.pos` files in a temporary
+  folder; a criterion that is not callable is refused before meshing, an `error_e` with
+  no positive value raises. `Mesh_Optim_ZZ1` and the `ZZ1`, `ZZ1_e` results are removed:
+  see `examples/LinearizedElasticity/MeshOptim1.py`.
+- WeakForms integrates each term on its field's group: a mixed mesh's other groups no
+  longer make the system singular.
+- Speed unchanged: median step time, newmark 18.9 → 18.7 ms, Rayleigh 20.3 → 20.5 ms,
+  PhaseField 307 → 303 ms, Saint Venant-Kirchhoff Newton 4.61 → 4.66 s, within the runs'
+  spread.
 
 ## 7.3.0 (November 13, 2026):
 

@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 from scipy.spatial import cKDTree
 
-from EasyFEA import Mesher, Models, Simulations
+from EasyFEA import Folder, Mesher, Models, Simulations
 from EasyFEA.FEM import (
     ElemType,
     MatrixType,
@@ -651,21 +651,31 @@ def _DoMesh(refine: str | None) -> Mesh:
     return contour.Mesh_2D([], ElemType.TRI3, refineGeoms=[refine] if refine else [])
 
 
-def test_Mesh_Optim_returns_at_once_when_every_element_meets_the_quality(tmp_path):
-    mesh, ratio = Mesh_Optim(_DoMesh, str(tmp_path), "aspect", quality=0.1)
+def _Quality(quality: float):
+    def criterion(mesh: Mesh) -> tuple[bool, np.ndarray]:
+        qual_e = mesh.Get_Quality("aspect", False)
+        return bool(np.all(qual_e >= quality)), np.abs(qual_e - quality) / quality
 
-    assert ratio == 1
+    return criterion
+
+
+def test_Mesh_Optim_returns_at_once_when_every_element_meets_the_quality():
+    mesh = Mesh_Optim(_DoMesh, _Quality(0.1))
+
     assert np.all(mesh.Get_Quality("aspect") >= 0.1)
 
 
-def test_Mesh_Optim_refines_and_cleans_its_pos_files(tmp_path):
-    mesh, ratio = Mesh_Optim(_DoMesh, str(tmp_path), "aspect", quality=0.99, iterMax=1)
+def test_Mesh_Optim_refines_and_cleans_its_pos_files():
+    refines: list[str | None] = []
 
-    qualities = mesh.Get_Quality("aspect")
-    assert ratio == np.mean(qualities >= 0.99)
-    assert not list(tmp_path.glob("*.pos"))
-    with pytest.raises(AssertionError):
-        Mesh_Optim(_DoMesh, str(tmp_path), ratio=0)
+    def DoMesh(refine: str | None) -> Mesh:
+        refines.append(refine)
+        return _DoMesh(refine)
+
+    Mesh_Optim(DoMesh, _Quality(0.99), iterMax=1)
+
+    assert refines[0] is None and len(refines) == 2
+    assert refines[1] is not None and not Folder.Exists(refines[1])
 
 
 # ----------------------------------------------------------------------------
@@ -1413,3 +1423,19 @@ def test_Mesh_under_mpi_space_groups_take_their_group_partition():
         assert np.array_equal(owned_elements(spaceGroup), owned_elements(groupElem))
         owned = np.flatnonzero(spaceGroup._nodeOwners == spaceGroup.rank)
         assert np.array_equal(owned, owned_nodes(space))
+
+
+def test_Mesh_Optim_refuses_a_criterion_that_is_not_callable_before_meshing():
+    calls: list[str | None] = []
+
+    with pytest.raises(TypeError, match="criterion"):
+        Mesh_Optim(lambda refine: calls.append(refine) or _DoMesh(refine), "aspect")  # type: ignore [arg-type]
+
+    assert calls == []
+
+
+def test_Mesh_Get_New_meshSize_n_refuses_an_error_with_nothing_to_refine():
+    mesh = _DoMesh(None)
+
+    with pytest.raises(ValueError, match="no element to refine"):
+        mesh.Get_New_meshSize_n(np.zeros(mesh.Ne))

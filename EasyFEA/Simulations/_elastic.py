@@ -3,19 +3,24 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Folder, Tic, _types
+from ..Utilities import Tic, _types
 
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, Mesher, FeArray, Kinematics, Operators
+from ..FEM import MatrixType, FeArray, Kinematics, Operators
 
 # models
-from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
+from ._utils import (
+    Result_strain_or_stress_field_e,
+    Stress_names,
+    Strain_names,
+    _Field_per_groupElem,
+)
 from ..Models.Elastic._laws import _Elastic
 
 # simu
@@ -153,153 +158,51 @@ class Elastic(_Simu):
         self.Need_Update()
 
     def Results_Available(self) -> list[str]:
-        results = super().Results_Available()
-        dim = self.dim
-
-        if dim == 2:
-            results.extend(["Sxx", "Syy", "Sxy"])
-            results.extend(["Exx", "Eyy", "Exy"])
-
-        elif dim == 3:
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
-
-        results.extend(["Svm", "Stress", "Evm", "Strain"])
-
-        results.extend(["Wdef", "Wdef_e", "ZZ1", "ZZ1_e"])
-
-        return results
+        return [
+            *super().Results_Available(),
+            *Stress_names(self.dim),
+            *Strain_names(self.dim),
+            "Wdef",
+            "Wdef_e",
+        ]
 
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if result in ["Wdef"]:
-            return self._Calc_Psi_Elas()
-
+        if result in Stress_names(self.dim):
+            values_e = Result_strain_or_stress_field_e(self._Calc_Sigma(), result)
+        elif result in Strain_names(self.dim):
+            values_e = Result_strain_or_stress_field_e(self._Calc_Epsilon(), result)
+        elif result == "Wdef":
+            return float(self.mesh._Sum_on_ownedElements_e(self._Calc_Psi_Elas_e()))
         elif result == "Wdef_e":
-            values_e = self._Calc_Psi_Elas(returnScalar=False)
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
-        elif result == "ZZ1":
-            return self._Calc_ZZ1()[0]
-
-        elif result == "ZZ1_e":
-            values_e = self._Calc_ZZ1()[1]
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
-        elif ("S" in result or "E" in result) and ("_norm" not in result):
-            # Strain and Stress calculation part
-
-            isStrain = "E" in result or result == "Strain"
-            isStress = "S" in result and result != "Strain"
-            if not (isStrain or isStress):
-                raise Exception("Wrong option")
-
-            res = result if result in ["Strain", "Stress"] else result[-2:]
-
-            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values_e = Result_strain_or_stress_field_e(field, res)
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
+            values_e = np.concatenate(self._Calc_Psi_Elas_e())
         else:
             return super()._Result(result, nodeValues)
+        return self.Results_Reshape_values_e(values_e, nodeValues)
 
-    def _Calc_Psi_Elas(
-        self,
-        returnScalar=True,
-        smoothedStress=False,
-        matrixType=MatrixType.rigi,
-    ):
-        r"""Computes the kinematically admissible deformation energy.
-
-        .. math:: W_{def} = \frac{1}{2} \int_\Omega \Sig : \Eps \, \dO = \int_\Omega \psi \, \dO
-
-        Parameters
-        ----------
-        returnScalar : bool, optional
-            If True returns the total energy as a float, otherwise the per-element energy (Ne,), by default True.
-        smoothedStress : bool, optional
-            If True the energy density is built from the nodal-averaged (smoothed) stress field rather than the raw element stress; used by the ZZ1 error estimator, by default False.
-        matrixType : MatrixType, optional
-            integration scheme, by default MatrixType.rigi.
-        """
+    def _Calc_Psi_Elas_e(self) -> list[_types.FloatArray]:
+        r"""Strain energy of each element, one array per group: :math:`\int_e \psi \, \dO` with :math:`\psi = \frac{1}{2} \Sig : \Eps`."""
 
         tic = Tic()
 
         thickness = self.material.thickness if self.dim == 2 else 1
+        matrixType = MatrixType.rigi
 
-        # strain and elastic energy density psi = 1/2 Sig : Eps, group by group
-        # (each main-dimension group may have its own element type / number of Gauss points)
         space = self._Get_FunctionSpace()
-        sol_u = space.Get_nodeValues(self.displacement, self.dim)
-        list_kinematics = [
-            Kinematics(groupElem, sol_u, matrixType)
-            for groupElem in space.Get_list_groupElem(self.dim)
-        ]
-        list_psi_e_pg = [self.material.Compute_Psi(kin) for kin in list_kinematics]
-
-        if smoothedStress:
-            # ZZ1: rebuild psi from the element stresses averaged at the field's nodes, then projected back onto the Gauss points.
-            Sigma_e = [
-                np.mean(self.material.Compute_Sigma(kin), 1) for kin in list_kinematics
-            ]
-            Ncoords = max(kin.groupElem.Nn for kin in list_kinematics)
-            Sigma_n = np.zeros((Ncoords, Sigma_e[0].shape[1]))
-            elements_n = np.zeros(Ncoords)
-            for kin, values_e in zip(list_kinematics, Sigma_e):
-                np.add.at(Sigma_n, kin.groupElem.connect, values_e[:, None])
-                np.add.at(elements_n, kin.groupElem.connect, 1)
-            Sigma_n[elements_n > 0] /= elements_n[elements_n > 0, None]
-            list_psi_e_pg = [
-                0.5
-                * FeArray.asfearray(
-                    np.einsum(
-                        "eni,pjn,epi->ep",
-                        kin.groupElem.Locates_sol_e(Sigma_n),
-                        kin.groupElem.Get_N_pg(matrixType),
-                        kin.Compute_Epsilon(),
-                    )
-                )
-                for kin in list_kinematics
-            ]
-
-        # integrate the energy density over each group: Wdef_e = int psi dOmega
+        u = space.Get_nodeValues(self.displacement, self.dim)
         list_Wdef_e = [
             (
                 thickness
-                * kin.groupElem.Get_weightedJacobian_e_pg(matrixType)
-                * list_psi_e_pg[i]
+                * groupElem.Get_weightedJacobian_e_pg(matrixType)
+                * self.material.Compute_Psi(Kinematics(groupElem, u, matrixType))
             ).sum(1)
-            for i, kin in enumerate(list_kinematics)
+            for groupElem in space.Get_list_groupElem(self.dim)
         ]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
-        if not returnScalar:
-            return np.concatenate(list_Wdef_e)
-        return float(self.mesh._Sum_on_ownedElements_e(list_Wdef_e))
-
-    def _Calc_ZZ1(self) -> tuple[float, _types.FloatArray]:
-        """Computes the ZZ1 error.\n
-        For more details, [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21\n
-        Returns the global error and the error on each element.
-
-        Returns
-        -------
-        error, error_e
-        """
-
-        W_e = self._Calc_Psi_Elas(False)
-        Welas = np.sum(W_e)
-
-        Ws_e = self._Calc_Psi_Elas(False, True)
-        Ws = np.sum(Ws_e)
-
-        error_e = np.abs(Ws_e - W_e).ravel() / Welas
-
-        error: float = np.abs(Welas - Ws) / Welas
-
-        return error, error_e
+        return list_Wdef_e
 
     def _Calc_Epsilon(
         self, matrixType: MatrixType = MatrixType.rigi
@@ -326,7 +229,7 @@ class Elastic(_Simu):
         )
 
     def Results_dict_Energy(self) -> dict[str, float]:
-        dict_energy = {r"$\Psi_{elas}$": self._Calc_Psi_Elas()}
+        dict_energy = {r"$\Psi_{elas}$": float(self._Result("Wdef"))}
         return dict_energy
 
     def Results_Get_Iteration_Summary(self) -> str:
@@ -370,71 +273,3 @@ class Elastic(_Simu):
         displacement_matrix[:, :dim] = coord
 
         return displacement_matrix
-
-
-# ----------------------------------------------
-# Other functions
-# ----------------------------------------------
-def Mesh_Optim_ZZ1(
-    DoSimu: Callable[[str], Elastic],
-    folder: str,
-    threshold: float = 1e-2,
-    iterMax: int = 20,
-    coef: float = 1 / 2,
-) -> Elastic:
-    """Optimizes the mesh using ZZ1 error criterion.
-
-    Parameters
-    ----------
-    DoSimu : Callable[[str], Displacement]
-        Function that runs a simulation and takes a .pos file as argument for mesh optimization. The function must return a Displacement simulation.
-    folder : str
-        Folder in which .pos files are created and then deleted.
-    threshold : float, optional
-        targeted error, by default 1e-2
-    iterMax : int, optional
-        Maximum number of iterations, by default 20
-    coef : float, optional
-        mesh size division ratio, by default 1/2
-
-    Returns
-    -------
-    Displacement
-        Displacement simulation
-    """
-
-    i = -1
-    error = 1
-    optimGeom: str | None = None
-    # max=1
-    while error >= threshold and i <= iterMax:
-        i += 1
-
-        # perform the simulation
-        simu = DoSimu(optimGeom)  # type: ignore [arg-type]
-        assert isinstance(simu, Elastic), (
-            "DoSimu function must return a Displacement simulation"
-        )
-        # get the current mesh
-        mesh = simu.mesh
-
-        if i > 0:
-            # remove previous .pos file
-            Folder.os.remove(optimGeom)  # type: ignore [arg-type]
-
-        # Calculate the error with the ZZ1 method
-        error, error_e = simu._Calc_ZZ1()  # type: ignore [assignment]
-
-        print(f"error = {error * 100:.3f} %")
-
-        # calculate the new mesh size for the associated error
-        meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
-
-        # build the .pos file that will be used to refine the mesh
-        optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
-
-    if Folder.Exists(optimGeom):  # type: ignore [arg-type]
-        # remove last .pos file
-        Folder.os.remove(optimGeom)  # type: ignore [arg-type]
-
-    return simu

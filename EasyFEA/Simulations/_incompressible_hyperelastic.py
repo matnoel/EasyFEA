@@ -22,7 +22,12 @@ from ..Solvers import Newton
 from ._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu
 from ._terms import Term
-from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
+from ._utils import (
+    Result_strain_or_stress_field_e,
+    Stress_names,
+    Strain_names,
+    _Field_per_groupElem,
+)
 
 
 class IncompressibleHyperElastic(_Simu):
@@ -235,56 +240,33 @@ class IncompressibleHyperElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def Results_Available(self) -> list[str]:
-        components = (
-            ["xx", "yy", "xy"]
-            if self.dim == 2
-            else ["xx", "yy", "zz", "yz", "xz", "xy"]
-        )
         return [
             *super().Results_Available(),
-            *(f"S{component}" for component in components),
-            *(f"E{component}" for component in components),
-            "Svm",
-            "Piola-Kirchhoff",
-            "Evm",
-            "Green-Lagrange",
+            *Stress_names(self.dim, "Piola-Kirchhoff"),
+            *Strain_names(self.dim, "Green-Lagrange"),
             "W",
             "W_e",
             "J",
-            "p",
         ]
 
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if result == "p":
-            return super()._Result("pressure", nodeValues)
+        if result in Stress_names(self.dim, "Piola-Kirchhoff"):
+            field = self._Calc_SecondPiolaKirchhoff()
+            values_e = Result_strain_or_stress_field_e(field, result)
+        elif result in Strain_names(self.dim, "Green-Lagrange"):
+            field = self._Calc_GreenLagrange()
+            values_e = Result_strain_or_stress_field_e(field, result)
         elif result == "W":
             return self._Calc_W()
         elif result == "W_e":
             values_e = np.asarray(self._Calc_W(False))
-            return self.Results_Reshape_values_e(values_e, nodeValues)
         elif result == "J":
             values_e = self._Calc_J()
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-        elif result in ("Green-Lagrange", "Piola-Kirchhoff"):
-            field = (
-                self._Calc_GreenLagrange()
-                if result == "Green-Lagrange"
-                else self._Calc_SecondPiolaKirchhoff()
-            )
-            values_e = Result_strain_or_stress_field_e(field, result)
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-        elif result[0] in "SE":
-            field = (
-                self._Calc_SecondPiolaKirchhoff()
-                if result[0] == "S"
-                else self._Calc_GreenLagrange()
-            )
-            values_e = Result_strain_or_stress_field_e(field, result[-2:])
-            return self.Results_Reshape_values_e(values_e, nodeValues)
         else:
             return super()._Result(result, nodeValues)
+        return self.Results_Reshape_values_e(values_e, nodeValues)
 
     def __Solved_kinematics(
         self, groupElem: _GroupElem, matrixType: MatrixType | None = None
@@ -361,4 +343,4 @@ class IncompressibleHyperElastic(_Simu):
         self, details: bool = False
     ) -> tuple[list[str], list[str]]:
         elementsField = ["Green-Lagrange"] if details else []
-        return ["displacement", "p"], [*elementsField, "Piola-Kirchhoff"]
+        return ["displacement", "pressure"], [*elementsField, "Piola-Kirchhoff"]

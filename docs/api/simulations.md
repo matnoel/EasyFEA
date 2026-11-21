@@ -187,7 +187,7 @@ simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
 simu.add_surfLoad(nodesRight, [0.01], ["y"])
 simu.Solve()
 
-p_n = simu.Result("p")  # at the nodes
+p_n = simu.Result("pressure")  # at the nodes
 J_e = simu.Result("J", nodeValues=False)  # on the elements
 ```
 

@@ -25,9 +25,37 @@ from EasyFEA import (
     Simulations,
     PyVista,
     IO,
+    MatrixType,
 )
 from EasyFEA.Geoms import Point, Points
-from EasyFEA.FEM import Calc_projector
+from EasyFEA.FEM import Calc_projector, Kinematics, Mesh_Optim
+
+
+def ZZ1(simu: Simulations.Elastic) -> tuple[float, np.ndarray]:
+    """ZZ1 error, globally and per element: the strain energy of the raw stress against the node-smoothed one [F. Pled, Vers une stratégie robuste ... ingénierie mécanique, p. 20-21]."""
+    mesh, material = simu.mesh, simu.material
+    thickness = material.thickness if simu.dim == 2 else 1.0
+    list_kinematics = [
+        Kinematics(groupElem, simu.displacement, MatrixType.rigi)
+        for groupElem in mesh.Get_list_groupElem(simu.dim)
+    ]
+    list_Sigma = [material.Compute_Sigma(kinematics) for kinematics in list_kinematics]
+    # element stresses averaged at the nodes
+    Sigma_n = mesh.Get_Node_Values(
+        np.concatenate([np.mean(Sigma, 1) for Sigma in list_Sigma])
+    )
+    list_W_e, list_Ws_e = [], []
+    for kinematics, Sigma in zip(list_kinematics, list_Sigma):
+        groupElem = kinematics.groupElem
+        wJ = thickness * groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
+        Epsilon = kinematics.Compute_Epsilon()
+        Sigma_s = groupElem.Interpolate_e_pg(Sigma_n)
+        list_W_e.append((wJ * (0.5 * Sigma @ Epsilon)).integrate())
+        list_Ws_e.append((wJ * (0.5 * Sigma_s @ Epsilon)).integrate())
+    W_e, Ws_e = np.concatenate(list_W_e), np.concatenate(list_Ws_e)
+    W = W_e.sum()
+    return float(abs(W - Ws_e.sum()) / W), np.abs(Ws_e - W_e) / W
+
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -99,12 +127,13 @@ if __name__ == "__main__":
     simu = Simulations.Elastic(mesh, material)
     simu.rho = 8100 * 1e-9
 
-    def DoSimu(refineGeom: str):
-        simu.mesh = DoMesh(refineGeom)
+    def Solve_on(mesh: Mesh) -> tuple[bool, np.ndarray]:
+        """Solves on `mesh`; converged once the ZZ1 error is below `threshold`."""
+        simu.mesh = mesh
 
         # get the nodes
-        nodes_Fixed = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nodes_Load = simu.mesh.Nodes_Conditions(lambda x, y, z: x == L)
+        nodes_Fixed = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nodes_Load = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
         # do the simulation
         simu.Bc_Init()
@@ -117,16 +146,18 @@ if __name__ == "__main__":
 
         simu.Save_Iter()
 
-        return simu
+        error, error_e = ZZ1(simu)
+        print(f"error = {error * 100:.3f} %")
+        return error < threshold, error_e
 
-    simu = Simulations.Mesh_Optim_ZZ1(DoSimu, folder, threshold, iterMax, 1 / 10)
+    mesh = Mesh_Optim(DoMesh, Solve_on, iterMax, coef)
     PyVista.Plot_BoundaryConditions(simu).show()
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    PyVista.Plot_Mesh(simu.mesh).show()
-    PyVista.Plot(simu, "ZZ1_e", nodeValues=False, nColors=11).show()
+    PyVista.Plot_Mesh(mesh).show()
+    PyVista.Plot(simu, ZZ1(simu)[1], nodeValues=False, nColors=11).show()
 
     if plotProj:
         simu.Set_Iter(0)
@@ -151,7 +182,7 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        IO.Paraview.Save_simu(simu, folder, results=["ZZ1_e"])
+        IO.Paraview.Save_simu(simu, folder)
 
     if makeMovie:
 
@@ -160,7 +191,7 @@ if __name__ == "__main__":
 
             PyVista.Plot_Mesh(simu, plotter=plotter)
 
-            zz1 = simu._Calc_ZZ1()[0]
+            zz1 = ZZ1(simu)[0]
 
             plotter.add_title(f"ZZ1 = {zz1 * 100:.2f} %")
 

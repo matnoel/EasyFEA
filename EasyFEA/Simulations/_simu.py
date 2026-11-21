@@ -479,7 +479,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return [*self.__Dof_results(), "displacement_matrix"]
 
     def __Dof_results(self) -> dict[str, tuple[ProblemType, str, str | None]]:
-        """Each dof-field result: its problem type, role and unknown (None the field, ``"_norm"`` its norm); the roles the time scheme integrates, norm and components when a node carries several dofs."""
+        """Each dof-field result → (problem type, role, unknown): unknown None for the field, ``"_norm"`` for its norm."""
         results: dict[str, tuple[ProblemType, str, str | None]] = {}
         for problemType, names in self.dofFields.items():
             unknowns = self.Get_unknowns(problemType)
@@ -521,8 +521,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 self.Set_Iter(iter)
                 return self.Result(result, nodeValues)
 
-        if not self._Results_Check_Available(result):
-            return None  # type: ignore [return-value]
+        available = self.Results_Available()
+        if result not in available:
+            raise ValueError(
+                f"'{result}' is not a result of {type(self).__name__}: {available}."
+            )
 
         return self._Result(result, nodeValues)
 
@@ -547,8 +550,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             else:
                 values = values[:, unknowns.index(unknown)]
         else:
-            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
-            return None  # type: ignore [return-value]
+            raise NotImplementedError(
+                f"{type(self).__name__} lists '{result}' but does not compute it."
+            )
         return self.Results_Reshape_values_n(values, nodeValues)
 
     def Results_Iter_Summary(

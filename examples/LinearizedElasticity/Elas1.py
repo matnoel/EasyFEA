@@ -74,7 +74,7 @@ if __name__ == "__main__":
     simu.Save_Iter()
 
     uy_num = -simu.Result("uy").min()
-    W_num = simu._Calc_Psi_Elas()
+    W_num = simu.Result("Wdef")
 
     # ----------------------------------------------
     # Results

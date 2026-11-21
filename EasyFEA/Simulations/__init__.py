@@ -14,7 +14,7 @@ from ._utils import Save_pickle, Load_pickle
 # simulations
 # ------------------------------------------------------------------------------
 from ._inelastic import InElastic
-from ._elastic import Elastic, Mesh_Optim_ZZ1
+from ._elastic import Elastic
 from ._hyperelastic import HyperElastic
 from ._incompressible_hyperelastic import IncompressibleHyperElastic
 from ._phasefield import PhaseField

@@ -489,10 +489,15 @@ class Beam(_Simu):
         dof_n = self.structure.dof_n
         space = self._Get_FunctionSpace()
         dofs = space.Nn * dof_n
+        getters = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
+        norms = {
+            f"{name}_norm": get for name, get in zip(self.dofFields[self.U], getters)
+        }
 
-        if result == "displacement_norm":
+        if result in norms:
             # the translations' norm, rotations left out
-            values = np.linalg.norm(self.Results_displacement_matrix(), axis=1)
+            values_n = space.Get_meshValues(norms[result](self.U), dof_n)
+            values = np.linalg.norm(values_n[:, : {1: 1, 3: 2, 6: 3}[dof_n]], axis=1)
 
         elif result == "ux" and dof_n == 1:
             values = space.Get_meshValues(self.displacement, dof_n)[:, 0]

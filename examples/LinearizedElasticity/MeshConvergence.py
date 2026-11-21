@@ -25,6 +25,8 @@ from EasyFEA import (
 )
 from EasyFEA.Geoms import Domain, Point
 
+from MeshOptim1 import ZZ1
+
 if __name__ == "__main__":
     Terminal.Clear()
 
@@ -140,7 +142,7 @@ if __name__ == "__main__":
             times_N.append(time)
             wDef_N.append(Wdef)
             dofs_N.append(mesh.Nn * dim)
-            zz1_N.append(simu.Result("ZZ1"))
+            zz1_N.append(ZZ1(simu)[0])
 
             if elemType != mesh.elemType:
                 print("Error in mesh generation")

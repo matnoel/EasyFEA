@@ -359,8 +359,8 @@ def test_IncompressibleHyperElastic_Solve_recovers_a_uniaxial_stretch_exactly(su
             assert np.array_equal(u, simu.displacement)
             assert np.abs(u - _exact_stretch_u(simu)).max() < 1e-10
             assert np.abs(simu.pressure - p).max() < 1e-10
-            assert np.abs(simu.Result("p") - p).max() < 1e-10
-            assert simu.Result("p").shape == (simu.mesh.Nn,)
+            assert np.abs(simu.Result("pressure") - p).max() < 1e-10
+            assert simu.Result("pressure").shape == (simu.mesh.Nn,)
             assert np.abs(simu.Result("Sxx", nodeValues=False) - Sxx).max() < 1e-10
             assert np.abs(simu.Result("Syy", nodeValues=False)).max() < 1e-10
 
@@ -399,7 +399,7 @@ def test_IncompressibleHyperElastic_Result_p_lifts_p_exactly(subtests):
             nodes = owned_nodes(simu._Get_FunctionSpace(PRESSURE))
             simu._Set_solutions(PRESSURE, 1 + pCoord[nodes] @ a)
 
-            values = simu.Result("p")
+            values = simu.Result("pressure")
 
             assert values.shape == (simu.mesh.Nn,)
             assert np.abs(values - (1 + simu.mesh.coord @ a)).max() < 1e-14
@@ -413,7 +413,7 @@ def test_IncompressibleHyperElastic_Result_p_on_elements_is_the_vertex_mean(subt
             space = simu._Get_FunctionSpace(PRESSURE)
             simu._Set_solutions(PRESSURE, 1 + space.coord[owned_nodes(space)] @ a)
 
-            values = simu.Result("p", nodeValues=False)
+            values = simu.Result("pressure", nodeValues=False)
 
             expected = [
                 np.mean(
@@ -427,11 +427,12 @@ def test_IncompressibleHyperElastic_Result_p_on_elements_is_the_vertex_mean(subt
             assert np.abs(values - np.concatenate(expected)).max() < 1e-14
 
 
-def test_IncompressibleHyperElastic_Results_list_p_as_a_node_field():
+def test_IncompressibleHyperElastic_Results_list_pressure_as_a_node_field():
     simu = incompressible(_square(ElemType.TRI6))
 
-    assert "p" in simu.Results_Available()
-    assert "p" in simu.Results_nodeFields_elementFields()[0]
+    assert "pressure" in simu.Results_Available()
+    assert "p" not in simu.Results_Available()
+    assert "pressure" in simu.Results_nodeFields_elementFields()[0]
 
 
 def test_IncompressibleHyperElastic_Save_Iter_stores_p_by_name(subtests, tmp_path):
@@ -450,7 +451,10 @@ def test_IncompressibleHyperElastic_Save_Iter_stores_p_by_name(subtests, tmp_pat
             simu.Set_Iter(0)
             assert np.array_equal(simu.displacement, first_u)
             assert np.array_equal(simu.pressure, first_p)
-            assert np.abs(simu.Result("p", iter=1) - (first_p[0] + 1.0)).max() < 1e-10
+            assert (
+                np.abs(simu.Result("pressure", iter=1) - (first_p[0] + 1.0)).max()
+                < 1e-10
+            )
             assert np.array_equal(simu.pressure, first_p)
 
 
@@ -486,7 +490,10 @@ def test_IncompressibleHyperElastic_P2_on_TETRA4_is_the_straight_TETRA10_under_l
 
             assert rel_error(simu.displacement, iso.displacement[dofs]) < 1e-10
             assert (
-                rel_error(simu.Result("p"), iso.Result("p")[rows[: simu.mesh.Nn]])
+                rel_error(
+                    simu.Result("pressure"),
+                    iso.Result("pressure")[rows[: simu.mesh.Nn]],
+                )
                 < 1e-10
             )
 

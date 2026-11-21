@@ -124,6 +124,6 @@ def test_Save_simu_exports_the_pressure_on_the_cells_of_a_compact_space(tmp_path
     pvdFile = IO.Paraview.Save_simu(simu, str(tmp_path))
 
     vtu = read_steps(pvdFile)[0]
-    assert vtu.point_data["p"].shape == (simu.mesh.Nn,)
-    np.testing.assert_allclose(vtu.point_data["p"], simu.Result("p"))
+    assert vtu.point_data["pressure"].shape == (simu.mesh.Nn,)
+    np.testing.assert_allclose(vtu.point_data["pressure"], simu.Result("pressure"))
     assert np.isfinite(vtu.cell_data["Piola-Kirchhoff"]).all()

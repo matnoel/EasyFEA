@@ -84,5 +84,5 @@ if __name__ == "__main__":
         plotMesh=True,
         colorbarTitle="J - 1",
     ).show()
-    PyVista.Plot(simu, "p", 1, plotMesh=True).show()
+    PyVista.Plot(simu, "pressure", 1, plotMesh=True).show()
     PyVista.Plot(simu, "uy", 1, plotMesh=True).show()

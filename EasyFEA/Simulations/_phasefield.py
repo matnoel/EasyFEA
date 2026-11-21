@@ -14,7 +14,12 @@ from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 # models
 from .. import Models
-from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
+from ._utils import (
+    Result_strain_or_stress_field_e,
+    Stress_names,
+    Strain_names,
+    _Field_per_groupElem,
+)
 
 # simu
 from ._simu import _Simu, SolverType
@@ -494,23 +499,14 @@ class PhaseField(_Simu):
         return bool(Reduce_sum(detected, self.mesh.comm))
 
     def Results_Available(self) -> list[str]:
-        results = super().Results_Available()
-        dim = self.dim
-
-        if dim == 2:
-            results.extend(["Sxx", "Syy", "Sxy"])
-            results.extend(["Exx", "Eyy", "Exy"])
-
-        elif dim == 3:
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
-
-        results.extend(["Svm", "Stress", "Evm", "Strain"])
-
-        results.extend(["psiP", "Psi_Crack"])
-        results.extend(["Wdef"])
-
-        return results
+        return [
+            *super().Results_Available(),
+            *Stress_names(self.dim),
+            *Strain_names(self.dim),
+            "psiP",
+            "Psi_Crack",
+            "Wdef",
+        ]
 
     def _Result(
         self, result: str, nodeValues: bool = True
@@ -532,13 +528,13 @@ class PhaseField(_Simu):
             )
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
-        elif ("S" in result or "E" in result) and ("_norm" not in result):
-            # Strain and (damaged) stress, computed group by group
-            isStress = "S" in result and result != "Strain"
-            res = result if result in ["Strain", "Stress"] else result[-2:]
+        elif result in Stress_names(self.dim):
+            # damaged stress, group by group
+            values_e = Result_strain_or_stress_field_e(self._Calc_Sigma(), result)
+            return self.Results_Reshape_values_e(values_e, nodeValues)
 
-            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values_e = Result_strain_or_stress_field_e(field, res)
+        elif result in Strain_names(self.dim):
+            values_e = Result_strain_or_stress_field_e(self._Calc_Epsilon(), result)
             return self.Results_Reshape_values_e(values_e, nodeValues)
 
         else:

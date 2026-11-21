@@ -82,7 +82,7 @@ if __name__ == "__main__":
     PyVista.Plot_BoundaryConditions(simu).show()
     PyVista.Plot(
         simu,
-        "p",
+        "pressure",
         1,
         plotMesh=True,
         nodeValues=False,

@@ -15,8 +15,8 @@ Optimization of a happy mesh with quality criteria.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, ElemType, Mesh, PyVista
-from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
+from EasyFEA import Terminal, Matplotlib, ElemType, Mesh, PyVista
+from EasyFEA.Geoms import Circle, CircleArc, Contour
 from EasyFEA.FEM import Mesh_Optim
 
 if __name__ == "__main__":
@@ -25,9 +25,6 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-
-    # outputs
-    folder = Folder.Results_Dir()
 
     # geom
     D = 1
@@ -49,21 +46,21 @@ if __name__ == "__main__":
     mS = e / 3 * 10
 
     # face
-    circle = Circle(Point(), D, mS)
+    circle = Circle((0, 0), D, mS)
 
     # eyes
     theta = 45 * np.pi / 180
     sin = np.sin(theta)
     cos = np.cos(theta)
-    eye1 = Circle(Point(-r * sin, r * cos), e, mS)
-    eye2 = Circle(Point(r * sin, r * cos), e, mS)
+    eye1 = Circle((-r * sin, r * cos), e, mS)
+    eye2 = Circle((r * sin, r * cos), e, mS)
 
     # happy smile
     s = (D * 0.6) / 2
-    s1 = CircleArc(Point(-s), Point(s), Point(), coef=-1, meshSize=mS)
-    s2 = CircleArc(Point(s), Point(s - e), Point(s - e / 2), coef=-1, meshSize=mS)
-    s3 = CircleArc(Point(s - e), Point(-s + e), Point(), meshSize=mS)
-    s4 = CircleArc(Point(-s + e), Point(-s), Point(-s + e / 2), coef=-1, meshSize=mS)
+    s1 = CircleArc((-s, 0), (s, 0), (0, 0), coef=-1, meshSize=mS)
+    s2 = CircleArc((s, 0), (s - e, 0), (s - e / 2, 0), coef=-1, meshSize=mS)
+    s3 = CircleArc((s - e, 0), (-s + e, 0), (0, 0), meshSize=mS)
+    s4 = CircleArc((-s + e, 0), (-s, 0), (-s + e / 2, 0), coef=-1, meshSize=mS)
     happy = Contour([s1, s2, s3, s4])
 
     inclusions = [eye1, eye2, happy]
@@ -76,13 +73,20 @@ if __name__ == "__main__":
     mesh = DoMesh()
     PyVista.Plot_Mesh(mesh).show()
 
-    mesh, ratio = Mesh_Optim(DoMesh, folder, criteria, quality, ratio)
+    def Quality(mesh: Mesh) -> tuple[bool, np.ndarray]:
+        """Converged once more than `ratio` of the elements reach `quality`; the error is the relative gap to it."""
+        qual_e = mesh.Get_Quality(criteria, False)
+        print(f"ratio = {np.mean(qual_e >= quality) * 100:.3f} %")
+        return np.mean(qual_e >= quality) > ratio, np.abs(qual_e - quality) / quality
+
+    mesh = Mesh_Optim(DoMesh, Quality, iterMax, coef)
 
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
 
     qual_e = mesh.Get_Quality(criteria, False)
+    meshRatio = np.mean(qual_e >= quality)
 
     PyVista.Plot_Mesh(mesh).show()
     PyVista.Plot(
@@ -99,7 +103,7 @@ if __name__ == "__main__":
     axHist.hist(qual_e, 11, (0, 1))
     axHist.set_xlabel("quality")
     axHist.set_ylabel("elements")
-    axHist.set_title(f"ratio = {ratio * 100:.3f} %")
-    axHist.vlines([quality], [0], [ratio * mesh.Ne], color="red")
+    axHist.set_title(f"ratio = {meshRatio * 100:.3f} %")
+    axHist.vlines([quality], [0], [meshRatio * mesh.Ne], color="red")
 
     plt.show()

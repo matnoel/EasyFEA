@@ -27,7 +27,9 @@ from EasyFEA import (
     IO,
 )
 from EasyFEA.Geoms import Point, Points
-from EasyFEA.FEM import Calc_projector
+from EasyFEA.FEM import Calc_projector, Mesh_Optim
+
+from MeshOptim1 import ZZ1
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -132,12 +134,13 @@ if __name__ == "__main__":
     simu = Simulations.Elastic(mesh, material)
     simu.rho = 8100 * 1e-9
 
-    def DoSimu(refineGeom: str):
-        simu.mesh = DoMesh(refineGeom)
+    def Solve_on(mesh: Mesh) -> tuple[bool, np.ndarray]:
+        """Solves on `mesh`; converged once the ZZ1 error is below `threshold`."""
+        simu.mesh = mesh
 
         # get the nodes
-        nodes_Fixed = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nodes_Load = simu.mesh.Nodes_Conditions(lambda x, y, z: x == L)
+        nodes_Fixed = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nodes_Load = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
         # do the simulation
         simu.Bc_Init()
@@ -150,16 +153,18 @@ if __name__ == "__main__":
 
         simu.Save_Iter()
 
-        return simu
+        error, error_e = ZZ1(simu)
+        print(f"error = {error * 100:.3f} %")
+        return error < threshold, error_e
 
-    simu = Simulations.Mesh_Optim_ZZ1(DoSimu, folder, threshold, iterMax, 1 / 10)
+    mesh = Mesh_Optim(DoMesh, Solve_on, iterMax, coef)
     PyVista.Plot_BoundaryConditions(simu).show()
 
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-    PyVista.Plot_Mesh(simu.mesh).show()
-    PyVista.Plot(simu, "ZZ1_e", nodeValues=False, nColors=11).show()
+    PyVista.Plot_Mesh(mesh).show()
+    PyVista.Plot(simu, ZZ1(simu)[1], nodeValues=False, nColors=11).show()
 
     if plotProj:
         simu.Set_Iter(0)
@@ -184,7 +189,7 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        IO.Paraview.Save_simu(simu, folder, results=["ZZ1_e"])
+        IO.Paraview.Save_simu(simu, folder)
 
     if makeMovie:
 
@@ -193,7 +198,7 @@ if __name__ == "__main__":
 
             PyVista.Plot_Mesh(simu, plotter=plotter)
 
-            zz1 = simu._Calc_ZZ1()[0]
+            zz1 = ZZ1(simu)[0]
 
             plotter.add_title(f"ZZ1 = {zz1 * 100:.2f} %")
 

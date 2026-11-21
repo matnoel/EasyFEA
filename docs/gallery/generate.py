@@ -285,7 +285,7 @@ if __name__ == "__main__":
             ["simu"],
             PlotSimu,
             {
-                "results": ["displacement", "ZZ1_e", "Svm"],
+                "results": ["displacement", "Svm"],
                 "deformFactor": 1500,
                 **useMesh,
                 "fps": 5,

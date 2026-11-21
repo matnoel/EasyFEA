@@ -14,6 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 
 import copy
 import pickle
+import tempfile
 from typing import Any, Callable, NamedTuple, Sequence, TYPE_CHECKING
 
 import numpy as np
@@ -1351,6 +1352,8 @@ class Mesh(Observable):
         """
 
         assert self.Ne == error_e.size, "error_e must be an array of dim Ne"
+        if not np.max(error_e) > 0:
+            raise ValueError("error_e has no positive value: no element to refine.")
 
         h_e = self.Get_meshSize()
 
@@ -1598,88 +1601,26 @@ def Calc_projector(
 
 
 def Mesh_Optim(
-    DoMesh: Callable[[str], Mesh],
-    folder: str,
-    criteria: str = "aspect",
-    quality=0.8,
-    ratio: float = 0.7,
-    iterMax=20,
+    DoMesh: Callable[[str | None], Mesh],
+    criterion: Callable[[Mesh], tuple[bool, _types.FloatArray]],
+    iterMax: int = 20,
     coef: float = 1 / 2,
-) -> tuple[Mesh, float]:
-    """Optimize the mesh using the given criterion.
+) -> Mesh:
+    """Remeshes with ``DoMesh(posFile)`` until ``criterion(mesh) -> (converged, error_e)`` converges, at most ``iterMax + 1`` meshes; ``error_e`` sizes the next one (:meth:`Mesh.Get_New_meshSize_n`, ``coef``), its .pos file in a temporary folder."""
 
-    Parameters
-    ----------
-    DoMesh : Callable[[str], Mesh]
-        Function that constructs the mesh and takes a .pos file as argument for mesh optimization.\n
-        The function must return a Mesh.
-    folder : str
-        Folder in which .pos files are created and then deleted.
-    criteria : str, optional
-        criterion used, by default 'aspect'\n
-        - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
-        - "angular": angleMin / angleMax, ratio between the minimum and maximum angle of an element\n
-        - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
-        - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
-    quality : float, optional
-        quality target, by default .8
-    ratio : float, optional
-        target ratio of mesh elements that must respect the specified quality, by default 0.7 (must be in [0,1])
-    iterMax : int, optional
-        Maximum number of iterations, by default 20
-    coef : float, optional
-        mesh size division ratio, by default 1/2
-
-    Returns
-    -------
-    tuple[Mesh, float]
-        optimized mesh size and ratio
-    """
-
-    from ..Utilities import Folder
     from . import Mesher
 
-    targetRatio = ratio
-    assert targetRatio > 0 and targetRatio <= 1, "targetRatio must be in ]0, 1]"
-
-    i = -1
-    ratio = 0
-    optimGeom: str | None = None
-    # max=1
-    while ratio <= targetRatio and i <= iterMax:
-        i += 1
-
-        mesh = DoMesh(optimGeom)  # type: ignore [arg-type]
-
-        if i > 0:
-            # remove previous .pos file
-            Folder.os.remove(optimGeom)  # type: ignore [arg-type]
-
-        # mesh quality calculation
-        qual_e = mesh.Get_Quality(criteria, False)
-
-        # the element ratio that respects quality
-        ratio = np.where(qual_e >= quality)[0].size / mesh.Ne
-
-        if ratio == 1:
-            return mesh, ratio
-
-        print(f"ratio = {ratio * 100:.3f} %")
-
-        # # assign max quality for elements that exceed quality
-        # qual_e[qual_e >= quality] = quality
-
-        # calculate the relative error between element quality and desired quality
-        error_e = np.abs(qual_e - quality) / quality
-
-        # calculate the new mesh size for the associated error
-        meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
-
-        # build the .pos file that will be used to refine the mesh
-        optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
-
-    if Folder.Exists(optimGeom):  # type: ignore [arg-type]
-        # remove last .pos file
-        Folder.os.remove(optimGeom)  # type: ignore [arg-type]
-
-    return mesh, ratio
+    if not callable(criterion):
+        raise TypeError(
+            f"criterion must be a callable mesh -> (converged, error_e), not {criterion!r}."
+        )
+    posFile: str | None = None
+    with tempfile.TemporaryDirectory() as folder:
+        for i in range(iterMax + 1):
+            mesh = DoMesh(posFile)
+            converged, error_e = criterion(mesh)
+            if converged:
+                break
+            meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
+            posFile = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
+    return mesh

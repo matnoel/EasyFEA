@@ -16,7 +16,12 @@ from ..FEM import MatrixType, FeArray, Kinematics, Operators
 
 # models
 from ..FEM._kelvin_mandel import Tensor_to_Kelvin
-from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
+from ._utils import (
+    Result_strain_or_stress_field_e,
+    Stress_names,
+    Strain_names,
+    _Field_per_groupElem,
+)
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
@@ -227,61 +232,33 @@ class HyperElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def Results_Available(self) -> list[str]:
-        results = super().Results_Available()
-        dim = self.dim
-
-        if dim == 2:
-            results.extend(["Sxx", "Syy", "Sxy"])
-            results.extend(["Exx", "Eyy", "Exy"])
-
-        elif dim == 3:
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
-
-        results.extend(["Svm", "Piola-Kirchhoff", "Evm", "Green-Lagrange"])
-
-        results.extend(["W", "W_e", "J"])
-
-        return results
+        return [
+            *super().Results_Available(),
+            *Stress_names(self.dim, "Piola-Kirchhoff"),
+            *Strain_names(self.dim, "Green-Lagrange"),
+            "W",
+            "W_e",
+            "J",
+        ]
 
     def _Result(
         self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if result in ["W"]:
+        if result in Stress_names(self.dim, "Piola-Kirchhoff"):
+            field = self._Calc_SecondPiolaKirchhoff()
+            values_e = Result_strain_or_stress_field_e(field, result)
+        elif result in Strain_names(self.dim, "Green-Lagrange"):
+            field = self._Calc_GreenLagrange()
+            values_e = Result_strain_or_stress_field_e(field, result)
+        elif result == "W":
             return self._Calc_W()
-
         elif result == "W_e":
             values_e = self._Calc_W(False)
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
         elif result == "J":
             values_e = self._Calc_J()
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
-        elif result in ["Green-Lagrange", "Piola-Kirchhoff"] or (
-            ("S" in result or "E" in result) and ("_norm" not in result)
-        ):
-            # Green-Lagrange (E) and second Piola-Kirchhoff (S), group by group.
-            # "Green-Lagrange" and "Piola-Kirchhoff" carry no upper-case E or S, so they have to
-            # be matched by name: they are what Results_nodeFields_elementFields hands to Paraview.
-
-            isStress = result == "Piola-Kirchhoff" or "S" in result
-            res = (
-                result
-                if result in ["Green-Lagrange", "Piola-Kirchhoff"]
-                else result[-2:]
-            )
-
-            field = (
-                self._Calc_SecondPiolaKirchhoff()
-                if isStress
-                else self._Calc_GreenLagrange()
-            )
-            values_e = Result_strain_or_stress_field_e(field, res)
-            return self.Results_Reshape_values_e(values_e, nodeValues)
-
         else:
             return super()._Result(result, nodeValues)
+        return self.Results_Reshape_values_e(values_e, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
         r"""Computes the hyperelastic strain energy.

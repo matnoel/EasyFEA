@@ -78,19 +78,41 @@ def __Result_e_pg(field_e_pg: FeArray.FeArrayALike, result: str) -> _types.Float
                 + 6 * (xy**2 + yz**2 + xz**2)
             )
         )
-    if result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
+    if result in _TENSORS:
         return np.stack(list(values.values()), -1)
     raise ValueError(
         f"result must be in [{', '.join(values)}, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
     )
 
 
+_TENSORS = ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff")
+
+
+def Stress_names(dim: int, tensor: str = "Stress") -> list[str]:
+    """Stress results in ``dim``: the components ``Sxx``…, ``Svm`` and the whole ``tensor``."""
+    return [
+        *(f"S{_kelvin_mandel.ORDER[i]}" for i in _kelvin_mandel.IDX[dim]),
+        "Svm",
+        tensor,
+    ]
+
+
+def Strain_names(dim: int, tensor: str = "Strain") -> list[str]:
+    """Strain results in ``dim``: the components ``Exx``…, ``Evm`` and the whole ``tensor``."""
+    return [
+        *(f"E{_kelvin_mandel.ORDER[i]}" for i in _kelvin_mandel.IDX[dim]),
+        "Evm",
+        tensor,
+    ]
+
+
 def Result_strain_or_stress_field_e(
     field: FeArray.FeArrayALike | dict,
     result: str,
 ) -> _types.FloatArray:
-    """Per-element ``result`` of a strain/stress ``field`` — one ``FeArray`` or ``{groupElem: FeArray}`` concatenated in its order — Gauss points averaged."""
+    """Per-element ``result`` of a strain/stress ``field`` — one ``FeArray`` or ``{groupElem: FeArray}`` concatenated in its order — Gauss points averaged; ``result`` a name of `Stress_names`/`Strain_names`."""
+    key = result if result in _TENSORS else result[1:]
     fields = field.values() if isinstance(field, dict) else [field]
     return np.concatenate(
-        [__Result_e_pg(field_e_pg, result).mean(1) for field_e_pg in fields]
+        [__Result_e_pg(field_e_pg, key).mean(1) for field_e_pg in fields]
     )

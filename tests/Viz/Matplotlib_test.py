@@ -94,7 +94,7 @@ def test_Plot_contours_the_pressure_on_the_cells_of_a_compact_space():
     space = simu._Get_FunctionSpace(PRESSURE)
     simu._Set_solutions(PRESSURE, space.coord[owned_nodes(space), 0])
 
-    ax = Matplotlib.Plot(simu, "p", nColors=11)
+    ax = Matplotlib.Plot(simu, "pressure", nColors=11)
 
     levels = ax.collections[-1].levels
     assert levels[0] <= 0 and levels[-1] >= 1

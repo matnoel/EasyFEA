@@ -759,8 +759,9 @@ def test_Simu_Result_computes_every_available_result(subtests):
                     assert np.ndim(values) == 0 or np.shape(values)[0] % N == 0
 
 
-def test_Simu_Result_of_an_unknown_name_is_None():
-    assert _elastic_bar().Result("unknown") is None
+def test_Simu_Result_of_an_unknown_name_raises():
+    with pytest.raises(ValueError, match="unknown"):
+        _elastic_bar().Result("unknown")
 
 
 def test_Simu_Result_at_an_iteration_reads_that_iteration():
