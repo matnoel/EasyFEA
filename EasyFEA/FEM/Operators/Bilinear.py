@@ -86,12 +86,12 @@ def LinearizedElasticity(
     dims ``(nstrain, nstrain)``; the leading dims may be empty (homogeneous),
     ``(Ne,)`` (per-element), or ``(Ne, nPg)`` (per-element per-gauss-point).
     """
-    leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
     Ne, nPg, nS = B_e_pg.shape[:3]
     C = FeArray.broadcast(C, Ne, nPg, tensor_shape=(nS, nS))
-    C, leftDispPart_e_pg, B_e_pg = Restrict(elements, C, leftDispPart_e_pg, B_e_pg)
-    values_e = einsum("epij,epjk->eik", leftDispPart_e_pg @ C, B_e_pg)
+    C, wJ_e_pg, B_e_pg = Restrict(elements, C, wJ_e_pg, B_e_pg)
+    values_e = einsum("epji,epjk->eik", B_e_pg, wJ_e_pg * (C @ B_e_pg))
     return Scatter(values_e, Ne, elements)
 
 

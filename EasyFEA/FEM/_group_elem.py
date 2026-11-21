@@ -976,27 +976,6 @@ class _GroupElem:
 
         return FeArray.asfearray(B_e_pg)
 
-    @cache_computed_values
-    def Get_leftDispPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Left half of the elastic stiffness — precomputed ``wJ · Bᵀ``.
-
-        ```
-        leftDispPart_e_pg = wJ · Bᵀ
-        K_e              = (leftDispPart_e_pg · C · B).sum(over Gauss points)
-        ```
-
-        Pulled out as a cached factor so the constitutive matrix ``C`` is the only operand left when assembling.
-
-        Shape: ``(Ne, nPg, nPe·dim, nstrain)``.
-        """
-
-        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-        B_e_pg = self.Get_B_e_pg(matrixType)
-
-        leftDispPart = wJ_e_pg * B_e_pg.T
-
-        return leftDispPart
-
     # reaction diffusion problem
 
     @cache_computed_values

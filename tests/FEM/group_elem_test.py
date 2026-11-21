@@ -1236,25 +1236,6 @@ def test_GroupElem_Get_B_e_pg_gives_the_mandel_strain_of_an_affine_displacement(
             assert rel_error(strain_e_pg, expected) < 1e-10
 
 
-def test_GroupElem_Get_leftDispPart_e_pg_integrates_the_strain_work(
-    mesh_of: MeshOf, subtests
-):
-    """uᵀ ∫ Bᵀ σ dΩ = measure · ε:σ for an affine u and a constant σ."""
-    for elemType in DIM_2_3:
-        with subtests.test(elemType=str(elemType)):
-            mesh = mesh_of(elemType)
-            groupElem = _main(mesh)
-            dim = groupElem.dim
-            E = _strain(dim)
-            sigma = mandel(np.eye(dim) + E.T @ E)
-            u_e = _affine_displacement_e(mesh, groupElem, E)
-
-            leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(MatrixType.rigi)
-
-            work = np.einsum("ei,epij,j->", u_e, leftDispPart_e_pg, sigma)
-            assert rel_error(work, MEASURES[dim] * mandel(E) @ sigma) < 1e-10
-
-
 def test_GroupElem_Get_ReactionPart_e_pg_sums_to_dof_n_times_the_measure(
     mesh_of: MeshOf, subtests
 ):

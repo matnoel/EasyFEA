@@ -55,9 +55,10 @@ def InternalForce(
     of a nonlinear problem: unlike :func:`Bilinear.LinearizedElasticity`, the stress is given
     rather than derived from ``C : ε(u)``.
     """
-    leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
-    Ne, nPg, _, nS = leftDispPart_e_pg.shape
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = groupElem.Get_B_e_pg(matrixType)
+    Ne, nPg, nS = B_e_pg.shape[:3]
     sigma_e_pg = FeArray.broadcast(sigma_e_pg, Ne, nPg, tensor_shape=(nS,))
-    leftDispPart_e_pg, sigma_e_pg = Restrict(elements, leftDispPart_e_pg, sigma_e_pg)
-    values_e = (leftDispPart_e_pg @ sigma_e_pg).integrate()
+    wJ_e_pg, B_e_pg, sigma_e_pg = Restrict(elements, wJ_e_pg, B_e_pg, sigma_e_pg)
+    values_e = (B_e_pg.T @ (wJ_e_pg * sigma_e_pg)).integrate()
     return Scatter(values_e, Ne, elements)
