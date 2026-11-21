@@ -19,214 +19,183 @@ if TYPE_CHECKING:
 
 
 class _Assembly:
-    """Contributions of one problem key and what is summed from them (A, b, products), with its CSR maps and pinned dofs; dropped with the mesh."""
+    """What one problem's contributions sum to (A, b, products) on its fixed `layout`, with their CSR maps; Lagrange rows excluded."""
 
-    def __init__(self) -> None:
-        self.__list_contribution: list[_Contribution] = []
+    def __init__(
+        self, layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
+    ) -> None:
+        self.layout = layout
+        """`(field, space, dof_n, offset)` of each field, side by side"""
+        self.size = sum(space.Nn * dof_n for _, space, dof_n, _ in layout)
+        """number of dofs of the fields"""
         self.__A: sparse.csr_matrix | None = None
         self.__AKey: tuple = ()
-        """`(layout, Ndof, contributing)` of A's map"""
+        """`contributing` of A's map"""
         self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
         self.__list_contributionA: list[_Contribution] = []
         """the K, C and M contributions A was summed from"""
         self.__maps: dict[tuple, tuple[np.ndarray, np.ndarray, np.ndarray, int]] = {}
-        """`{(layout, Ndof, contributing): csr map}`"""
-        self.__pinnedFor: _types.BoolArray | None = None
-        """the free dofs the pinned ones were found for"""
-        self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
-        self.__pinnedWeights: dict = {}
-        self.__dofsLayout: tuple = ()
+        """`{contributing: csr map}`"""
         self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
-        """`{(field, group): dofs_e}` on `__dofsLayout`"""
+        """`{(field, group): dofs_e}`"""
         self.__connectedKey: tuple = ()
         self.__connected: _types.BoolArray | None = None
 
-    def __getstate__(self) -> dict:
-        # a term's bound method does not pickle; a copy rebuilds its contributions
-        return {
-            **self.__dict__,
-            "_Assembly__list_contribution": [],
-            "_Assembly__A": None,
-            "_Assembly__list_contributionA": [],
-            "_Assembly__dict_dofs_e": {},
-            "_Assembly__connected": None,
-        }
-
-    def Set_list_contribution(self, list_contribution: list[_Contribution]) -> None:
-        """Keeps the last contributions, A's source."""
-        self.__list_contribution = list_contribution
-
-    def Connected_rows(self, layout: tuple, Ndof: int) -> _types.BoolArray:
-        """Rows a K, C or M contribution of the last contributions fills, ghost elements included; a copy."""
-        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
-        key = (layout, Ndof, _Contributing(list_contribution))
+    def Connected_rows(
+        self, list_contribution: list[_Contribution]
+    ) -> _types.BoolArray:
+        """Rows a K, C or M contribution fills, ghost elements included; a copy."""
+        matrices = [
+            contribution
+            for contribution in list_contribution
+            if contribution.slot in "KCM"
+        ]
+        key = _Contributing(matrices)
         if self.__connected is None or key != self.__connectedKey:
-            rows = np.zeros(Ndof, dtype=bool)
-            for c in list_contribution:
-                rows[self.__Dofs_e(layout, c.block[0], c.group)] = True
+            rows = np.zeros(self.size, dtype=bool)
+            for contribution in matrices:
+                rows[self.__Dofs_e(contribution.block[0], contribution.group)] = True
             self.__connected = rows
             self.__connectedKey = key
         return self.__connected.copy()
 
     def Get_A(
-        self, coefs: tuple[float, float, float], layout: tuple, Ndof: int
+        self,
+        list_contribution: list[_Contribution],
+        coefs: tuple[float, float, float],
     ) -> sparse.csr_matrix:
-        """`coefK·K + coefC·C + coefM·M` from the last contributions, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
-        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
-        key = (layout, Ndof, _Contributing(list_contribution))
+        """`coefK·K + coefC·C + coefM·M` from the contributions, on the map of every group it fills; the same read-only object while its K, C, M are the same cached arrays and `coefs` hold."""
+        matrices = [
+            contribution
+            for contribution in list_contribution
+            if contribution.slot in "KCM"
+        ]
+        key = _Contributing(matrices)
         if (
             self.__A is not None
             and key == self.__AKey
             and coefs == self.__ACoefs
-            and Same_contributions(self.__list_contributionA, list_contribution)
+            and Same_contributions(self.__list_contributionA, matrices)
         ):
             return self.__A
 
         self.__AKey = key
-        A = _Sum(list_contribution, coefs, Ndof, self.__Map_getter(layout, Ndof))
+        A = _Sum(matrices, coefs, self.size, self.__Get_map)
         A.data.flags.writeable = False
 
         self.__A = A
         self.__ACoefs = coefs
-        self.__list_contributionA = list_contribution
+        self.__list_contributionA = matrices
         return A
 
-    def __Map_getter(
-        self, layout: tuple, Ndof: int
-    ) -> Callable[[tuple], tuple[np.ndarray, np.ndarray, np.ndarray, int]]:
-        """The CSR map of the contributing blocks on `layout`, kept per key."""
+    def __Get_map(
+        self, contributing: tuple
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+        """The CSR map of the contributing blocks, kept per `contributing`."""
+        csrMap = self.__maps.get(contributing)
+        if csrMap is None:
+            csrMap = _Csr_map(self.layout, self.size, contributing)
+            self.__maps[contributing] = csrMap
+        return csrMap
 
-        def Get_map(contributing: tuple):
-            key = (layout, Ndof, contributing)
-            csrMap = self.__maps.get(key)
-            if csrMap is None:
-                csrMap = _Csr_map(layout, Ndof, contributing)
-                self.__maps[key] = csrMap
-            return csrMap
-
-        return Get_map
-
-    def Set_pinned(
-        self, free: _types.BoolArray, dofs: _types.IntArray, weights: dict
-    ) -> None:
-        """Keeps the pinned dofs and weights found for `free`."""
-        self.__pinnedFor = free.copy()
-        self.__pinnedDofs = dofs
-        self.__pinnedWeights = weights
-
-    def Pinned_for(self, free: _types.BoolArray) -> bool:
-        """Whether the kept pinned dofs were found for `free`."""
-        return self.__pinnedFor is not None and np.array_equal(free, self.__pinnedFor)
-
-    @property
-    def pinnedDofs(self) -> _types.IntArray:
-        """Dofs pinning a field left free up to a constant."""
-        return self.__pinnedDofs
-
-    @property
-    def pinnedWeights(self) -> dict:
-        """Zero-mean weights `∫ N_i dΩ` of each pinned field."""
-        return self.__pinnedWeights
-
-    def Get_operator(self, slot: str, layout: tuple, Ndof: int) -> sparse.csr_matrix:
-        """The last contributions' K, C or M alone, a new matrix on A's map."""
-        list_contribution = [c for c in self.__list_contribution if c.slot in "KCM"]
-        coefK, coefC, coefM = (float(s == slot) for s in "KCM")
-        return _Sum(
-            list_contribution,
-            (coefK, coefC, coefM),
-            Ndof,
-            self.__Map_getter(layout, Ndof),
-        )
-
-    def Get_load(self, layout: tuple, Ndof: int) -> _types.FloatArray:
-        """The last F contributions, summed: the load the terms declare."""
-        pieces = [
-            (c, c.coef * c.array) for c in self.__list_contribution if c.slot == "F"
+    def Get_operator(
+        self, list_contribution: list[_Contribution], slot: str
+    ) -> sparse.csr_matrix:
+        """The contributions' K, C or M alone, a new matrix on A's map."""
+        matrices = [
+            contribution
+            for contribution in list_contribution
+            if contribution.slot in "KCM"
         ]
-        return self.__Scatter(pieces, layout, Ndof)
+        coefK, coefC, coefM = (float(s == slot) for s in "KCM")
+        return _Sum(matrices, (coefK, coefC, coefM), self.size, self.__Get_map)
 
-    @property
-    def internal(self) -> bool:
-        """Whether the last contributions hold an internal force R."""
-        return any(c.slot == "R" for c in self.__list_contribution)
+    def Get_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
+        """The F contributions, summed: the load the terms declare."""
+        pieces = [
+            (contribution, contribution.coef * contribution.array)
+            for contribution in list_contribution
+            if contribution.slot == "F"
+        ]
+        return self.__Scatter(pieces)
 
     def Get_b(
         self,
+        list_contribution: list[_Contribution],
         load: _types.FloatArray,
         fields: tuple[_types.FloatArray | None, ...],
-        layout: tuple,
     ) -> _types.FloatArray:
-        """`load − Σ coef·R − Σ coef·X_e·field` over the last contributions, X_e of the terms declaring no R; a None field is skipped."""
-        return load + self.__Scatter(
-            self.__Pieces(fields, layout, True), layout, load.size
-        )
+        """`load − Σ coef·R − Σ coef·X_e·field` over the contributions, X_e of the terms declaring no R; a None field is skipped."""
+        return load + self.__Scatter(self.__Pieces(list_contribution, fields, True))
 
     def Get_product(
         self,
+        list_contribution: list[_Contribution],
         fields: tuple[_types.FloatArray | None, ...],
-        layout: tuple,
-        Ndof: int,
     ) -> _types.FloatArray:
-        """`Σ coef·X_e·field` over the last contributions' K, C and M, each slot on its field; a None field is skipped."""
-        return self.__Scatter(self.__Pieces(fields, layout, False), layout, Ndof)
+        """`Σ coef·X_e·field` over the contributions' K, C and M, each slot on its field; a None field is skipped."""
+        return self.__Scatter(self.__Pieces(list_contribution, fields, False))
 
     def __Pieces(
         self,
+        list_contribution: list[_Contribution],
         fields: tuple[_types.FloatArray | None, ...],
-        layout: tuple,
         forB: bool,
     ) -> list[tuple[_Contribution, np.ndarray]]:
         """Element vectors of `coef·X_e·field`, or of b's `−coef·R` and `−coef·X_e·field` over the linear terms."""
         # contributions sharing one array (a term and its scaled copies) take one matmul on their summed fields
         shared: dict[tuple, list] = {}
         pieces = []
-        for c in self.__list_contribution:
-            if c.slot == "R":
+        for contribution in list_contribution:
+            if contribution.slot == "R":
                 if forB:
-                    pieces.append((c, -c.coef * c.array))
-            elif c.slot in "KCM" and not (forB and "R" in c.term.slots):
-                field = fields["KCM".index(c.slot)]
+                    pieces.append(
+                        (contribution, -contribution.coef * contribution.array)
+                    )
+            elif contribution.slot in "KCM" and not (
+                forB and "R" in contribution.term.slots
+            ):
+                field = fields["KCM".index(contribution.slot)]
                 if field is None:
                     continue
-                coef = -c.coef if forB else c.coef
-                key = (id(c.array), c.block, c.group)
+                coef = -contribution.coef if forB else contribution.coef
+                key = (id(contribution.array), contribution.block, contribution.group)
                 if key in shared:
                     shared[key][1] += coef * field
                 else:
-                    shared[key] = [c, coef * field]
-        for c, field in shared.values():
-            x_e = field[self.__Dofs_e(layout, c.block[1], c.group)]
-            pieces.append((c, np.matmul(c.array, x_e[..., None])[..., 0]))
+                    shared[key] = [contribution, coef * field]
+        for contribution, field in shared.values():
+            x_e = field[self.__Dofs_e(contribution.block[1], contribution.group)]
+            pieces.append(
+                (contribution, np.matmul(contribution.array, x_e[..., None])[..., 0])
+            )
         return pieces
 
-    def __Dofs_e(
-        self, layout: tuple, field: str, group: "_GroupElem"
-    ) -> _types.IntArray:
-        """`field`'s dofs on each element of `group`, in the problem's vector; kept while `layout` holds."""
-        if layout != self.__dofsLayout:
-            self.__dofsLayout = layout
-            self.__dict_dofs_e = {}
+    def __Dofs_e(self, field: str, group: "_GroupElem") -> _types.IntArray:
+        """`field`'s dofs on each element of `group`, in the problem's vector; kept."""
         dofs_e = self.__dict_dofs_e.get((field, group))
         if dofs_e is None:
-            dofs_e = _Dofs_e(layout, field, group)
+            dofs_e = _Dofs_e(self.layout, field, group)
             dofs_e.flags.writeable = False
             self.__dict_dofs_e[field, group] = dofs_e
         return dofs_e
 
     def __Scatter(
-        self, pieces: list[tuple[_Contribution, np.ndarray]], layout: tuple, Ndof: int
+        self, pieces: list[tuple[_Contribution, np.ndarray]]
     ) -> _types.FloatArray:
-        """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
+        """Element vectors summed into a vector of `size`, each into its contribution's rows."""
         if not pieces:
-            return np.zeros(Ndof)
+            return np.zeros(self.size)
         rows = np.concatenate(
-            [self.__Dofs_e(layout, c.block[0], c.group).ravel() for c, _ in pieces]
+            [
+                self.__Dofs_e(contribution.block[0], contribution.group).ravel()
+                for contribution, _ in pieces
+            ]
         )
         data = np.concatenate([vector.ravel() for _, vector in pieces])
         if np.iscomplexobj(data):
             raise TypeError("Complex systems are not supported.")
-        return np.bincount(rows, weights=data, minlength=Ndof)
+        return np.bincount(rows, weights=data, minlength=self.size)
 
 
 def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
@@ -240,8 +209,10 @@ def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
 def _Sizes(list_contribution: list[_Contribution]) -> dict:
     """`{block: {group: entries}}` of every block `list_contribution` fills, the order of its map."""
     sizes: dict = {}
-    for c in list_contribution:
-        sizes.setdefault(c.block, {}).setdefault(c.group, c.array.size)
+    for contribution in list_contribution:
+        sizes.setdefault(contribution.block, {}).setdefault(
+            contribution.group, contribution.array.size
+        )
     return sizes
 
 
@@ -268,14 +239,16 @@ def _Sum(
             spans[block, group] = size
             size += n
     entries = np.zeros(size)
-    for c in list_contribution:
-        weight = coefs["KCM".index(c.slot)]
+    for contribution in list_contribution:
+        weight = coefs["KCM".index(contribution.slot)]
         if weight == 0:
             continue
-        if np.iscomplexobj(c.array):
+        if np.iscomplexobj(contribution.array):
             raise TypeError("Complex systems are not supported.")
-        start = spans[c.block, c.group]
-        entries[start : start + c.array.size] += (weight * c.coef) * c.array.ravel()
+        start = spans[contribution.block, contribution.group]
+        entries[start : start + contribution.array.size] += (
+            weight * contribution.coef
+        ) * contribution.array.ravel()
 
     # an MPI rank may own no element of any contributing group
     if size == 0:

@@ -59,7 +59,7 @@ def measure(mesh: Mesh) -> float:
 def coupled_phasefield(
     *damageTerms: Simulations.Term, mesh: Mesh | None = None
 ) -> Simulations.PhaseField:
-    """PhaseField whose damage equation also folds `damageTerms`: two fields of different dof_n, so a block between them is rectangular."""
+    """PhaseField whose damage equation also integrates `damageTerms`: two fields of different dof_n, so a block between them is rectangular."""
 
     class Coupled(Simulations.PhaseField):
         def Get_terms(self, x, problemType=None):

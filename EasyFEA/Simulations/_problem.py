@@ -2,8 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Fields of a simulation solved as one system: their system, assembly and fold."""
+"""Fields of a simulation solved as one system: their system, assembly and contributions."""
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
@@ -11,11 +12,12 @@ from scipy import sparse
 
 from ..FEM import BoundaryCondition, Operators
 from ..FEM._function_space import _FunctionSpace
-from ..Solvers import Constraints, Lagrange, System
+from ..Solvers import Constraints, LagrangeConstraint, System
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
 from ._assembly import _Assembly, _Blocks
 from ._problem_type import ProblemType, TrialSolution
+from ._terms import _Contribution
 from .TimeSchemes import Elliptic
 
 if TYPE_CHECKING:
@@ -28,7 +30,7 @@ def _Field_size(simu: "_Simu", field: ProblemType) -> int:
 
 
 class _Problem:
-    """Fields of a simulation solved as one system ``[u | p | … | Lagrange]``: its system, assembly and fold, kept until the mesh changes."""
+    """Fields of a simulation solved as one system ``[u | p | … | Lagrange]``: its system, assembly and contributions, kept until the mesh changes."""
 
     def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
         if len(set(fields)) < len(fields):
@@ -36,11 +38,14 @@ class _Problem:
         self.simu = simu
         self.fields = fields
         self.needUpdate = True
-        """whether the kept fold is stale"""
+        """whether the kept contributions are stale"""
+        self.__list_contribution: list[_Contribution] = []
         self.orphanWarned = False
         """the current solve already warned about conditions on orphan dofs"""
-        self.__system: System | None = None
-        self.__assembly: _Assembly | None = None
+        self.__pinnedFor: _types.BoolArray | None = None
+        """the free dofs the pinned ones were found for"""
+        self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
+        self.__pinnedWeights: dict[ProblemType, _types.FloatArray] = {}
 
     @property
     def problemType(self) -> ProblemType | tuple[ProblemType, ...]:
@@ -75,32 +80,40 @@ class _Problem:
         """Number of dofs, every Lagrange dof after the fields'."""
         return self.size + sum(self.simu._Bc_Lagrange_dim(f) for f in self.fields)
 
-    @property
+    @cached_property
     def system(self) -> System:
         """The linear system; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
-        if self.__system is None:
-            if len(self.fields) > 1:
-                self.Check_monolithic()
-            owners, rank = self.Get_dof_owners()
-            globalIds = None
-            if self.simu.mesh.comm is not None:
-                globalIds = self.__Get_dof_globalIds()
-            self.__system = System(owners, rank, globalIds)
-        return self.__system
+        if len(self.fields) > 1:
+            self.Check_monolithic()
+        owners, rank = self.Get_dof_owners()
+        globalIds = None
+        if self.simu.mesh.comm is not None:
+            globalIds = self.__Get_dof_globalIds()
+        return System(owners, rank, globalIds)
 
-    @property
+    @cached_property
     def assembly(self) -> _Assembly:
-        """The assembly; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
-        if self.__assembly is None:
-            if len(self.fields) > 1:
-                self.Check_monolithic()
-            self.__assembly = _Assembly()
-        return self.__assembly
+        """The assembly on `layout`; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
+        if len(self.fields) > 1:
+            self.Check_monolithic()
+        return _Assembly(self.layout)
+
+    def Pad(self, A: sparse.csr_matrix) -> sparse.csr_matrix:
+        """`A` grown by the zero Lagrange rows and columns; `A` itself without any."""
+        Ndof = self.Ndof
+        if Ndof == A.shape[0]:
+            return A
+        indptr = np.concatenate(
+            [A.indptr, np.full(Ndof - A.shape[0], A.indptr[-1], A.indptr.dtype)]
+        )
+        padded = sparse.csr_matrix((A.data, A.indices, indptr), shape=(Ndof, Ndof))
+        padded.has_canonical_format = True
+        return padded
 
     def Free(self) -> None:
         """Destroys the solver kept by the system. Collective."""
-        if self.__system is not None:
-            self.__system.Free()
+        if "system" in self.__dict__:
+            self.system.Free()
 
     def Check_monolithic(self) -> None:
         """Rejects what fields solved side by side cannot run yet."""
@@ -167,62 +180,57 @@ class _Problem:
         return trial
 
     # ----------------------------------------------
-    # Fold
+    # Contributions
     # ----------------------------------------------
 
-    def Get_folded(self, x: TrialSolution | None = None) -> _Assembly:
-        """The assembly, its contributions rebuilt at `x` (default committed) when stale."""
-        assembly = self.assembly
+    def Get_contributions(self, x: TrialSolution | None = None) -> list[_Contribution]:
+        """The fields' contributions, kept, rebuilt at `x` (default committed) when stale."""
         if self.needUpdate:
             if x is None:
                 x = self.simu._Committed()
-            list_contribution = self.simu._Get_list_contribution(self.fields, x)
-            assembly.Set_list_contribution(list_contribution)
+            self.__list_contribution = self.simu._Get_list_contribution(self.fields, x)
             self.needUpdate = False
-        return assembly
+        return self.__list_contribution
 
     def Get_A(self, x: TrialSolution | None = None) -> sparse.csr_matrix:
-        """A for the time scheme, summed from the fold (rebuilt at `x` when stale) and kept by the assembly."""
-        assembly = self.Get_folded(x)
-        return assembly.Get_A(self.simu.timeScheme.coefs, self.layout, self.Ndof)
+        """A for the time scheme, summed from the contributions (rebuilt at `x` when stale) and kept by the assembly."""
+        list_contribution = self.Get_contributions(x)
+        return self.Pad(
+            self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
+        )
 
     def Get_load(self, x: TrialSolution | None = None) -> _types.FloatArray:
-        """External load, Neumann + the terms' F, the fold rebuilt at `x` when stale; Lagrange rows included."""
+        """External load, Neumann + the terms' F, the contributions rebuilt at `x` when stale; Lagrange rows included."""
         simu = self.simu
-        assembly = self.Get_folded(x)
+        assembly = self.assembly
+        list_contribution = self.Get_contributions(x)
         Ndof = self.Ndof
         dofs = self.Compose(simu.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.Compose(simu.Bc_values_Neumann)
 
         load = np.zeros(Ndof, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
-        load += assembly.Get_load(self.layout, Ndof)
+        load[: self.size] += assembly.Get_load(list_contribution)
         return load
 
-    def Get_b(
-        self,
-        trial: TrialSolution | None = None,
-        iterate: _types.FloatArray | None = None,
-    ) -> _types.FloatArray:
-        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at `iterate` (default 0) when linear; Lagrange rows included."""
+    def Get_b(self, trial: TrialSolution | None = None) -> _types.FloatArray:
+        """b of `A dx = b`: the load minus the internal forces, at `trial` (default committed) when nonlinear, at 0 when linear; Lagrange rows included."""
         simu = self.simu
         tic = Tic()
 
         if trial is None:
             trial = simu._Committed()
         load = self.Get_load(trial)
-        assembly = self.assembly
+        list_contribution = self.Get_contributions()
         if simu.isNonLinear:
             x = self.Compose(trial.__getitem__)
-        elif assembly.internal:
-            # R is folded at u_n, not at x = 0
+        elif any(contribution.slot == "R" for contribution in list_contribution):
+            # R is integrated at u_n, not at x = 0
             raise ValueError(
                 "A term declaring an internal force R needs the Newton-Raphson algorithm: call `_Solver_Set_Newton_Raphson_Algorithm`."
             )
-        elif iterate is None:
-            x = np.zeros(self.size)
         else:
-            x = iterate
+            x = np.zeros(self.size)
         u_n = simu._Get_u_n(self.problemType)
         v_n = simu._Get_v_n(self.problemType)
         a_n = simu._Get_a_n(self.problemType)
@@ -230,7 +238,10 @@ class _Problem:
             field if field is not None and field.any() else None
             for field in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
-        b = assembly.Get_b(load, fields, self.layout)
+        b = load.copy()
+        b[: self.size] = self.assembly.Get_b(
+            list_contribution, load[: self.size], fields
+        )
 
         tic.Tac("Solver", f"b ({self.problemType})", simu._verbosity)
 
@@ -239,16 +250,15 @@ class _Problem:
     def Get_A_b(
         self, x: TrialSolution | None = None
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b at `x` (default committed), the fold rebuilt at `x` when stale."""
+        """A and b at `x` (default committed), the contributions rebuilt at `x` when stale."""
         b = self.Get_b(x)
         return self.Get_A(x), b
 
     def Get_product(
         self, fields: tuple[_types.FloatArray | None, ...]
     ) -> _types.FloatArray:
-        """`K·u + C·v + M·a` of the kept fold, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
-        assembly = self.Get_folded()
-        return assembly.Get_product(fields, self.layout, self.Ndof)[: self.size]
+        """`K·u + C·v + M·a` of the kept contributions, `fields = (u, v, a)`, a None skipped; complete on owned rows only."""
+        return self.assembly.Get_product(self.Get_contributions(), fields)
 
     # ----------------------------------------------
     # Solve
@@ -257,37 +267,38 @@ class _Problem:
     def Linearize(
         self, x: _types.FloatArray
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A, b of `A dx = b` at the iterate x, refolded there when nonlinear; a linear problem's terms see the committed state, refolded only when stale."""
-        if not self.simu.isNonLinear:
-            b = self.Get_b(iterate=x)
-            return self.Get_A(), b
+        """Nonlinear only: the tangent and residual of `A dx = b`, integrated at the iterate x."""
         self.simu.Need_Update(self.problemType)
         return self.Get_A_b(self.Trial(x))
 
-    def Constraints(self, x: _types.FloatArray) -> Constraints:
-        """The known dofs at the Dirichlet values, orphan and pinned ones at x, every one at x when the scheme solves for a; the Lagrange conditions."""
+    def Constraints(self, x: _types.FloatArray | None = None) -> Constraints:
+        """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
         simu = self.simu
         self.__Warn_orphan_conditions()
         known = np.zeros(self.size, dtype=bool)
         known[simu.Bc_dofs_known_unknown(self.problemType)[0]] = True
-        target = x.copy()
+        knownDofs = np.flatnonzero(known)
+        target = np.zeros(self.size) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
             dofs = self.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
             dofs = np.asarray(dofs, dtype=int)
             target[dofs] = 0.0
             np.add.at(target, dofs, self.Compose(simu.Bc_values_Dirichlet))
 
-        lagrange = tuple(
-            Lagrange(c.dofs, c.lagrangeCoefs, c.dofsValues[0])
-            for c in simu.Bc_Lagrange
-            if c.problemType in self.fields
+        list_lagrangeConstraint = tuple(
+            LagrangeConstraint(
+                condition.dofs, condition.lagrangeCoefs, condition.dofsValues[0]
+            )
+            for condition in simu.Bc_Lagrange
+            if condition.problemType in self.fields
         )
-        return Constraints(known, target[known], lagrange, simu._resolution)
+        return Constraints(
+            knownDofs, target[knownDofs], list_lagrangeConstraint, simu._resolution
+        )
 
     def Orphan_dofs(self) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        assembly = self.Get_folded()
-        connected = assembly.Connected_rows(self.layout, self.Ndof)[: self.size]
+        connected = self.assembly.Connected_rows(self.Get_contributions())
         lagrange = self.Compose(
             lambda field: BoundaryCondition.Get_dofs(field, self.simu.Bc_Lagrange),  # type: ignore [arg-type]
             isDofs=True,
@@ -321,11 +332,12 @@ class _Problem:
     # ----------------------------------------------
 
     def Pinned_dofs(self, free: _types.BoolArray) -> _types.IntArray:
-        """Dofs pinning the fields left free up to a constant, kept by the assembly until `free` changes. Collective on `mesh.comm`."""
-        assembly = self.assembly
-        if Reduce_max(not assembly.Pinned_for(free), self.simu.mesh.comm):
-            assembly.Set_pinned(free, *self.__Find_pinned(free))
-        return assembly.pinnedDofs
+        """Dofs pinning the fields left free up to a constant, kept until `free` changes. Collective on `mesh.comm`."""
+        stale = self.__pinnedFor is None or not np.array_equal(free, self.__pinnedFor)
+        if Reduce_max(stale, self.simu.mesh.comm):
+            self.__pinnedDofs, self.__pinnedWeights = self.__Find_pinned(free)
+            self.__pinnedFor = free.copy()
+        return self.__pinnedDofs
 
     def __Find_pinned(
         self, free: _types.BoolArray
@@ -379,7 +391,7 @@ class _Problem:
         simu = self.simu
         comm = simu.mesh.comm
         offsets = self.offsets
-        for field, weights in self.assembly.pinnedWeights.items():
+        for field, weights in self.__pinnedWeights.items():
             start = offsets[self.fields.index(field)]
             values = x[start : start + weights.size]
             owned = simu.Get_dofs(field)

@@ -9,7 +9,7 @@ import pytest
 from EasyFEA import ElemType, Mesh, Models, Simulations, TimeSchemes
 from EasyFEA.FEM import FeArray, Kinematics, MatrixType, Operators
 from EasyFEA.Geoms import Domain
-from EasyFEA.Simulations import Fold_terms
+from EasyFEA.Simulations import Integrate_terms
 
 from _numerics import rel_error
 from ._simus import measure
@@ -128,8 +128,14 @@ def test_HyperElastic_material_eta_enters_the_residual_once():
     groupElem = mesh.groupElem
 
     def F_e() -> np.ndarray:
-        fold = Fold_terms(simu, simu.Get_terms(x, problemType), problemType)
-        return sum(c.Scaled() for c in fold if c.slot in "FR" and c.group is groupElem)
+        list_contribution = Integrate_terms(
+            simu, simu.Get_terms(x, problemType), problemType
+        )
+        return sum(
+            contribution.Scaled()
+            for contribution in list_contribution
+            if contribution.slot in "FR" and contribution.group is groupElem
+        )
 
     F_visco = F_e()
     material.eta = 0.0

@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Each guard catches a failure that is otherwise silent: an unknown slot letter would surface deep inside the fold, a ``tag`` on an operator that takes no ``elements`` would assemble the whole group, and a slot count that does not match what the operator returns would drop an array or fabricate one."""
+"""Each guard catches a failure that is otherwise silent: an unknown slot letter would surface deep inside the integration, a ``tag`` on an operator that takes no ``elements`` would assemble the whole group, and a slot count that does not match what the operator returns would drop an array or fabricate one."""
 
 import numpy as np
 import pytest
@@ -11,7 +11,7 @@ import pytest
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Circle, Domain
-from EasyFEA.Simulations import Fold_terms, ProblemType, Term, TrialSolution
+from EasyFEA.Simulations import Integrate_terms, ProblemType, Term, TrialSolution
 
 from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible
 
@@ -20,7 +20,7 @@ D = Simulations.PhaseField.D
 
 
 def Operator(groupElem, elements=None):
-    """Stand-in operator with the shape the fold calls."""
+    """Stand-in operator with the shape the integration calls."""
     return None
 
 
@@ -50,13 +50,17 @@ def Simu() -> Simulations.Thermal:
     return Simulations.Thermal(mesh, Models.Thermal(1, 1))
 
 
-def Fold(slots: str, fn) -> list:
-    return Fold_terms(Simu(), [Term(slots, fn)])
+def Integrate(slots: str, fn) -> list:
+    return Integrate_terms(Simu(), [Term(slots, fn)])
 
 
-def Array(fold: list, slot: str, block=None) -> np.ndarray:
-    """The one array of `fold` in `slot` (and `block`)."""
-    (array,) = [c.array for c in fold if c.slot == slot and block in (None, c.block)]
+def Array(list_contribution: list, slot: str, block=None) -> np.ndarray:
+    """The one array of `list_contribution` in `slot` (and `block`)."""
+    (array,) = [
+        contribution.array
+        for contribution in list_contribution
+        if contribution.slot == slot and block in (None, contribution.block)
+    ]
     return array
 
 
@@ -175,7 +179,7 @@ def test_Term__Get_field_groups_follows_each_group_with_those_of_the_fields():
     assert Term("K", Operator, tag="missing")._Get_field_groups(simu, (PRESSURE,)) == []
 
 
-def test_Term__Get_blocks_resolves_a_free_slot_to_the_folded_problem():
+def test_Term__Get_blocks_resolves_a_free_slot_to_the_integrated_problem():
     assert Term("KR", Two_arrays)._Get_blocks(U) == ((U, U), (U, U))
 
     term = Term("KR", Two_arrays, problemTypes=((U, D), None))
@@ -236,55 +240,59 @@ def test_Term__Cached_integrates_once_while_the_arguments_are_unchanged():
 
 
 # ----------------------------------------------
-# Fold_terms
+# Integrate_terms
 # ----------------------------------------------
 
 
-def test_Fold_terms_rejects_more_slots_than_arrays():
+def test_Integrate_terms_rejects_more_slots_than_arrays():
     with pytest.raises(ValueError, match="2 slot"):
-        Fold("KC", One_array)
+        Integrate("KC", One_array)
 
 
-def test_Fold_terms_rejects_fewer_slots_than_arrays():
+def test_Integrate_terms_rejects_fewer_slots_than_arrays():
     with pytest.raises(ValueError, match="1 slot"):
-        Fold("K", Two_arrays)
+        Integrate("K", Two_arrays)
 
 
-def test_Fold_terms_accepts_one_slot_per_array():
-    assert Fold("K", One_array)
-    assert Fold("KF", Two_arrays)
+def test_Integrate_terms_accepts_one_slot_per_array():
+    assert Integrate("K", One_array)
+    assert Integrate("KF", Two_arrays)
 
 
-def test_Fold_terms_rejects_a_matrix_in_a_vector_slot():
+def test_Integrate_terms_rejects_a_matrix_in_a_vector_slot():
     with pytest.raises(ValueError, match="takes a vector"):
-        Fold("R", One_array)
+        Integrate("R", One_array)
 
 
-def test_Fold_terms_rejects_a_vector_in_a_matrix_slot():
+def test_Integrate_terms_rejects_a_vector_in_a_matrix_slot():
     with pytest.raises(ValueError, match="takes a matrix"):
-        Fold("K", One_vector)
+        Integrate("K", One_vector)
 
 
-def test_Fold_terms_rejects_the_reversed_order():
+def test_Integrate_terms_rejects_the_reversed_order():
     # "RK" instead of "KR": both letters are valid, only the order is wrong
     with pytest.raises(ValueError, match="positional"):
-        Fold("RK", Two_arrays)
+        Integrate("RK", Two_arrays)
 
 
-def test_Fold_terms_sums_tagged_masses_to_the_whole_one():
+def test_Integrate_terms_sums_tagged_masses_to_the_whole_one():
     mesh = _inclusion_mesh()
     simu = Simulations.Thermal(mesh, Models.Thermal(1, 1))
 
     def Mass(*tags: str) -> float:
         terms = [Term("M", Operators.Bilinear.UV, tag=tag) for tag in tags]
-        fold = Fold_terms(simu, terms)
-        return sum(c.array.sum() for c in fold if c.slot == "M")
+        list_contribution = Integrate_terms(simu, terms)
+        return sum(
+            contribution.array.sum()
+            for contribution in list_contribution
+            if contribution.slot == "M"
+        )
 
     assert np.isclose(Mass("S0", "S1"), Mass(None))
     assert np.isclose(Mass(None), mesh.area)
 
 
-def test_Fold_terms_keeps_each_array_unsummed_by_reference():
+def test_Integrate_terms_keeps_each_array_unsummed_by_reference():
     simu = Simu()
     arrays = {}
 
@@ -293,33 +301,41 @@ def test_Fold_terms_keeps_each_array_unsummed_by_reference():
         return arrays["K"], arrays["R"]
 
     pt = simu.problemType
-    fold = Fold_terms(simu, [Term("KR", Force)])
+    list_contribution = Integrate_terms(simu, [Term("KR", Force)])
 
-    assert [(c.slot, c.block, c.group) for c in fold] == [
+    assert [
+        (contribution.slot, contribution.block, contribution.group)
+        for contribution in list_contribution
+    ] == [
         ("K", (pt, pt), simu.mesh.groupElem),
         ("R", (pt, pt), simu.mesh.groupElem),
     ]
-    assert all(c.array is arrays[c.slot] for c in fold)
-    assert all(c.coef == simu.thickness for c in fold)
+    assert all(
+        contribution.array is arrays[contribution.slot]
+        for contribution in list_contribution
+    )
+    assert all(
+        contribution.coef == simu.thickness for contribution in list_contribution
+    )
 
 
-def test_Fold_terms_keeps_the_cached_array_of_a_constant_term():
+def test_Integrate_terms_keeps_the_cached_array_of_a_constant_term():
     simu = Simu()
     term = Term("M", Operators.Bilinear.UV, constant=True)
 
-    first, again = (Array(Fold_terms(simu, [term]), "M") for _ in range(2))
+    first, again = (Array(Integrate_terms(simu, [term]), "M") for _ in range(2))
 
     assert again is first
 
 
-def test_Fold_terms_hands_operators_the_group_of_the_field_space():
+def test_Integrate_terms_hands_operators_the_group_of_the_field_space():
     domain = Domain((0, 0), (1, 1))
     mesh = domain.Mesh_2D([], ElemType.TRI3)
     meshP2 = mesh._With_FunctionSpace(Simulations.Thermal.problemType, 2)
     simu = Simulations.Thermal(meshP2, Models.Thermal(1, 1))
     groupElem = meshP2.groupElem
 
-    K_e = Array(Fold_terms(simu, [Term("K", One_array)]), "K")
+    K_e = Array(Integrate_terms(simu, [Term("K", One_array)]), "K")
 
     assert K_e.shape == (groupElem.Ne, 6, 6)
 
@@ -339,16 +355,16 @@ def test_Term_rejects_a_pair_on_a_vector_slot():
         Term("R", Operator, problemTypes=((D, U),))
 
 
-def test_Fold_terms_keys_a_diagonal_fold_by_its_problem_type():
+def test_Integrate_terms_keys_a_diagonal_contribution_by_its_problem_type():
     simu = Simu()
     pt = simu.problemType
 
-    fold = Fold_terms(simu, [Term("K", One_array)])
+    list_contribution = Integrate_terms(simu, [Term("K", One_array)])
 
-    assert [c.block for c in fold] == [(pt, pt)]
+    assert [contribution.block for contribution in list_contribution] == [(pt, pt)]
 
 
-def test_Fold_terms_routes_each_array_to_its_block():
+def test_Integrate_terms_routes_each_array_to_its_block():
     simu = coupled_phasefield()
     groupElem = simu.mesh.groupElem
 
@@ -356,41 +372,43 @@ def test_Fold_terms_routes_each_array_to_its_block():
         return One_array(groupElem), One_vector(groupElem) + 1, coupling(groupElem)
 
     term = Term("KRK", Spanning, problemTypes=((D, D), D, (D, U)))
-    fold = Fold_terms(simu, [term], D)
+    list_contribution = Integrate_terms(simu, [term], D)
 
-    assert [(c.slot, c.block) for c in fold] == [
+    assert [
+        (contribution.slot, contribution.block) for contribution in list_contribution
+    ] == [
         ("K", (D, D)),
         ("R", (D, D)),
         ("K", (D, U)),
     ]
-    assert all(c.group is groupElem for c in fold)
-    assert np.all(Array(fold, "K", (D, D)) == 0.0)
-    assert np.all(Array(fold, "R") == 1.0)
-    assert np.array_equal(Array(fold, "K", (D, U)), coupling(groupElem))
+    assert all(contribution.group is groupElem for contribution in list_contribution)
+    assert np.all(Array(list_contribution, "K", (D, D)) == 0.0)
+    assert np.all(Array(list_contribution, "R") == 1.0)
+    assert np.array_equal(Array(list_contribution, "K", (D, U)), coupling(groupElem))
 
 
-def test_Fold_terms_places_a_term_in_the_rows_it_declares():
+def test_Integrate_terms_places_a_term_in_the_rows_it_declares():
     simu = coupled_phasefield()
     term = Term("K", coupling, problemTypes=((D, U),))
     groupElem = simu.mesh.groupElem
 
-    fold = Fold_terms(simu, [term], U)
+    list_contribution = Integrate_terms(simu, [term], U)
 
-    assert np.array_equal(Array(fold, "K", (D, U)), coupling(groupElem))
-    assert {c.block[0] for c in fold} == {D}
+    assert np.array_equal(Array(list_contribution, "K", (D, U)), coupling(groupElem))
+    assert {contribution.block[0] for contribution in list_contribution} == {D}
 
 
-def test_Fold_terms_rejects_a_swapped_block():
+def test_Integrate_terms_rejects_a_swapped_block():
     simu = coupled_phasefield()
 
     def Swapped(groupElem, uGroup):
         return np.swapaxes(coupling(groupElem), 1, 2)
 
     with pytest.raises(ValueError, match="rows"):
-        Fold_terms(simu, [Term("K", Swapped, problemTypes=((D, U),))], D)
+        Integrate_terms(simu, [Term("K", Swapped, problemTypes=((D, U),))], D)
 
 
-def test_Fold_terms_hands_a_spanning_term_one_group_per_field():
+def test_Integrate_terms_hands_a_spanning_term_one_group_per_field():
     domain = Domain((0, 0), (1, 1), 0.5)
     mesh = domain.Mesh_2D([], ElemType.TRI3)
     meshP2 = mesh._With_FunctionSpace(D, 2)
@@ -402,7 +420,7 @@ def test_Fold_terms_hands_a_spanning_term_one_group_per_field():
         # P2 damage rows, P1 displacement columns
         return np.zeros((dGroup.Ne, 6, 6))
 
-    Fold_terms(simu, [Term("K", Spy, problemTypes=((D, U),))], D)
+    Integrate_terms(simu, [Term("K", Spy, problemTypes=((D, U),))], D)
 
     assert seen["groups"][0] is meshP2._Get_FunctionSpace(D).Get_list_groupElem()[0]
     assert seen["groups"][1] is meshP2.groupElem
@@ -413,7 +431,7 @@ def test_Term_Scaled_keeps_its_blocks():
     groupElem = simu.mesh.groupElem
     term = Term("K", coupling, problemTypes=((D, U),)).Scaled(2.0)
 
-    (c,) = Fold_terms(simu, [term], D)
+    (c,) = Integrate_terms(simu, [term], D)
 
     assert c.coef == 2.0 * simu.thickness
     assert np.array_equal(c.array, coupling(groupElem))

@@ -91,7 +91,7 @@ class InElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def __Groups(self) -> list[_GroupElem]:
-        """The groups of the displacement's space, which the fold hands `__Assemble` and the internal variables live on."""
+        """The groups of the displacement's space, which the integration hands `__Assemble` and the internal variables live on."""
         return self._Get_FunctionSpace().Get_list_groupElem(self.dim)
 
     def __Node_values(self, u: _types.FloatArray) -> _types.FloatArray:

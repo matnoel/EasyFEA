@@ -54,7 +54,7 @@ from ..Models import _IModel
 # simu
 from ._problem_type import ProblemType, TrialSolution
 from . import _iterations
-from ._terms import Term, Fold_terms, _Contribution
+from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
 from ._problem import _Field_size, _Problem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
@@ -63,7 +63,6 @@ from ..Solvers import (
     ResolType,
     System,
     Get_backend,
-    Linear,
     Newton,
 )
 from ..Solvers._backends import CAN_USE_PYPARDISO, _Backend, _Get_PETSc
@@ -236,7 +235,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | tuple[ProblemType, ...] | None = None,
         dofs: _types.IntArray | None = None,
     ) -> float:
-        """Energy `1/2 xᵀ X x`, X the folded `slot` (`"K"` strain, `"M"` kinetic), over the owned `dofs`; collective on `mesh.comm`."""
+        """Energy `1/2 xᵀ X x`, X the `slot` summed from the contributions (`"K"` strain, `"M"` kinetic), over the owned `dofs`; collective on `mesh.comm`."""
         if slot not in ("K", "C", "M"):
             raise ValueError(f"slot must be 'K', 'C' or 'M', not {slot!r}.")
         problem = self.__Problem(problemType)
@@ -1011,7 +1010,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def thickness(self) -> float:
-        """Out-of-plane thickness in 2D, 1 otherwise. Operators integrate over the element's own dimension, so every 2D contribution is scaled by this once, in :func:`~EasyFEA.Simulations._terms.Fold_terms`."""
+        """Out-of-plane thickness in 2D, 1 otherwise. Operators integrate over the element's own dimension, so every 2D contribution is scaled by this once, in :func:`~EasyFEA.Simulations._terms.Integrate_terms`."""
         return self.model.thickness if self.dim == 2 else 1.0
 
     def __Update_mesh(self, index: int) -> None:
@@ -1072,7 +1071,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def needUpdate(self) -> bool:
-        """Whether the fold of a problem of the simulation is stale."""
+        """Whether the contributions of a problem of the simulation are stale."""
         problems = [self.__problems.get(f) for f in self._Get_monolithic_problems()]
         return any(problem is None or problem.needUpdate for problem in problems)
 
@@ -1108,13 +1107,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     f"No term fills {problemType}'s equation: assemble {self._Get_monolithic_problem(problemType)}."
                 )
 
-        fold: list[_Contribution] = []
+        list_contribution: list[_Contribution] = []
         for problemType in problemTypes:
-            fold += Fold_terms(self, terms[problemType], problemType)
+            list_contribution += Integrate_terms(self, terms[problemType], problemType)
 
-        tic.Tac("Matrix", f"Fold ({fields}).", self._verbosity)
+        tic.Tac("Matrix", f"Contributions ({fields}).", self._verbosity)
 
-        return fold
+        return list_contribution
 
     def Assembly(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
@@ -1126,10 +1125,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self._Get_monolithic_problem()
         problem = self.__Get_problem(problemType)
 
-        assembly = problem.Get_folded()
-        layout, Ndof = problem.layout, problem.Ndof
-        K, C, M = (assembly.Get_operator(slot, layout, Ndof) for slot in "KCM")
-        return K, C, M, assembly.Get_load(layout, Ndof)
+        assembly = problem.assembly
+        list_contribution = problem.Get_contributions()
+        K, C, M = (
+            problem.Pad(assembly.Get_operator(list_contribution, slot))
+            for slot in "KCM"
+        )
+        F = np.zeros(problem.Ndof)
+        F[: problem.size] = assembly.Get_load(list_contribution)
+        return K, C, M, F
 
     @property
     def solver(self) -> str:
@@ -1455,7 +1459,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             x = self.__Newton(problem, system, backend)
         else:
             tic = Tic()
-            x = Linear(problem, system, backend, comm)
+            A, b = problem.Get_A_b()
+            x, _ = system.Solve(
+                A,
+                b,
+                np.zeros(problem.size),
+                problem.Constraints(),
+                backend,
+                comm,
+            )
             tic.Tac(
                 "Solver", f"Solve {problem.problemType} ({backend})", self._verbosity
             )
@@ -1483,12 +1495,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Terminal.Section(f"{name} problem at iteration {self.Niter}")
         tic = Tic()
         x, norms = Newton(
-            problem,
+            problem.Linearize,
+            problem.Constraints,
             system,
             backend,
             self._Get_u_n(problem.problemType),
             self.mesh.comm,
-            *self.__Solver_Get_Newton_Raphson_Params(),
+            self.__Solver_Get_Newton_Raphson_Params(),
         )
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
@@ -1529,7 +1542,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem = self.__Problem(problemType)
         if x is None:
             return problem.Get_A_b()
-        # a fold at x is not kept: the readers after this one see the committed state
+        # contributions at x are not kept: the readers after this one see the committed state
         self.Need_Update(problem.problemType)
         A, b = problem.Get_A_b(x)
         self.Need_Update(problem.problemType)

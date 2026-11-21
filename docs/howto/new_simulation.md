@@ -136,7 +136,7 @@ class Ventricle(Simulations.HyperElastic):
         return super().Get_terms(x, problemType) + [
             epi.Scaled(1e8),          # stiffness
             epi.Scaled(5e3, "C"),     # damping, from the same integration
-            # `groupElem` and, since `tag` is set, `elements` come from the fold
+            # `groupElem` and, since `tag` is set, `elements` come from the integration
             Term(
                 "KR",
                 Operators.NonLinear.FollowingPressure,
@@ -353,30 +353,37 @@ array:
 So `Term("K", op)` is a stiffness, `Term("KR", op)` an operator returning a tangent
 *and* an internal force, `Term("KF", op)` a tangent and a load.
 
-The fold takes care of the rest: contributions **accumulate** when several terms target
-one element group, the 2D `thickness` is applied once, and a term filling a **single**
-slot also gets its residual — $-\Krm_e \urm_t$, $-\Crm_e \vrm_t$, $-\Mrm_e \arm_t$ —
-contracted for it, since one slot means the contribution is linear in that field. Add
-`constant=True` when a contribution does not depend on the solution: it is then built
-once and reused across Newton iterations and time steps, until one of its arguments
-changes. So a constant term must get everything it reads through its arguments — a plain
-operator such as `Bilinear.UV` with `coef=self.rho`, never a bound method, which `Term`
-refuses.
+{py:func}`~EasyFEA.Simulations.Integrate_terms` takes care of the rest: contributions
+**accumulate** when several terms target one element group, the 2D `thickness` is
+applied once, and a term filling a **single** slot also gets its residual —
+$-\Krm_e \urm_t$, $-\Crm_e \vrm_t$, $-\Mrm_e \arm_t$ — contracted for it, since one slot
+means the contribution is linear in that field. Add `constant=True` when a contribution
+does not depend on the solution: it is then built once and reused across Newton
+iterations and time steps, until one of its arguments changes. So a constant term must
+get everything it reads through its arguments — a plain operator such as `Bilinear.UV`
+with `coef=self.rho`, never a bound method, which `Term` refuses.
 
-To inspect what the fold built, filter its flat list of contributions, one per term,
-element group and slot, unsummed:
+To inspect what it built, filter its flat list of contributions, one per term, element
+group and slot, unsummed:
 
 ```python
-from EasyFEA.Simulations import Fold_terms
+from EasyFEA.Simulations import Integrate_terms
 
-x = {problemType: simu._Get_u_n(problemType)}  # the trial solution to fold at
-fold = Fold_terms(simu, simu.Get_terms(x, problemType), problemType)
-K_es = [c.array for c in fold if c.slot == "K" and c.block == (rows, cols)]
-coefs = [c.coef for c in fold if c.slot == "K"]
+x = {problemType: simu._Get_u_n(problemType)}  # the trial solution to integrate at
+list_contribution = Integrate_terms(simu, simu.Get_terms(x, problemType), problemType)
+K_es = [
+    contribution.array
+    for contribution in list_contribution
+    if contribution.slot == "K" and contribution.block == (rows, cols)
+]
+coefs = [
+    contribution.coef for contribution in list_contribution if contribution.slot == "K"
+]
 ```
 
 `rows` and `cols` are both `problemType` unless the term's `problemTypes` says
-otherwise; `c.coef` (thickness times the term's scale) is not applied to `c.array`.
+otherwise; `contribution.coef` (thickness times the term's scale) is not applied to
+`contribution.array`.
 
 ```{warning}
 A **non-linear** problem needs no special handling here: put the tangent in `K`
@@ -390,8 +397,8 @@ are weighted into the time scheme, and
 
 #### The `groupElem.Get_*` interface
 
-Writing an operator of your own — the fold hands it one `groupElem` at a time — means
-reading its integration data through three functions, each taking a
+Writing an operator of your own — the integration hands it one `groupElem` at a time —
+means reading its integration data through three functions, each taking a
 {py:class}`~EasyFEA.FEM.MatrixType`:
 
 ```python

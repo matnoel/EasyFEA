@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into a flat list of :class:`_Contribution` by :func:`Fold_terms`."""
+r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, integrated into a flat list of :class:`_Contribution` by :func:`Integrate_terms`."""
 
 import copy
 import inspect
@@ -54,7 +54,10 @@ class _Contribution:
 
 def Same_contributions(a: list[_Contribution], b: list[_Contribution]) -> bool:
     """Whether the ``K``, ``C`` and ``M`` contributions of `a` and `b` are the same cached arrays, coefficients, blocks and groups, every term constant."""
-    a, b = ([c for c in fold if c.slot in "KCM"] for fold in (a, b))
+    a, b = (
+        [contribution for contribution in x if contribution.slot in "KCM"]
+        for x in (a, b)
+    )
     return len(a) == len(b) and all(
         x.term.constant
         and y.term.constant
@@ -90,7 +93,7 @@ def _Same(a: Any, b: Any) -> bool:
 class Term:
     r"""One operator, declared: where its arrays go, what it integrates over, what it is called with.
 
-    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` lists, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
+    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Integrate_terms` lists, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
     ``slots`` names where the returned arrays go — one letter of ``KCMFR`` per array, in order, so an operator returning two arrays takes exactly two letters. Slots *route* arrays; they never copy one into several, so ``"KC"`` on an operator returning a single matrix is an error, not a request to damp with the stiffness::
 
@@ -99,7 +102,7 @@ class Term:
 
     ``fn`` is called as ``fn(groupElem, **kwargs)``, so any operator whose first positional argument is a ``_GroupElem`` can be named directly. Anything needing per-group work — a hyperelastic state, a contact projection — is a named method of the simulation with the same shape.
 
-    ``problemTypes`` places each array in a block of a system over several fields, one entry per slot: a ``(rows, cols)`` pair for a matrix, the rows alone for a vector, None for the folded problem's own diagonal (the default)::
+    ``problemTypes`` places each array in a block of a system over several fields, one entry per slot: a ``(rows, cols)`` pair for a matrix, the rows alone for a vector, None for the integrated problem's own diagonal (the default)::
 
         Term("KRKKR", self.__MixedIncompressibility, problemTypes=((u, u), u, (u, p), (p, u), p))
 
@@ -138,7 +141,7 @@ class Term:
         constant : bool, optional
             Declares the contribution independent of the solution, so it is built once and reused across Newton iterations and time steps while its arguments are unchanged. `fn` must then read nothing but its arguments, so it cannot be a bound method. Defaults to False.
         problemTypes : tuple, optional
-            Block of each returned array, one entry per slot: ``(rows, cols)`` for a matrix, ``rows`` for a vector, None for the folded problem's diagonal. Defaults to the diagonal for every slot.
+            Block of each returned array, one entry per slot: ``(rows, cols)`` for a matrix, ``rows`` for a vector, None for the integrated problem's diagonal. Defaults to the diagonal for every slot.
         **kwargs
             Passed on to ``fn`` as given; ``elements`` is added when `tag` is set.
         """
@@ -163,7 +166,7 @@ class Term:
                 f"problemTypes must give one per slot: {len(slots)} for {slots!r}, got "
                 f"{len(problemTypes)}."
             )
-        # None stays the folded problem's diagonal, resolved per fold
+        # None stays the integrated problem's diagonal, resolved per integration
         blocks: list[_Block | None] = []
         for slot, block in zip(slots, problemTypes):
             if block is not None and not isinstance(block, tuple):
@@ -221,7 +224,7 @@ class Term:
 
     @property
     def slots(self) -> tuple[str, ...]:
-        """Where each array the operator returns belongs, one letter of ``KCMFR`` each. Read-only: the fold routes on it."""
+        """Where each array the operator returns belongs, one letter of ``KCMFR`` each. Read-only: the integration routes on it."""
         return self.__slots
 
     @property
@@ -322,7 +325,7 @@ class Term:
         ]
 
     def _Get_blocks(self, problemType: "ProblemType") -> tuple[_Block, ...]:
-        """``(rows, cols)`` of each slot in `problemType`'s fold, a vector's cols being its rows."""
+        """``(rows, cols)`` of each slot in `problemType`'s contributions, a vector's cols being its rows."""
         return tuple(
             (problemType, problemType) if block is None else block
             for block in self.__problemTypes
@@ -344,7 +347,7 @@ class Term:
         return self.__fn(*(spaceGroups or (groupElem,)), **kwargs)
 
 
-def Fold_terms(
+def Integrate_terms(
     simu: "_Simu",
     terms: list[Term],
     problemType: "ProblemType | None" = None,

@@ -27,7 +27,7 @@ from EasyFEA import (
 )
 from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
-from EasyFEA.Simulations import Fold_terms
+from EasyFEA.Simulations import Integrate_terms
 from EasyFEA.Solvers._backends import CAN_USE_PYPARDISO, _Get_PETSc
 from EasyFEA.Utilities import MPI_SIZE
 
@@ -409,22 +409,33 @@ def test_Simu_Get_terms_of_Elastic_are_its_stiffness_mass_and_damping():
     assert [term.scale for term in simu.Get_terms(x)[2:]] == [0.2, 0.1]
 
 
-def test_Simu_Get_terms_folds_to_one_contribution_per_group():
+def test_Simu_Get_terms_integrates_to_one_contribution_per_group():
     domain = Domain((0, 0), (120, 13), 6.5)
     mesh = domain.Mesh_2D([], ElemType.QUAD4)
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
 
     pt = simu.problemType
     x = {pt: simu.displacement}
-    fold = Fold_terms(simu, simu.Get_terms(x, pt), pt)
-    Ks, Ms = ([c for c in fold if c.slot == slot] for slot in "KM")
+    list_contribution = Integrate_terms(simu, simu.Get_terms(x, pt), pt)
+    Ks, Ms = (
+        [
+            contribution
+            for contribution in list_contribution
+            if contribution.slot == slot
+        ]
+        for slot in "KM"
+    )
 
-    assert [c.group for c in Ks] == [c.group for c in Ms] == mesh.Get_list_groupElem(2)
-    for c in Ks + Ms:
-        n = c.group.nPe * 2
-        assert c.block == (pt, pt)
-        assert c.array.shape == (c.group.Ne, n, n)
-    assert {c.slot for c in fold} == {"K", "M"}
+    assert (
+        [contribution.group for contribution in Ks]
+        == [contribution.group for contribution in Ms]
+        == mesh.Get_list_groupElem(2)
+    )
+    for contribution in Ks + Ms:
+        n = contribution.group.nPe * 2
+        assert contribution.block == (pt, pt)
+        assert contribution.array.shape == (contribution.group.Ne, n, n)
+    assert {contribution.slot for contribution in list_contribution} == {"K", "M"}
 
 
 def test_Simu_Save_Iter_pins_memory_or_disk_per_entry(tmp_path):

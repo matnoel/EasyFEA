@@ -20,7 +20,7 @@ from ..Utilities._mpi import (
     Reduce_sum,
 )
 from ._backends import _Backend, _PETScSolver
-from ._constraints import Constraints, Lagrange, ResolType
+from ._constraints import Constraints, LagrangeConstraint, ResolType
 
 
 class System:
@@ -108,16 +108,23 @@ class System:
         comm,
     ) -> tuple[_types.FloatArray, float]:
         """dx of `A dx = b` at x, `x + dx` meeting the constraints, b's rows past x's the Lagrange ones; b's residual norm over the owned dof rows. Collective on `comm`."""
-        lagrange = constraints.lagrange
+        list_lagrangeConstraint = constraints.list_lagrangeConstraint
         size = x.size
-        assert b.size == size + len(lagrange)
+        assert b.size == size + len(list_lagrangeConstraint)
+        knownDofs = constraints.knownDofs
         known = np.zeros(b.size, dtype=bool)
-        known[:size] = constraints.known
+        known[knownDofs] = True
         dx = np.zeros(b.size)
-        dx[known] = constraints.target - x[constraints.known]
-        if lagrange:
+        dx[knownDofs] = constraints.knownValues - x[knownDofs]
+        if list_lagrangeConstraint:
             shifted = [
-                c._replace(value=float(c.value - c.coefs @ x[c.dofs])) for c in lagrange
+                lagrangeConstraint._replace(
+                    value=float(
+                        lagrangeConstraint.value
+                        - lagrangeConstraint.coefs @ x[lagrangeConstraint.dofs]
+                    )
+                )
+                for lagrangeConstraint in list_lagrangeConstraint
             ]
             A, b = _Border(A, b, shifted)
         # the known values of the ghosts from their owner
@@ -127,7 +134,7 @@ class System:
         self.Set_known(known, comm)
 
         backend.Check_saddle_point(
-            lambda: bool(lagrange) or self.__Has_zero_diagonal(A, comm)
+            lambda: bool(list_lagrangeConstraint) or self.__Has_zero_diagonal(A, comm)
         )
 
         # no known dof moved: no lift
@@ -146,23 +153,26 @@ class System:
 
 
 def _Border(
-    A: sparse.csr_matrix, b: _types.FloatArray, lagrange: list[Lagrange]
+    A: sparse.csr_matrix,
+    b: _types.FloatArray,
+    list_lagrangeConstraint: list[LagrangeConstraint],
 ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-    """A bordered by the Lagrange conditions and b's multiplier rows, both scaled by `max|A|`."""
+    """A bordered by the Lagrange constraints and b's multiplier rows, both scaled by `max|A|`."""
     if MPI_SIZE > 1:
         raise NotImplementedError(
             "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
         )
     alpha = float(np.abs(A.data).max(initial=0.0))
-    size = b.size - len(lagrange)
+    size = b.size - len(list_lagrangeConstraint)
     b = b.copy()
     rows, cols, values = [], [], []
-    for i, condition in enumerate(lagrange, size):
-        line = np.full(condition.dofs.size, i)
-        rows += [line, condition.dofs]
-        cols += [condition.dofs, line]
-        values += [alpha * condition.coefs] * 2
-        b[i] = alpha * condition.value
+    for i, lagrangeConstraint in enumerate(list_lagrangeConstraint, size):
+        dofs = lagrangeConstraint.dofs
+        line = np.full(dofs.size, i)
+        rows += [line, dofs]
+        cols += [dofs, line]
+        values += [alpha * lagrangeConstraint.coefs] * 2
+        b[i] = alpha * lagrangeConstraint.value
     # A's entries kept, explicit zeros included: the same pattern, the same ordering
     coo = A.tocoo()
     bordered = sparse.csr_matrix(

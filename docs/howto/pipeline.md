@@ -42,8 +42,8 @@ ______________________________________________________________________
 ## From element operators to the global system
 
 **Build** turns the mesh + model into four global sparse matrices. Each
-{py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, whose terms are folded
-over the mesh element groups into, per group, the element tuple
+{py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, whose terms are
+integrated over the mesh element groups into, per group, the element tuple
 $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws),
 damping, mass, and the force vector. $\Frm_e$ is the load alone; a term declaring an
 internal force $\Rrm_e$ is non-linear, as described
@@ -103,22 +103,21 @@ ______________________________________________________________________
 
 ## Non-linear convergence
 
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` drives every solve
-through a driver of {py:mod}`EasyFEA.Solvers`, the simulation adapted as a
-{py:class}`~EasyFEA.Solvers.Problem` (`Linearize(x) -> (A, b)`, `Constraints(x)`):
-{py:func}`~EasyFEA.Solvers.Linear` solves $\Arm \, \mathrm{x} = \brm$ once, its known
-dofs at the Dirichlet values; {py:func}`~EasyFEA.Solvers.Newton` iterates from the last
-converged solution, repeating three moves — reassemble at the current iterate, solve for
-the correction, add it:
+{py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_problemType` solves a linear problem
+with one {py:meth}`~EasyFEA.Solvers.System.Solve` of $\Arm \, \mathrm{x} = \brm$, its
+known dofs at the Dirichlet values. A nonlinear one goes through
+{py:func}`~EasyFEA.Solvers.Newton`, given two callables of the iterate, `Get_A_b(x)` and
+`Get_constraints(x)`; it iterates from the last converged solution, repeating three
+moves — reassemble at the current iterate, solve for the correction, add it:
 
 ```python
 for _ in range(maxIter):
-    A, b = problem.Linearize(x)                 # refolded at x
+    A, b = Get_A_b(x)                           # integrated at x
     dx, norm = system.Solve(
         A,
         b,
         x,
-        problem.Constraints(x),
+        Get_constraints(x),
         backend,
         comm,
     )
@@ -127,8 +126,8 @@ for _ in range(maxIter):
         return x, norms
 ```
 
-Refolding at x is what makes this Newton rather than a fixed-point iteration: a
-nonlinear simulation's `Linearize` invalidates the cached matrices, so the terms are
+Integrating at x is what makes this Newton rather than a fixed-point iteration: a
+nonlinear simulation's `Get_A_b(x)` invalidates the cached matrices, so the terms are
 re-evaluated, giving the tangent **and** the residual at the new iterate. The iterate
 reaches them as the trial solution, {py:data}`~EasyFEA.Simulations.TrialSolution`: a
 dict of each field's value, passed to {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` —

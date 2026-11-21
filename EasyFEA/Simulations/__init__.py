@@ -7,7 +7,7 @@
 
 from ._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu, Load_Simu
-from ._terms import Term, Fold_terms
+from ._terms import Term, Integrate_terms
 from ._utils import Save_pickle, Load_pickle
 
 # ------------------------------------------------------------------------------

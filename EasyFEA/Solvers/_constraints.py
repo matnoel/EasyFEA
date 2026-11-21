@@ -2,13 +2,12 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Constraints on the unknowns of `A x = b`: known dofs and Lagrange conditions."""
+"""Constraints on the unknowns of `A x = b`: known dofs and Lagrange constraints."""
 
 from dataclasses import dataclass
 from enum import Enum
 from typing import NamedTuple
 
-import numpy as np
 
 from ..Utilities import _types
 
@@ -28,8 +27,8 @@ class ResolType(str, Enum):
         return self.name
 
 
-class Lagrange(NamedTuple):
-    """A condition `coefs · x[dofs] = value`."""
+class LagrangeConstraint(NamedTuple):
+    """A constraint `coefs · x[dofs] = value`."""
 
     dofs: _types.IntArray
     coefs: _types.FloatArray
@@ -38,21 +37,19 @@ class Lagrange(NamedTuple):
 
 @dataclass(frozen=True)
 class Constraints:
-    """The dofs `known` (a mask), their `target` values, the `lagrange` conditions and the `resolution`, None = r2 with Lagrange conditions, r1 without."""
+    """The `knownDofs` (indices) at their `knownValues`, the Lagrange constraints and the `resolution`, None = r2 with Lagrange constraints, r1 without."""
 
-    known: _types.BoolArray
-    target: _types.FloatArray
-    lagrange: tuple[Lagrange, ...] = ()
+    knownDofs: _types.IntArray
+    knownValues: _types.FloatArray
+    list_lagrangeConstraint: tuple[LagrangeConstraint, ...] = ()
     resolution: ResolType | None = None
 
     def __post_init__(self) -> None:
-        assert self.target.size == np.count_nonzero(self.known), (
-            "one target per known dof"
-        )
+        assert self.knownValues.size == self.knownDofs.size, "one value per known dof"
         if self.resolution is None:
-            resolution = ResolType.r2 if self.lagrange else ResolType.r1
+            resolution = ResolType.r2 if self.list_lagrangeConstraint else ResolType.r1
             object.__setattr__(self, "resolution", resolution)
-        elif self.lagrange and self.resolution != ResolType.r2:
+        elif self.list_lagrangeConstraint and self.resolution != ResolType.r2:
             raise NotImplementedError(
-                f"{self.resolution} does not support Lagrange conditions."
+                f"{self.resolution} does not support Lagrange constraints."
             )

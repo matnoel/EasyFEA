@@ -253,17 +253,12 @@ can serve as a good starting point.
 
 .. autoclass:: EasyFEA.Solvers.Constraints
 
-.. autoclass:: EasyFEA.Solvers.Lagrange
+.. autoclass:: EasyFEA.Solvers.LagrangeConstraint
 
 .. autoclass:: EasyFEA.Solvers.System
    :members: Solve
 
 .. autofunction:: EasyFEA.Solvers.Get_backend
-
-.. autoclass:: EasyFEA.Solvers.Problem
-   :members:
-
-.. autofunction:: EasyFEA.Solvers.Linear
 
 .. autofunction:: EasyFEA.Solvers.Newton
 
