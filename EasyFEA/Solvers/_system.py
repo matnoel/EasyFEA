@@ -107,15 +107,10 @@ class System:
         backend: _Backend,
         comm,
     ) -> tuple[_types.FloatArray, float]:
-        """dx of `A dx = b` at x, `x + dx` meeting the constraints, b's rows past x's the Lagrange ones; b's residual norm over the owned dof rows. Collective on `comm`."""
+        """dx of `A dx = b` at x, `x + dx` meeting the constraints, A and b grown by one row per Lagrange constraint; b's residual norm over the owned dof rows. Collective on `comm`."""
         list_lagrangeConstraint = constraints.list_lagrangeConstraint
         size = x.size
-        assert b.size == size + len(list_lagrangeConstraint)
-        knownDofs = constraints.knownDofs
-        known = np.zeros(b.size, dtype=bool)
-        known[knownDofs] = True
-        dx = np.zeros(b.size)
-        dx[knownDofs] = constraints.knownValues - x[knownDofs]
+        assert b.size == size
         if list_lagrangeConstraint:
             shifted = [
                 lagrangeConstraint._replace(
@@ -127,6 +122,11 @@ class System:
                 for lagrangeConstraint in list_lagrangeConstraint
             ]
             A, b = _Border(A, b, shifted)
+        knownDofs = constraints.knownDofs
+        known = np.zeros(b.size, dtype=bool)
+        known[knownDofs] = True
+        dx = np.zeros(b.size)
+        dx[knownDofs] = constraints.knownValues - x[knownDofs]
         # the known values of the ghosts from their owner
         self.Scatter_forward(dx, comm)
         if constraints.resolution == ResolType.r3:
@@ -157,14 +157,15 @@ def _Border(
     b: _types.FloatArray,
     list_lagrangeConstraint: list[LagrangeConstraint],
 ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-    """A bordered by the Lagrange constraints and b's multiplier rows, both scaled by `max|A|`."""
+    """A and b grown by one row per Lagrange constraint, A bordered, both scaled by `max|A|`."""
     if MPI_SIZE > 1:
         raise NotImplementedError(
             "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
         )
     alpha = float(np.abs(A.data).max(initial=0.0))
-    size = b.size - len(list_lagrangeConstraint)
-    b = b.copy()
+    size = b.size
+    sizeBordered = size + len(list_lagrangeConstraint)
+    b = np.concatenate([b, np.zeros(len(list_lagrangeConstraint))])
     rows, cols, values = [], [], []
     for i, lagrangeConstraint in enumerate(list_lagrangeConstraint, size):
         dofs = lagrangeConstraint.dofs
@@ -180,7 +181,7 @@ def _Border(
             np.concatenate([coo.data, *values]),
             (np.concatenate([coo.row, *rows]), np.concatenate([coo.col, *cols])),
         ),
-        shape=A.shape,
+        shape=(sizeBordered, sizeBordered),
     )
     return bordered, b
 

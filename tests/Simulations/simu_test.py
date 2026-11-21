@@ -1981,6 +1981,19 @@ def test_Simu__Bc_Add_Lagrange_ties_two_temperatures():
     assert 0.25 < simu.thermal[nodes[0]] < 0.75
 
 
+def test_Simu__Bc_Add_Lagrange_takes_coefs_as_a_row():
+    simu = _thermal()
+    nodes = _slab_corners(simu)
+    dofs = simu.Bc_dofs_nodes(nodes, ["t"])
+    simu._Bc_Add_Lagrange(
+        LagrangeCondition(simu.problemType, nodes, dofs, ["t"], [0.0], [[1.0, -1.0]])
+    )
+
+    simu.Solve()
+
+    assert rel_error(simu.thermal[nodes[0]], simu.thermal[nodes[1]]) < 1e-12
+
+
 def test_Simu__Bc_Lagrange_dim_counts_the_multipliers():
     simu = _thermal()
     assert simu._Bc_Lagrange_dim() == 0

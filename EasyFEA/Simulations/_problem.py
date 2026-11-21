@@ -17,7 +17,7 @@ from ..Solvers import Constraints, LagrangeConstraint, Newton, System
 from ..Solvers._backends import _Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
-from ._assembly import _Assembly, _Blocks
+from ._assembly import _Assembly, _Blocks, _Size
 from ._problem_type import ProblemType, TrialSolution
 from ._terms import _Contribution
 from .TimeSchemes import Elliptic
@@ -32,7 +32,7 @@ def _Field_size(simu: "_Simu", field: ProblemType) -> int:
 
 
 class _Problem(ABC):
-    """Fields of a simulation solved as one system ``[u | p | … | Lagrange]``: its system, assembly and contributions, kept until the mesh changes."""
+    """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes."""
 
     isNonLinear: bool
     """whether the terms read the iterate"""
@@ -44,12 +44,14 @@ class _Problem(ABC):
         self.fields = fields
         self.needUpdate = True
         """whether the contributions changed since last integrated"""
-        self.orphanWarned = False
-        """the current solve already warned about conditions on orphan dofs"""
+        self.__termRows: _types.BoolArray | None = None
+        """rows a K, C or M term fills, kept until `Need_Update`"""
         self.__pinnedFor: _types.BoolArray | None = None
         """the free dofs the pinned ones were found for"""
-        self.__pinnedDofs: _types.IntArray = np.empty(0, dtype=np.int64)
-        self.__pinnedWeights: dict[ProblemType, _types.FloatArray] = {}
+        self.__pinned: tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]] = (
+            np.empty(0, dtype=np.int64),
+            {},
+        )
 
     @property
     def problemType(self) -> ProblemType | tuple[ProblemType, ...]:
@@ -58,14 +60,13 @@ class _Problem(ABC):
 
     @property
     def size(self) -> int:
-        """Number of dofs of the fields, Lagrange multipliers excluded."""
-        return sum(_Field_size(self.simu, field) for field in self.fields)
+        """Number of dofs of the fields."""
+        return _Size(self.layout)
 
     @property
     def offsets(self) -> list[int]:
         """Where each field's dofs start."""
-        sizes = [_Field_size(self.simu, field) for field in self.fields]
-        return [0, *np.cumsum(sizes[:-1]).tolist()]
+        return [offset for *_, offset in self.layout]
 
     @property
     def layout(self) -> tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]:
@@ -79,16 +80,9 @@ class _Problem(ABC):
             offset += space.Nn * dof_n
         return tuple(layout)
 
-    @property
-    def Ndof(self) -> int:
-        """Number of dofs, every Lagrange dof after the fields'."""
-        return self.size + sum(self.simu._Bc_Lagrange_dim(f) for f in self.fields)
-
     @cached_property
     def system(self) -> System:
-        """The linear system; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
-        if len(self.fields) > 1:
-            self.Check_monolithic()
+        """The linear system."""
         owners, rank = self.Get_dof_owners()
         globalIds = None
         if self.simu.mesh.comm is not None:
@@ -97,22 +91,8 @@ class _Problem(ABC):
 
     @cached_property
     def assembly(self) -> _Assembly:
-        """The assembly on `layout`; a monolithic one refuses a non-elliptic scheme and Lagrange conditions when created."""
-        if len(self.fields) > 1:
-            self.Check_monolithic()
+        """The assembly on `layout`."""
         return _Assembly(self.layout)
-
-    def Pad(self, A: sparse.csr_matrix) -> sparse.csr_matrix:
-        """`A` grown by the zero Lagrange rows and columns; `A` itself without any."""
-        Ndof = self.Ndof
-        if Ndof == A.shape[0]:
-            return A
-        indptr = np.concatenate(
-            [A.indptr, np.full(Ndof - A.shape[0], A.indptr[-1], A.indptr.dtype)]
-        )
-        padded = sparse.csr_matrix((A.data, A.indices, indptr), shape=(Ndof, Ndof))
-        padded.has_canonical_format = True
-        return padded
 
     def Free(self) -> None:
         """Destroys the solver kept by the system. Collective."""
@@ -120,7 +100,9 @@ class _Problem(ABC):
             self.system.Free()
 
     def Check_monolithic(self) -> None:
-        """Rejects what fields solved side by side cannot run yet."""
+        """Rejects what fields solved side by side cannot run yet; nothing for a field alone."""
+        if len(self.fields) == 1:
+            return
         names = ", ".join(self.fields)
         if not isinstance(self.simu.timeScheme, Elliptic):
             # each block would need its own time-scheme coefficients
@@ -199,24 +181,23 @@ class _Problem(ABC):
         """The fields' contributions at the committed state."""
 
     def Need_Update(self) -> None:
-        """Marks the contributions stale."""
+        """Marks the contributions stale, forgets the connected rows."""
         self.needUpdate = True
+        self.__termRows = None
 
     def Sum_A(self, list_contribution: list[_Contribution]) -> sparse.csr_matrix:
-        """A for the time scheme, summed from `list_contribution`; Lagrange rows included."""
-        return self.Pad(
-            self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
-        )
+        """A for the time scheme, summed from `list_contribution`."""
+        return self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
 
     def Sum_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
-        """External load, Neumann + the F of `list_contribution`; Lagrange rows included."""
+        """External load, Neumann + the F of `list_contribution`."""
         simu = self.simu
         dofs = self.Compose(simu.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.Compose(simu.Bc_values_Neumann)
 
-        load = np.zeros(self.Ndof, dtype=float)
+        load = np.zeros(self.size, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
-        load[: self.size] += self.assembly.Get_load(list_contribution)
+        load += self.assembly.Get_load(list_contribution)
         return load
 
     def Sum_b(
@@ -225,7 +206,7 @@ class _Problem(ABC):
         load: _types.FloatArray,
         x: _types.FloatArray,
     ) -> _types.FloatArray:
-        """b of `A dx = b` at the iterate x: `load` minus the internal forces of `list_contribution`; Lagrange rows included."""
+        """b of `A dx = b` at the iterate x: `load` minus the internal forces of `list_contribution`."""
         simu = self.simu
         tic = Tic()
 
@@ -236,21 +217,18 @@ class _Problem(ABC):
             field if field is not None and field.any() else None
             for field in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
-        b = load.copy()
-        b[: self.size] = self.assembly.Get_b(
-            list_contribution, load[: self.size], fields
-        )
+        b = self.assembly.Get_b(list_contribution, load, fields)
 
         tic.Tac("Solver", f"b ({self.problemType})", simu._verbosity)
 
         return b
 
     def Get_A(self) -> sparse.csr_matrix:
-        """A for the time scheme at the committed state; Lagrange rows included."""
+        """A for the time scheme at the committed state."""
         return self.Sum_A(self.Get_contributions())
 
     def Get_load(self) -> _types.FloatArray:
-        """External load at the committed state, Neumann + the terms' F; Lagrange rows included."""
+        """External load at the committed state, Neumann + the terms' F."""
         return self.Sum_load(self.Get_contributions())
 
     def Get_product(
@@ -266,10 +244,7 @@ class _Problem(ABC):
     def Constraints(self, x: _types.FloatArray | None = None) -> Constraints:
         """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
         simu = self.simu
-        self.__Warn_orphan_conditions()
-        known = np.zeros(self.size, dtype=bool)
-        known[simu.Bc_dofs_known_unknown(self.problemType)[0]] = True
-        knownDofs = np.flatnonzero(known)
+        knownDofs = np.flatnonzero(~self.Unknown_mask())
         target = np.zeros(self.size) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
             dofs = self.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
@@ -279,7 +254,9 @@ class _Problem(ABC):
 
         list_lagrangeConstraint = tuple(
             LagrangeConstraint(
-                condition.dofs, condition.lagrangeCoefs, condition.dofsValues[0]
+                condition.dofs,
+                condition.lagrangeCoefs.ravel(),
+                float(condition.dofsValues[0]),
             )
             for condition in simu.Bc_Lagrange
             if condition.problemType in self.fields
@@ -288,25 +265,48 @@ class _Problem(ABC):
             knownDofs, target[knownDofs], list_lagrangeConstraint, simu._resolution
         )
 
+    def Free_mask(self) -> _types.BoolArray:
+        """Whether each dof is free: not Dirichlet, not orphan."""
+        dofs = self.Compose(self.simu.Bc_dofs_Dirichlet, isDofs=True)
+        free = np.ones(self.size, dtype=bool)
+        free[np.asarray(dofs, dtype=int)] = False
+        free[self.Orphan_dofs()] = False
+        return free
+
+    def Unknown_mask(self) -> _types.BoolArray:
+        """Whether each dof is solved for: free and not pinned. Collective on `mesh.comm`."""
+        unknown = self.Free_mask()
+        unknown[self.Pinned(unknown)[0]] = False
+        return unknown
+
     def Orphan_dofs(self) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        connected = self._Connected_rows()
+        return np.flatnonzero(~self.Connected_rows())
+
+    def Connected_rows(self) -> _types.BoolArray:
+        """Rows a K, C or M term fills on its groups, ghost elements included, and the Lagrange dofs; read from the committed terms, never integrated; a copy."""
+        if self.__termRows is None:
+            simu = self.simu
+            committed = simu._Committed()
+            rows = np.zeros(self.size, dtype=bool)
+            for field in self.fields:
+                for term in simu.Get_terms(committed, field):
+                    groups = term._Get_groups(simu.mesh)
+                    for slot, block in zip(term.slots, term._Get_blocks(field)):
+                        if slot in "KCM":
+                            for group in groups:
+                                rows[self.assembly.Dofs_e(block[0], group)] = True
+            self.__termRows = rows
         lagrange = self.Compose(
             lambda field: BoundaryCondition.Get_dofs(field, self.simu.Bc_Lagrange),  # type: ignore [arg-type]
             isDofs=True,
         )
+        connected = self.__termRows.copy()
         connected[np.asarray(lagrange, dtype=int)] = True
-        return np.flatnonzero(~connected)
+        return connected
 
-    def _Connected_rows(self) -> _types.BoolArray:
-        """Rows a K, C or M contribution fills; a copy."""
-        return self.assembly.Connected_rows(self.Get_contributions())
-
-    def __Warn_orphan_conditions(self) -> None:
-        """Warns once per solve when a load or a Dirichlet condition touches an orphan dof. Collective on `mesh.comm`."""
-        if self.orphanWarned:
-            return
-        self.orphanWarned = True
+    def Warn_orphan_conditions(self) -> None:
+        """Warns when a load or a Dirichlet condition touches an orphan dof. Collective on `mesh.comm`."""
         simu = self.simu
         orphans = self.Orphan_dofs()
         touched = 0
@@ -327,13 +327,17 @@ class _Problem(ABC):
     # Pinned dofs
     # ----------------------------------------------
 
-    def Pinned_dofs(self, free: _types.BoolArray) -> _types.IntArray:
-        """Dofs pinning the fields left free up to a constant, kept until `free` changes. Collective on `mesh.comm`."""
+    def Pinned(
+        self, free: _types.BoolArray
+    ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
+        """Dofs pinning the fields left free up to a constant, and their zero-mean weights, kept until `free` changes. Collective on `mesh.comm`."""
+        if len(self.fields) == 1:
+            return np.empty(0, dtype=np.int64), {}
         stale = self.__pinnedFor is None or not np.array_equal(free, self.__pinnedFor)
         if Reduce_max(stale, self.simu.mesh.comm):
-            self.__pinnedDofs, self.__pinnedWeights = self.__Find_pinned(free)
+            self.__pinned = self.__Find_pinned(free)
             self.__pinnedFor = free.copy()
-        return self.__pinnedDofs
+        return self.__pinned
 
     def __Find_pinned(
         self, free: _types.BoolArray
@@ -383,11 +387,12 @@ class _Problem(ABC):
         return weights
 
     def Shift_pinned(self, x: _types.FloatArray) -> None:
-        """Shifts each pinned field to zero mean, ``∫ field dΩ = 0`` with weights ``∫ N_i dΩ``, in place in `x`."""
+        """Shifts each pinned field to zero mean, ``∫ field dΩ = 0`` with weights ``∫ N_i dΩ``, in place in `x`. Collective on `mesh.comm`."""
         simu = self.simu
         comm = simu.mesh.comm
         offsets = self.offsets
-        for field, weights in self.__pinnedWeights.items():
+        _, dict_weights = self.Pinned(self.Free_mask())
+        for field, weights in dict_weights.items():
             start = offsets[self.fields.index(field)]
             values = x[start : start + weights.size]
             owned = simu.Get_dofs(field)
@@ -406,7 +411,7 @@ class _LinearProblem(_Problem):
         super().__init__(simu, fields)
         self.__list_contribution: list[_Contribution] | None = None
         self.__A: sparse.csr_matrix | None = None
-        """A before the Lagrange rows, read-only"""
+        """the kept A, read-only"""
         self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     def Need_Update(self) -> None:
@@ -422,12 +427,12 @@ class _LinearProblem(_Problem):
         return self.__list_contribution
 
     def Get_A(self) -> sparse.csr_matrix:
-        """A for the time scheme, kept: the same object while the contributions and coefs hold; Lagrange rows included."""
+        """A for the time scheme, kept: the same object while the contributions and coefs hold."""
         coefs = self.simu.timeScheme.coefs
         if self.__A is None or coefs != self.__ACoefs:
             self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
             self.__ACoefs = coefs
-        return self.Pad(self.__A)
+        return self.__A
 
     def Get_A_b(self) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b of `A x = b`; b at x = 0, never kept."""
@@ -463,22 +468,6 @@ class _NonLinearProblem(_Problem):
 
     isNonLinear = True
 
-    def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
-        super().__init__(simu, fields)
-        self.__connected: _types.BoolArray | None = None
-        """rows the contributions fill, kept from the first integration: structure only, the same at any iterate"""
-
-    def Need_Update(self) -> None:
-        """Marks the contributions stale, forgets the connected rows."""
-        super().Need_Update()
-        self.__connected = None
-
-    def _Connected_rows(self) -> _types.BoolArray:
-        """Rows a K, C or M contribution fills, kept; a copy."""
-        if self.__connected is None:
-            self.__connected = super()._Connected_rows()
-        return self.__connected.copy()
-
     def Get_contributions(self) -> list[_Contribution]:
         """The fields' contributions at the committed state, integrated, never kept."""
         return self._Integrate()
@@ -489,8 +478,6 @@ class _NonLinearProblem(_Problem):
         """K_t and R = load − f_int at the iterate x (default committed), integrated, never kept."""
         trial = self.simu._Committed() if x is None else self.Trial(x)
         list_contribution = self._Integrate(trial)
-        if self.__connected is None:
-            self.__connected = self.assembly.Connected_rows(list_contribution)
         load = self.Sum_load(list_contribution)
         b = self.Sum_b(list_contribution, load, self.Compose(trial.__getitem__))
         return self.Sum_A(list_contribution), b

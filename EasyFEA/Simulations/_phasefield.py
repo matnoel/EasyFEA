@@ -261,13 +261,9 @@ class PhaseField(_Simu):
 
             # Compute damage field
             d_np1 = self.__Solve_damage()
-            # new damage -> new displacement matrices
-            self.Need_Update(self.U)
 
             # Compute displacement field
             u_np1 = self.__Solve_elastic()
-            # new displacement -> new damage matrices
-            self.Need_Update(self.D)
 
             # over the owned rows, so that every rank takes the same branch
             comm = self.mesh.comm

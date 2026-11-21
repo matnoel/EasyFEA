@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from ..FEM import _GroupElem
 
 
+def _Size(layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]) -> int:
+    """Number of dofs of the fields of `layout`."""
+    return sum(space.Nn * dof_n for _, space, dof_n, _ in layout)
+
+
 class _Assembly:
     """What one problem's contributions sum to (A, b, products) on its fixed `layout`, with their CSR maps; Lagrange rows excluded."""
 
@@ -26,32 +31,12 @@ class _Assembly:
     ) -> None:
         self.layout = layout
         """`(field, space, dof_n, offset)` of each field, side by side"""
-        self.size = sum(space.Nn * dof_n for _, space, dof_n, _ in layout)
+        self.size = _Size(layout)
         """number of dofs of the fields"""
         self.__maps: dict[tuple, tuple[np.ndarray, np.ndarray, np.ndarray, int]] = {}
         """`{contributing: csr map}`"""
         self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
         """`{(field, group): dofs_e}`"""
-        self.__connectedKey: tuple = ()
-        self.__connected: _types.BoolArray | None = None
-
-    def Connected_rows(
-        self, list_contribution: list[_Contribution]
-    ) -> _types.BoolArray:
-        """Rows a K, C or M contribution fills, ghost elements included; a copy."""
-        matrices = [
-            contribution
-            for contribution in list_contribution
-            if contribution.slot in "KCM"
-        ]
-        key = _Contributing(matrices)
-        if self.__connected is None or key != self.__connectedKey:
-            rows = np.zeros(self.size, dtype=bool)
-            for contribution in matrices:
-                rows[self.__Dofs_e(contribution.block[0], contribution.group)] = True
-            self.__connected = rows
-            self.__connectedKey = key
-        return self.__connected.copy()
 
     def Get_A(
         self,
@@ -145,13 +130,13 @@ class _Assembly:
                 else:
                     shared[key] = [contribution, coef * field]
         for contribution, field in shared.values():
-            x_e = field[self.__Dofs_e(contribution.block[1], contribution.group)]
+            x_e = field[self.Dofs_e(contribution.block[1], contribution.group)]
             pieces.append(
                 (contribution, np.matmul(contribution.array, x_e[..., None])[..., 0])
             )
         return pieces
 
-    def __Dofs_e(self, field: str, group: "_GroupElem") -> _types.IntArray:
+    def Dofs_e(self, field: str, group: "_GroupElem") -> _types.IntArray:
         """`field`'s dofs on each element of `group`, in the problem's vector; kept."""
         dofs_e = self.__dict_dofs_e.get((field, group))
         if dofs_e is None:
@@ -168,7 +153,7 @@ class _Assembly:
             return np.zeros(self.size)
         rows = np.concatenate(
             [
-                self.__Dofs_e(contribution.block[0], contribution.group).ravel()
+                self.Dofs_e(contribution.block[0], contribution.group).ravel()
                 for contribution, _ in pieces
             ]
         )
@@ -194,13 +179,6 @@ def _Sizes(list_contribution: list[_Contribution]) -> dict:
             contribution.group, contribution.array.size
         )
     return sizes
-
-
-def _Contributing(list_contribution: list[_Contribution]) -> tuple:
-    """`(block, groups)` of every block `list_contribution` fills, the order of its map."""
-    return tuple(
-        (block, tuple(groups)) for block, groups in _Sizes(list_contribution).items()
-    )
 
 
 def _Sum(
