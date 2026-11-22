@@ -28,8 +28,9 @@ from _owned import held_nodes, owned_nodes
 
 def _cracked_plate(elemType: ElemType):
     """Plate with an off-centre edge crack, so that no symmetry hides a partition."""
-    domain = Domain((0, 0), (2, 1), 1.0)
-    crack = Line((0.7, 0), (0.7, 0.5), 1.0, isOpen=True)
+    # coarser, one rank plus its ghosts can hold the whole mesh
+    domain = Domain((0, 0), (2, 1), 0.35)
+    crack = Line((0.7, 0), (0.7, 0.5), 0.35, isOpen=True)
     return domain.Mesh_2D([], elemType, cracks=[crack])
 
 
