@@ -76,7 +76,7 @@ class SolverType(str, Enum):
 
 
 class Backend(ABC):
-    """Solves `A y = b` for a `System`; `x0` the guess of y (an increment under Newton), padded with 0 past it."""
+    """Solves `A x = b` for a `System`; `x0` the guess of x (an increment under Newton), padded with 0 past it."""
 
     def __init__(self, type: SolverType, x0: _types.FloatArray | None = None) -> None:
         self.type = type
@@ -89,7 +89,7 @@ class Backend(ABC):
     def Solve(
         self, A: sparse.csr_matrix, b: _types.FloatArray, system: "System", comm
     ) -> _types.FloatArray:
-        """y of `A y = b` on the rows it solves, 0 elsewhere. Collective on `comm`."""
+        """x of `A x = b` on the rows it solves, 0 elsewhere. Collective on `comm`."""
 
     def _Factors_saddle(self) -> bool:
         """Whether it factors a saddle point."""
@@ -123,9 +123,9 @@ class _Serial(Backend):
 
     def Solve(self, A, b, system, comm):
         rows = np.flatnonzero(~system.known)
-        y = np.zeros(b.size)
-        y[rows] = self._Solve_Axb(A[rows][:, rows], b[rows], self._X0(b.size)[rows])
-        return y
+        x = np.zeros(b.size)
+        x[rows] = self._Solve_Axb(A[rows][:, rows], b[rows], self._X0(b.size)[rows])
+        return x
 
     @abstractmethod
     def _Solve_Axb(
@@ -196,8 +196,8 @@ class _PETSc(Backend):
         return ", ".join(self.options)
 
     def Solve(self, A, b, system, comm):
-        y = np.zeros(b.size)
-        y[system.rows] = system._petsc.Solve(
+        x = np.zeros(b.size)
+        x[system.rows] = system._petsc.Solve(
             A,
             b,
             self._X0(b.size),
@@ -206,7 +206,7 @@ class _PETSc(Backend):
             self.options,
             comm,
         )
-        return y
+        return x
 
     def _Factors_saddle(self):
         kspType, pcType, factor = self.options
