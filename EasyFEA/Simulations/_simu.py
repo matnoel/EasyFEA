@@ -1226,10 +1226,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
         if not isinstance(timeScheme, _TimeScheme):
             raise TypeError(f"{timeScheme!r} is not a _TimeScheme.")
-        assert not (timeScheme.unknown != "u" and self.isNonLinear), (
+        if self.isNonLinear:
+            self.__Check_solves_for_u(timeScheme)
+        self.__timeScheme = timeScheme
+
+    @staticmethod
+    def __Check_solves_for_u(timeScheme: _TimeScheme) -> None:
+        """Asserts `timeScheme` solves for u, as a nonlinear strategy needs."""
+        assert timeScheme.unknown == "u", (
             f"{type(timeScheme).__name__} solves for {timeScheme.unknown}: only for linear simulations."
         )
-        self.__timeScheme = timeScheme
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         r"""Sets the algorithm's resolution properties for an elliptic problem.
@@ -1353,9 +1359,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if strategy is not None:
             if not callable(strategy):
                 raise TypeError(f"{strategy!r} is not a nonlinear strategy.")
-            assert self.timeScheme.unknown == "u", (
-                f"{type(self.timeScheme).__name__} solves for {self.timeScheme.unknown}: only for linear simulations."
-            )
+            self.__Check_solves_for_u(self.timeScheme)
         keys = (
             [
                 self._Get_monolithic_problem(problemTypes)
