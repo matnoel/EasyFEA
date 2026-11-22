@@ -18,7 +18,10 @@ def empty_history():
 
 def test_Tic_times_from_its_construction():
     tic = Tic()
-    time.sleep(0.01)
+    # not time.sleep: on Windows it may return before perf_counter has advanced by as much
+    start = time.perf_counter()
+    while time.perf_counter() - start < 0.01:
+        pass
     assert tic.Tac() >= 0.01
 
 
