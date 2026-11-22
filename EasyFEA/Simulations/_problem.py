@@ -4,7 +4,6 @@
 
 """Fields of a simulation solved as one system: their system, assembly and contributions."""
 
-from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
@@ -59,19 +58,27 @@ def _Dof_owners(
     return np.concatenate(owners), rank
 
 
-class _Problem(ABC):
-    """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes."""
+class _Problem:
+    """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes; linear, also its contributions and A."""
 
-    isNonLinear: bool
-    """whether the terms read the iterate"""
-
-    def __init__(self, simu: "_Simu", problemTypes: tuple[ProblemType, ...]) -> None:
+    def __init__(
+        self,
+        simu: "_Simu",
+        problemTypes: tuple[ProblemType, ...],
+        isNonLinear: bool = False,
+    ) -> None:
         if len(set(problemTypes)) < len(problemTypes):
             raise ValueError(f"A field is given twice in {problemTypes}.")
         self.simu = simu
         self.problemTypes = problemTypes
+        self.isNonLinear = isNonLinear
+        """whether the terms read the iterate"""
         self.needUpdate = True
         """whether the contributions changed since last integrated"""
+        self.__list_contribution: list[_Contribution] | None = None
+        self.__A: sparse.csr_matrix | None = None
+        """the kept A, read-only"""
+        self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
         self.__termRows: _types.BoolArray | None = None
         """rows a K, C or M term fills, kept until `Need_Update`"""
         self.__pinnedFor: _types.BoolArray | None = None
@@ -195,14 +202,20 @@ class _Problem(ABC):
         self.needUpdate = False
         return self.simu._Get_list_contribution(self.problemTypes, trial)
 
-    @abstractmethod
     def Get_contributions(self) -> list[_Contribution]:
-        """The fields' contributions at the committed state."""
+        """The fields' contributions at the committed state, kept when linear."""
+        if self.isNonLinear:
+            return self._Integrate()
+        if self.__list_contribution is None:
+            self.__list_contribution = self._Integrate()
+        return self.__list_contribution
 
     def Need_Update(self) -> None:
-        """Marks the contributions stale, forgets the connected rows."""
+        """Marks the contributions stale, forgets them, A and the connected rows."""
         self.needUpdate = True
         self.__termRows = None
+        self.__list_contribution = None
+        self.__A = None
 
     def Sum_A(self, list_contribution: list[_Contribution]) -> sparse.csr_matrix:
         """A for the time scheme, summed from `list_contribution`."""
@@ -243,8 +256,57 @@ class _Problem(ABC):
         return b
 
     def Get_A(self) -> sparse.csr_matrix:
-        """A for the time scheme at the committed state."""
-        return self.Sum_A(self.Get_contributions())
+        """A for the time scheme at the committed state; linear, kept while the contributions and coefs hold."""
+        if self.isNonLinear:
+            return self.Sum_A(self.Get_contributions())
+        coefs = self.simu.timeScheme.coefs
+        if self.__A is None or coefs != self.__ACoefs:
+            self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
+            self.__ACoefs = coefs
+        return self.__A
+
+    def Get_A_b(
+        self, x: _types.FloatArray | None = None
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
+        """A and b of `A dx = b` at the iterate x (default committed); linear, at x = 0 and `x` refused."""
+        if self.isNonLinear:
+            trial = self.simu._Committed() if x is None else self.Trial(x)
+            list_contribution = self._Integrate(trial)
+            A = self.Sum_A(list_contribution)
+            x = self.Compose(trial.__getitem__)
+        else:
+            if x is not None:
+                raise ValueError("A linear problem's A and b do not depend on x.")
+            list_contribution = self.Get_contributions()
+            if any(contribution.slot == "R" for contribution in list_contribution):
+                # R is integrated at u_n, not at x = 0
+                raise ValueError(
+                    "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
+                )
+            A = self.Get_A()
+            x = np.zeros(self.size)
+        load = self.Sum_load(list_contribution)
+        return A, self.Sum_b(list_contribution, load, x)
+
+    def Solve(self, backend: Backend) -> _types.FloatArray:
+        """x of `A x = b`, one solve of a linear problem."""
+        simu = self.simu
+        tic = Tic()
+        A, b = self.Get_A_b()
+        x, _ = self.system.Solve(
+            A,
+            b,
+            np.zeros(self.size),
+            self.Constraints(),
+            backend,
+            simu.mesh.comm,
+        )
+        tic.Tac(
+            "Solver",
+            f"Solve {', '.join(self.problemTypes)} ({backend})",
+            simu._verbosity,
+        )
+        return x
 
     def Get_load(self) -> _types.FloatArray:
         """External load at the committed state, Neumann + the terms' F."""
@@ -423,88 +485,3 @@ class _Problem(ABC):
                 weights[owned].sum(), comm
             )
             values -= mean
-
-
-class _LinearProblem(_Problem):
-    """A problem whose terms do not read the iterate: its contributions and A kept until dropped, A also on new time-scheme coefs."""
-
-    isNonLinear = False
-
-    def __init__(self, simu: "_Simu", problemTypes: tuple[ProblemType, ...]) -> None:
-        super().__init__(simu, problemTypes)
-        self.__list_contribution: list[_Contribution] | None = None
-        self.__A: sparse.csr_matrix | None = None
-        """the kept A, read-only"""
-        self.__ACoefs: tuple[float, float, float] = (0.0, 0.0, 0.0)
-
-    def Need_Update(self) -> None:
-        """Forgets the contributions and A."""
-        super().Need_Update()
-        self.__list_contribution = None
-        self.__A = None
-
-    def Get_contributions(self) -> list[_Contribution]:
-        """The fields' contributions, kept."""
-        if self.__list_contribution is None:
-            self.__list_contribution = self._Integrate()
-        return self.__list_contribution
-
-    def Get_A(self) -> sparse.csr_matrix:
-        """A for the time scheme, kept: the same object while the contributions and coefs hold."""
-        coefs = self.simu.timeScheme.coefs
-        if self.__A is None or coefs != self.__ACoefs:
-            self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
-            self.__ACoefs = coefs
-        return self.__A
-
-    def Get_A_b(self) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """A and b of `A x = b`; b at x = 0, never kept."""
-        list_contribution = self.Get_contributions()
-        if any(contribution.slot == "R" for contribution in list_contribution):
-            # R is integrated at u_n, not at x = 0
-            raise ValueError(
-                "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
-            )
-        load = self.Sum_load(list_contribution)
-        b = self.Sum_b(list_contribution, load, np.zeros(self.size))
-        return self.Get_A(), b
-
-    def Solve(self, backend: Backend) -> _types.FloatArray:
-        """x of `A x = b`, one solve."""
-        simu = self.simu
-        tic = Tic()
-        A, b = self.Get_A_b()
-        x, _ = self.system.Solve(
-            A,
-            b,
-            np.zeros(self.size),
-            self.Constraints(),
-            backend,
-            simu.mesh.comm,
-        )
-        tic.Tac(
-            "Solver",
-            f"Solve {', '.join(self.problemTypes)} ({backend})",
-            simu._verbosity,
-        )
-        return x
-
-
-class _NonLinearProblem(_Problem):
-    """A problem whose terms read the iterate: its contributions integrated on each read, never kept."""
-
-    isNonLinear = True
-
-    def Get_contributions(self) -> list[_Contribution]:
-        """The fields' contributions at the committed state, integrated, never kept."""
-        return self._Integrate()
-
-    def Get_A_b(
-        self, x: _types.FloatArray | None = None
-    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-        """K_t and R = load − f_int at the iterate x (default committed), integrated, never kept."""
-        trial = self.simu._Committed() if x is None else self.Trial(x)
-        list_contribution = self._Integrate(trial)
-        load = self.Sum_load(list_contribution)
-        b = self.Sum_b(list_contribution, load, self.Compose(trial.__getitem__))
-        return self.Sum_A(list_contribution), b

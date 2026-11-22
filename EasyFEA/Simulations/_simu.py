@@ -59,8 +59,6 @@ from ._assembly import _Blocks
 from ._problem import (
     _Dof_owners,
     _Field_size,
-    _LinearProblem,
-    _NonLinearProblem,
     _Problem,
     _Slices,
 )
@@ -162,9 +160,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __variables: _iterations.Variables
     __wholeRows: dict[int, list[_iterations.Rows]] = {}
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
-    __dict_problem: dict[
-        tuple[ProblemType, ...], _LinearProblem | _NonLinearProblem
-    ] = {}
+    __dict_problem: dict[tuple[ProblemType, ...], _Problem] = {}
     """By fields, their `_Problem`; replaced, never written in place."""
     _resolution: ResolType | None = None
     """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
@@ -205,26 +201,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             f"{problemType} is not a problem of this simulation {problems}."
         )
 
-    def __Get_problem(
-        self, problemTypes: tuple[ProblemType, ...]
-    ) -> _LinearProblem | _NonLinearProblem:
+    def __Get_problem(self, problemTypes: tuple[ProblemType, ...]) -> _Problem:
         """The `_Problem` of exactly these problem types, kept until the mesh changes or they gain or lose a nonlinear strategy."""
         isNonLinear = problemTypes in self.__dict_strategy
         problem = self.__dict_problem.get(problemTypes)
         if problem is None or problem.isNonLinear != isNonLinear:
             if problem is not None:
                 problem.Free()
-            problem = (
-                _NonLinearProblem(self, problemTypes)
-                if isNonLinear
-                else _LinearProblem(self, problemTypes)
-            )
+            problem = _Problem(self, problemTypes, isNonLinear)
             self.__dict_problem = {**self.__dict_problem, problemTypes: problem}
         return problem
 
     def __Problem(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> _LinearProblem | _NonLinearProblem:
+    ) -> _Problem:
         """The `_Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
         return self.__Get_problem(self._Get_monolithic_problemTypes(problemType))
 
@@ -1522,7 +1512,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         backend = self.__Get_backend(problem)
         # collective: before the solve, which may raise on one rank only
         problem.Warn_orphan_conditions()
-        if isinstance(problem, _NonLinearProblem):
+        if problem.isNonLinear:
             x = self.__Nonlinear(problem, backend, x0)
         else:
             x = problem.Solve(backend)
@@ -1543,7 +1533,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Nonlinear(
         self,
-        problem: _NonLinearProblem,
+        problem: _Problem,
         backend: Backend,
         x0: TrialSolution | None,
     ) -> _types.FloatArray:
@@ -1611,13 +1601,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             else self._Get_monolithic_problemTypes(problemType)
         )
         problem = self.__Get_problem(problemTypes)
-        if isinstance(problem, _NonLinearProblem):
-            return problem.Get_A_b(
-                None if x is None else problem.Compose(x.__getitem__)
-            )
-        if x is not None:
-            raise ValueError("A linear problem's A and b do not depend on x.")
-        return problem.Get_A_b()
+        return problem.Get_A_b(None if x is None else problem.Compose(x.__getitem__))
 
     def _Solver_Set_PETSc4Py_Options(
         self,
