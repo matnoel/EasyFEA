@@ -11,6 +11,7 @@ from scipy import sparse
 
 from ..FEM._function_space import _FunctionSpace
 from ..Utilities import _types
+from ._dof_layout import _DofLayout
 from ._problem_type import ProblemType
 from ._terms import Term, _Contribution
 
@@ -18,21 +19,12 @@ if TYPE_CHECKING:
     from ..FEM import _GroupElem
 
 
-def _Size(layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]) -> int:
-    """Number of dofs of the fields of `layout`."""
-    return sum(space.Nn * dof_n for _, space, dof_n, _ in layout)
-
-
 class _Assembly:
-    """What one problem's contributions sum to (A, b, products) on its fixed `layout`, with their CSR maps; Lagrange rows excluded."""
+    """What one problem's contributions sum to (A, b, products) on its fixed `dofLayout`, with their CSR maps; Lagrange rows excluded."""
 
-    def __init__(
-        self, layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
-    ) -> None:
-        self.layout = layout
-        """`(field, space, dof_n, offset)` of each field, side by side"""
-        self.size = _Size(layout)
-        """number of dofs of the fields"""
+    def __init__(self, dofLayout: _DofLayout) -> None:
+        self.dofLayout = dofLayout
+        self.size = dofLayout.size
         self.__maps: dict[tuple, tuple[np.ndarray, np.ndarray, np.ndarray, int]] = {}
         """`{contributing: csr map}`"""
         self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
@@ -59,7 +51,7 @@ class _Assembly:
         """The CSR map of the contributing blocks, kept per `contributing`."""
         csrMap = self.__maps.get(contributing)
         if csrMap is None:
-            csrMap = _Csr_map(self.layout, self.size, contributing)
+            csrMap = _Csr_map(self.dofLayout, contributing)
             self.__maps[contributing] = csrMap
         return csrMap
 
@@ -140,7 +132,7 @@ class _Assembly:
         """`problemType`'s dofs on each element of `group`, in the problem's vector; kept."""
         dofs_e = self.__dict_dofs_e.get((problemType, group))
         if dofs_e is None:
-            dofs_e = _Dofs_e(self.layout, problemType, group)
+            dofs_e = self.dofLayout.Dofs_e(problemType, group)
             dofs_e.flags.writeable = False
             self.__dict_dofs_e[problemType, group] = dofs_e
         return dofs_e
@@ -161,16 +153,6 @@ class _Assembly:
         if np.iscomplexobj(data):
             raise TypeError("Complex systems are not supported.")
         return np.bincount(rows, weights=data, minlength=self.size)
-
-
-def _Dofs_e(
-    layout: tuple, problemType: ProblemType, group: "_GroupElem"
-) -> _types.IntArray:
-    """`problemType`'s dofs on each element of `group`, in the problem's vector."""
-    for other, space, dof_n, offset in layout:
-        if other == problemType:
-            return space.Get_assembly_e(group, dof_n) + offset
-    raise KeyError(problemType)
 
 
 def _Sizes(list_contribution: list[_Contribution]) -> dict:
@@ -225,23 +207,15 @@ def _Sum(
 
 
 def _Csr_map(
-    layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
-    Ndof: int,
-    contributing: tuple,
+    dofLayout: _DofLayout, contributing: tuple
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     """`(inv, indices, indptr, nnz)`: `inv[k]` the CSR-data slot element entry `k` feeds, the rest scipy's canonical pattern; `inv` int32, slots bounded by nnz < 2^31."""
-    byField = {
-        problemType: (functionSpace, dof_n, offset)
-        for problemType, functionSpace, dof_n, offset in layout
-    }
-
+    Ndof = dofLayout.size
     list_rows, list_cols = [], []
     for (r, c), groups in contributing:
-        space_r, dof_n_r, offset_r = byField[r]
-        space_c, dof_n_c, offset_c = byField[c]
         for groupElem in groups:
-            rows_e = space_r.Get_assembly_e(groupElem, dof_n_r) + offset_r
-            cols_e = space_c.Get_assembly_e(groupElem, dof_n_c) + offset_c
+            rows_e = dofLayout.Dofs_e(r, groupElem)
+            cols_e = dofLayout.Dofs_e(c, groupElem)
             list_rows.append(
                 _FunctionSpace._Get_rows_e(rows_e, cols_e.shape[1]).ravel()
             )

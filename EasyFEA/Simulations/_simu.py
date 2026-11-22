@@ -56,12 +56,8 @@ from ._problem_type import ProblemType, TrialSolution, _As_problemTypes
 from . import _iterations
 from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
-from ._problem import (
-    _Dof_owners,
-    _Field_size,
-    _Problem,
-    _Slices,
-)
+from ._dof_layout import _DofLayout, _Field_size
+from ._problem import _Problem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
@@ -277,7 +273,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         reaction = self.__Get_reaction(problem, slots)
         if dofs is None:
             dofs = np.arange(reaction.size)
-        reaction[~problem.Owned_mask()] = 0.0
+        reaction[~problem.dofLayout.Owned_mask()] = 0.0
         # a ghost row from its owner
         problem.system.Scatter_forward(reaction, self.mesh.comm)
         return reaction[dofs]
@@ -291,7 +287,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Sum of :meth:`Calc_Reaction` over `dofs`, each dof once over the ranks; collective on `mesh.comm`."""
         problem = self.__Problem(problemType)
         reaction = self.__Get_reaction(problem, slots)
-        isOwned = problem.Owned_mask()
+        isOwned = problem.dofLayout.Owned_mask()
         dofs = np.asarray(dofs, dtype=int)
         resultant = float(np.sum(reaction[dofs[isOwned[dofs]]]))
         return Reduce_sum(resultant, self.mesh.comm)
@@ -1466,7 +1462,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> None:
         """Sets the solutions of `problemType`, its problem types end to end in one vector; every problem sharing no field with it goes stale."""
         problemTypes = _As_problemTypes(problemType)
-        for problemType, dofs in _Slices(self, problemTypes).items():
+        for problemType, dofs in _DofLayout(self, problemTypes).slices.items():
             self.__Set_field_solutions(
                 problemType,
                 u[dofs].copy(),
@@ -1541,7 +1537,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemTypes)
         assert strategy is not None
         x0 = x0 or {}
-        start = problem.Compose(
+        start = problem.dofLayout.Compose(
             lambda problemType: (
                 x0[problemType] if problemType in x0 else self._Get_u_n(problemType)
             )
@@ -1601,7 +1597,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             else self._Get_monolithic_problemTypes(problemType)
         )
         problem = self.__Get_problem(problemTypes)
-        return problem.Get_A_b(None if x is None else problem.Compose(x.__getitem__))
+        return problem.Get_A_b(
+            None if x is None else problem.dofLayout.Compose(x.__getitem__)
+        )
 
     def _Solver_Set_PETSc4Py_Options(
         self,
@@ -1846,8 +1844,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
 
         problemTypes = _As_problemTypes(problemType)
-        owners, rank = _Dof_owners(self, problemTypes)
-        size = sum(_Field_size(self, problemType) for problemType in problemTypes)
+        dofLayout = _DofLayout(self, problemTypes)
+        owners, rank = dofLayout.Owners()
+        size = dofLayout.size
         return np.arange(size)[Owned(owners, rank)]
 
     # ----------------------------------------------
@@ -1964,7 +1963,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem = self.__Problem(problemType)
         unknown = problem.Unknown_mask()
         if problemType in problem.problemTypes and len(problem.problemTypes) > 1:
-            unknown = unknown[_Slices(self, problem.problemTypes)[problemType]]
+            unknown = unknown[problem.dofLayout.slices[problemType]]
         dofsKnown = np.flatnonzero(~unknown)
         dofsUnknown = np.flatnonzero(unknown)
 

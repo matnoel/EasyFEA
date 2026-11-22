@@ -5,57 +5,24 @@
 """Fields of a simulation solved as one system: their system, assembly and contributions."""
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy import sparse
 
 from ..FEM import BoundaryCondition, Operators
-from ..FEM._function_space import _FunctionSpace
 from ..Solvers import Constraints, LagrangeConstraint, System
 from ..Solvers._backends import Backend
 from ..Utilities import Terminal, Tic, _types
-from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
-from ._assembly import _Assembly, _Blocks, _Size
+from ..Utilities._mpi import Reduce_max, Reduce_sum
+from ._assembly import _Assembly, _Blocks
+from ._dof_layout import _DofLayout
 from ._problem_type import ProblemType, TrialSolution
 from ._terms import _Contribution
 from .TimeSchemes import Elliptic
 
 if TYPE_CHECKING:
     from ._simu import _Simu
-
-
-def _Field_size(simu: "_Simu", problemType: ProblemType) -> int:
-    """Number of dofs of one field."""
-    return simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
-
-
-def _Slices(
-    simu: "_Simu", problemTypes: tuple[ProblemType, ...]
-) -> dict[ProblemType, slice]:
-    """Where each problem type's dofs sit in `problemTypes` end to end."""
-    slices = {}
-    start = 0
-    for problemType in problemTypes:
-        stop = start + _Field_size(simu, problemType)
-        slices[problemType] = slice(start, stop)
-        start = stop
-    return slices
-
-
-def _Dof_owners(
-    simu: "_Simu", problemTypes: tuple[ProblemType, ...]
-) -> tuple[_types.IntArray | None, int]:
-    """Owner rank of each dof of `problemTypes` end to end, None when never partitioned, and this rank."""
-    spaces = [simu._Get_FunctionSpace(problemType) for problemType in problemTypes]
-    rank = spaces[0].rank
-    if any(space._dofOwners is None for space in spaces):
-        return None, rank
-    owners = [
-        np.repeat(space._dofOwners, simu.Get_dof_n(problemType))
-        for problemType, space in zip(problemTypes, spaces)
-    ]
-    return np.concatenate(owners), rank
 
 
 class _Problem:
@@ -71,6 +38,7 @@ class _Problem:
             raise ValueError(f"A field is given twice in {problemTypes}.")
         self.simu = simu
         self.problemTypes = problemTypes
+        self.dofLayout = _DofLayout(simu, problemTypes)
         self.isNonLinear = isNonLinear
         """whether the terms read the iterate"""
         self.needUpdate = True
@@ -89,28 +57,6 @@ class _Problem:
         )
 
     @property
-    def size(self) -> int:
-        """Number of dofs of the fields."""
-        return _Size(self.layout)
-
-    @property
-    def offsets(self) -> list[int]:
-        """Where each field's dofs start."""
-        return [offset for *_, offset in self.layout]
-
-    @property
-    def layout(self) -> tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]:
-        """`(field, space, dof_n, offset)` of each field, side by side."""
-        layout = []
-        offset = 0
-        for problemType in self.problemTypes:
-            space = self.simu._Get_FunctionSpace(problemType)
-            dof_n = self.simu.Get_dof_n(problemType)
-            layout.append((problemType, space, dof_n, offset))
-            offset += space.Nn * dof_n
-        return tuple(layout)
-
-    @property
     def comm(self):
         """The mesh's communicator, None = no reduction."""
         return self.simu.mesh.comm
@@ -118,16 +64,16 @@ class _Problem:
     @cached_property
     def system(self) -> System:
         """The linear system."""
-        owners, rank = self.Get_dof_owners()
+        owners, rank = self.dofLayout.Owners()
         globalIds = None
         if self.comm is not None:
-            globalIds = self.__Get_dof_globalIds()
+            globalIds = self.dofLayout.GlobalIds()
         return System(owners, rank, globalIds)
 
     @cached_property
     def assembly(self) -> _Assembly:
-        """The assembly on `layout`."""
-        return _Assembly(self.layout)
+        """The assembly on `dofLayout`."""
+        return _Assembly(self.dofLayout)
 
     def Free(self) -> None:
         """Destroys the solver kept by the system. Collective."""
@@ -149,45 +95,10 @@ class _Problem:
                 f"({names}) solved as one system does not support Lagrange boundary conditions."
             )
 
-    def Compose(
-        self, get: Callable[[ProblemType], np.ndarray], isDofs: bool = False
-    ) -> np.ndarray:
-        """`get(problemType)` of each problemType end to end, dof ids shifted to the problemType's offset when `isDofs`; `get(problemType)` itself for a problemType alone."""
-        if len(self.problemTypes) == 1:
-            return get(self.problemTypes[0])
-        parts = [np.asarray(get(problemType)) for problemType in self.problemTypes]
-        if isDofs:
-            parts = [
-                part.astype(int) + offset for part, offset in zip(parts, self.offsets)
-            ]
-        return np.concatenate(parts)
-
-    def Get_dof_owners(self) -> tuple[_types.IntArray | None, int]:
-        """Owner rank of each dof, None when never partitioned, and this rank."""
-        return _Dof_owners(self.simu, self.problemTypes)
-
-    def Owned_mask(self) -> _types.BoolArray:
-        """Whether this rank owns each dof."""
-        owners, rank = self.Get_dof_owners()
-        isOwned = np.zeros(self.size, dtype=bool)
-        isOwned[Owned(owners, rank)] = True
-        return isOwned
-
-    def __Get_dof_globalIds(self) -> _types.IntArray:
-        """Global id of each dof, unique over the ranks."""
-        globalIds = []
-        for f, problemType in enumerate(self.problemTypes):
-            space = self.simu._Get_FunctionSpace(problemType)
-            dof_n = self.simu.Get_dof_n(problemType)
-            nodes = space.globalNodes[space._dofNodes].astype(np.int64)
-            dofs = nodes[:, None] * dof_n + np.arange(dof_n)
-            globalIds.append((dofs * len(self.problemTypes) + f).ravel())
-        return np.concatenate(globalIds)
-
     def Trial(self, x: _types.FloatArray) -> TrialSolution:
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
         trial = self.simu._Committed()
-        for problemType, dofs in _Slices(self.simu, self.problemTypes).items():
+        for problemType, dofs in self.dofLayout.slices.items():
             trial[problemType] = x[dofs]
         return trial
 
@@ -224,10 +135,10 @@ class _Problem:
     def Sum_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
         """External load, Neumann + the F of `list_contribution`."""
         simu = self.simu
-        dofs = self.Compose(simu.Bc_dofs_Neumann, isDofs=True)
-        dofsValues = self.Compose(simu.Bc_values_Neumann)
+        dofs = self.dofLayout.Compose(simu.Bc_dofs_Neumann, isDofs=True)
+        dofsValues = self.dofLayout.Compose(simu.Bc_values_Neumann)
 
-        load = np.zeros(self.size, dtype=float)
+        load = np.zeros(self.dofLayout.size, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
         load += self.assembly.Get_load(list_contribution)
         return load
@@ -273,7 +184,7 @@ class _Problem:
             trial = self.simu._Committed() if x is None else self.Trial(x)
             list_contribution = self._Integrate(trial)
             A = self.Sum_A(list_contribution)
-            x = self.Compose(trial.__getitem__)
+            x = self.dofLayout.Compose(trial.__getitem__)
         else:
             if x is not None:
                 raise ValueError("A linear problem's A and b do not depend on x.")
@@ -284,7 +195,7 @@ class _Problem:
                     "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
                 )
             A = self.Get_A()
-            x = np.zeros(self.size)
+            x = np.zeros(self.dofLayout.size)
         load = self.Sum_load(list_contribution)
         return A, self.Sum_b(list_contribution, load, x)
 
@@ -296,7 +207,7 @@ class _Problem:
         x, _ = self.system.Solve(
             A,
             b,
-            np.zeros(self.size),
+            np.zeros(self.dofLayout.size),
             self.Constraints(),
             backend,
             simu.mesh.comm,
@@ -326,12 +237,12 @@ class _Problem:
         """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
         simu = self.simu
         knownDofs = np.flatnonzero(~self.Unknown_mask())
-        target = np.zeros(self.size) if x is None else x.copy()
+        target = np.zeros(self.dofLayout.size) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
-            dofs = self.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
+            dofs = self.dofLayout.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
             dofs = np.asarray(dofs, dtype=int)
             target[dofs] = 0.0
-            np.add.at(target, dofs, self.Compose(simu.Bc_values_Dirichlet))
+            np.add.at(target, dofs, self.dofLayout.Compose(simu.Bc_values_Dirichlet))
 
         list_lagrangeConstraint = tuple(
             LagrangeConstraint(
@@ -348,8 +259,8 @@ class _Problem:
 
     def Free_mask(self) -> _types.BoolArray:
         """Whether each dof is free: not Dirichlet, not orphan."""
-        dofs = self.Compose(self.simu.Bc_dofs_Dirichlet, isDofs=True)
-        free = np.ones(self.size, dtype=bool)
+        dofs = self.dofLayout.Compose(self.simu.Bc_dofs_Dirichlet, isDofs=True)
+        free = np.ones(self.dofLayout.size, dtype=bool)
         free[np.asarray(dofs, dtype=int)] = False
         free[self.Orphan_dofs()] = False
         return free
@@ -369,7 +280,7 @@ class _Problem:
         if self.__termRows is None:
             simu = self.simu
             committed = simu._Committed()
-            rows = np.zeros(self.size, dtype=bool)
+            rows = np.zeros(self.dofLayout.size, dtype=bool)
             for problemType in self.problemTypes:
                 for term in simu.Get_terms(committed, problemType):
                     groups = term._Get_groups(simu.mesh)
@@ -378,7 +289,7 @@ class _Problem:
                             for group in groups:
                                 rows[self.assembly.Dofs_e(block[0], group)] = True
             self.__termRows = rows
-        lagrange = self.Compose(
+        lagrange = self.dofLayout.Compose(
             lambda problemType: BoundaryCondition.Get_dofs(
                 problemType,
                 self.simu.Bc_Lagrange,  # type: ignore [arg-type]
@@ -396,7 +307,7 @@ class _Problem:
         touched = 0
         if orphans.size > 0:
             conditions = [
-                self.Compose(Bc_dofs, isDofs=True)
+                self.dofLayout.Compose(Bc_dofs, isDofs=True)
                 for Bc_dofs in (simu.Bc_dofs_Neumann, simu.Bc_dofs_Dirichlet)
             ]
             orphans = np.intersect1d(orphans, simu.Get_dofs(self.problemTypes))
@@ -439,11 +350,11 @@ class _Problem:
             if slot in "KCM" and rows == cols
         }
         A = self.Get_A()
-        owned = self.Owned_mask()
+        owned = self.dofLayout.Owned_mask()
         pinned: list[int] = []
         weights = {}
         comm = simu.mesh.comm
-        for problemType, dofs in _Slices(simu, self.problemTypes).items():
+        for problemType, dofs in self.dofLayout.slices.items():
             if simu.Get_dof_n(problemType) != 1 or problemType in diagonal:
                 continue
             isField = np.zeros(A.shape[0], dtype=bool)
@@ -476,7 +387,7 @@ class _Problem:
         """Shifts each pinned field to zero mean, ``∫ field dΩ = 0`` with weights ``∫ N_i dΩ``, in place in `x`. Collective on `mesh.comm`."""
         simu = self.simu
         comm = simu.mesh.comm
-        slices = _Slices(simu, self.problemTypes)
+        slices = self.dofLayout.slices
         _, dict_weights = self.Pinned(self.Free_mask())
         for problemType, weights in dict_weights.items():
             values = x[slices[problemType]]
