@@ -52,7 +52,7 @@ from ..FEM._mesh import _MeshPart
 from ..Models import _IModel
 
 # simu
-from ._problem_type import ProblemType, TrialSolution
+from ._problem_type import ProblemType, TrialSolution, _As_problemTypes
 from . import _iterations
 from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
@@ -184,27 +184,25 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Problems solved as one system each, in solve order: one per problem type by default, several fields side by side ``[u | p]`` when their equations couple."""
         return [(problemType,) for problemType in self.problemTypes]
 
-    def _Get_monolithic_problem(
+    def _Get_monolithic_problemTypes(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> ProblemType | tuple[ProblemType, ...]:
-        """The monolithic problem holding `problemType` (default the simulation's), as the solver path takes it: the problem type itself when solved alone, else the tuple of its fields."""
+    ) -> tuple[ProblemType, ...]:
+        """The problem types of the monolithic problem holding `problemType` (default the simulation's) or given as its problem types."""
         if problemType is None:
             problemType = self.problemType
         problems = self._Get_monolithic_problems()
         for problemTypes in problems:
             if problemType == problemTypes or problemType in problemTypes:
-                return problemTypes[0] if len(problemTypes) == 1 else problemTypes
+                return problemTypes
         raise ValueError(
             f"{problemType} is not a problem of this simulation {problems}."
         )
 
     def __Get_problem(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self, problemTypes: tuple[ProblemType, ...]
     ) -> _LinearProblem | _NonLinearProblem:
-        """The `_Problem` of exactly these fields, kept until the mesh changes or their key gains or loses a nonlinear strategy."""
-        problemTypes = problemType if isinstance(problemType, tuple) else (problemType,)
-        key = problemTypes[0] if len(problemTypes) == 1 else problemTypes
-        isNonLinear = key in self.__dict_strategy
+        """The `_Problem` of exactly these problem types, kept until the mesh changes or they gain or lose a nonlinear strategy."""
+        isNonLinear = problemTypes in self.__dict_strategy
         problem = self.__dict_problem.get(problemTypes)
         if problem is None or problem.isNonLinear != isNonLinear:
             if problem is not None:
@@ -221,7 +219,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> _LinearProblem | _NonLinearProblem:
         """The `_Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
-        return self.__Get_problem(self._Get_monolithic_problem(problemType))
+        return self.__Get_problem(self._Get_monolithic_problemTypes(problemType))
 
     @abstractmethod
     def Get_unknowns(self, problemType: ProblemType | None = None) -> list[str]:
@@ -251,7 +249,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             raise ValueError(f"slot must be 'K', 'C' or 'M', not {slot!r}.")
         problem = self.__Problem(problemType)
         if dofs is None:
-            dofs = self.Get_dofs(problem.problemType)
+            dofs = self.Get_dofs(problem.problemTypes)
         fields = tuple(x if s == slot else None for s in "KCM")
         product = problem.Get_product(fields)
         energy = 0.5 * x[dofs] @ product[dofs]
@@ -265,9 +263,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             roles = self.timeScheme.roles
             slots = "K" + "C" * ("v" in roles) + "M" * ("a" in roles)
         fields = (
-            self._Get_u_n(problem.problemType) if "K" in slots else None,
-            self._Get_v_n(problem.problemType) if "C" in slots else None,
-            self._Get_a_n(problem.problemType) if "M" in slots else None,
+            self._Get_u_n(problem.problemTypes) if "K" in slots else None,
+            self._Get_v_n(problem.problemTypes) if "C" in slots else None,
+            self._Get_a_n(problem.problemTypes) if "M" in slots else None,
         )
         return problem.Get_product(fields)
 
@@ -305,11 +303,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """:py:meth:`Get_lb_ub` of each field of the problem, end to end."""
-        if not isinstance(problemType, tuple):
-            return self.Get_lb_ub(problemType)
-        problem = self.__Get_problem(problemType)
-        lb = problem.Compose(lambda field: self.Get_lb_ub(field)[0])
-        ub = problem.Compose(lambda field: self.Get_lb_ub(field)[1])
+        bounds = [
+            self.Get_lb_ub(problemType) for problemType in _As_problemTypes(problemType)
+        ]
+        lb = np.concatenate([lb for lb, _ in bounds])
+        ub = np.concatenate([ub for _, ub in bounds])
         return lb, ub
 
     @abstractmethod
@@ -616,11 +614,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.solver == SolverType.petsc:
             problems = self._Get_monolithic_problems()
             for problemTypes in problems:
-                isMonolithic = len(problemTypes) > 1
                 kspType, pcType, solverType = self._Solver_Get_PETSc4Py_Options(
-                    problemTypes if isMonolithic else problemTypes[0]
+                    problemTypes
                 )
-                if isMonolithic or len(problems) > 1:
+                if len(problemTypes) > 1 or len(problems) > 1:
                     names = ", ".join(problemTypes)
                     text += f"\n({names}) {kspType}, {pcType}, {solverType}"
                 else:
@@ -696,14 +693,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__timeScheme: _TimeScheme = Elliptic()
 
-        self.__dict_strategy: dict[
-            ProblemType | tuple[ProblemType, ...], NonlinearStrategy
-        ] = {}
-        """Nonlinear strategy of each nonlinear problem key; a key absent is linear."""
+        self.__dict_strategy: dict[tuple[ProblemType, ...], NonlinearStrategy] = {}
+        """Nonlinear strategy of each nonlinear monolithic problem; one absent is linear."""
 
         # Solver used
-        self.__dict_solver: dict[ProblemType | tuple[ProblemType, ...], SolverType] = {}
-        """Solver of a problem key overriding `solver`; kept across mesh changes."""
+        self.__dict_solver: dict[tuple[ProblemType, ...], SolverType] = {}
+        """Solver of a monolithic problem overriding `solver`; kept across mesh changes."""
         if MPI_SIZE > 1:
             if _Get_PETSc() is None:
                 raise ModuleNotFoundError(
@@ -719,8 +714,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # petsc4py options; unset problem types get their defaults on first read.
         self.__dict_solver_petsc4py_options: dict[
-            ProblemType | tuple[ProblemType, ...],
-            tuple[str, str, str],
+            tuple[ProblemType, ...], tuple[str, str, str]
         ] = {}
 
         # Initialize solutions and boundary conditions
@@ -811,10 +805,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         store: dict[ProblemType, _types.FloatArray],
         problemType: ProblemType | tuple[ProblemType, ...],
     ) -> _types.FloatArray:
-        """A copy of `store`'s values of `problemType`, a tuple's fields end to end through its problem."""
-        if not isinstance(problemType, tuple):
-            return store[problemType].copy()
-        return self.__Get_problem(problemType).Compose(store.__getitem__).copy()
+        """A copy of `store`'s values of `problemType`, its problem types end to end."""
+        return np.concatenate(
+            [store[problemType] for problemType in _As_problemTypes(problemType)]
+        )
 
     def _Get_u_n(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -1078,11 +1072,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Terminal.MyPrintError("Notification not yet implemented")
 
     def __Free_solvers(
-        self, problemTypes: list[ProblemType | tuple[ProblemType, ...]] | None = None
+        self, list_problemTypes: list[tuple[ProblemType, ...]] | None = None
     ) -> None:
-        """Destroys the solvers kept by the systems of `problemTypes`, every one by default. Collective."""
+        """Destroys the solvers kept by the systems of `list_problemTypes`, every one by default. Collective."""
         for problem in self.__dict_problem.values():
-            if problemTypes is None or problem.problemType in problemTypes:
+            if list_problemTypes is None or problem.problemTypes in list_problemTypes:
                 problem.Free()
 
     def __Forget_mesh(self) -> None:
@@ -1097,9 +1091,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Drops the contributions of every problem sharing a field with `problemType`, of every problem by default: its next reader rebuilds them."""
         problemTypes = None
         if problemType is not None:
-            problemTypes = set(
-                problemType if isinstance(problemType, tuple) else (problemType,)
-            )
+            problemTypes = set(_As_problemTypes(problemType))
         for problem in self.__dict_problem.values():
             if problemTypes is None or not problemTypes.isdisjoint(
                 problem.problemTypes
@@ -1141,7 +1133,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for problemType in problemTypes:
             if problemType not in filled:
                 raise ValueError(
-                    f"No term fills {problemType}'s equation: assemble {self._Get_monolithic_problem(problemType)}."
+                    f"No term fills {problemType}'s equation: assemble ({', '.join(self._Get_monolithic_problemTypes(problemType))})."
                 )
 
         list_contribution: list[_Contribution] = []
@@ -1159,8 +1151,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ]:
         r"""K, C, M (csr, one pattern) and F (1-D, the terms' load) of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, of one or several fields ``[u | p]``, no Lagrange rows; built on each call, never read by a solve."""
         if problemType is None:
-            problemType = self._Get_monolithic_problem()
-        problem = self.__Get_problem(problemType)
+            problemType = self._Get_monolithic_problemTypes()
+        problem = self.__Get_problem(_As_problemTypes(problemType))
 
         assembly = problem.assembly
         list_contribution = problem.Get_contributions()
@@ -1185,9 +1177,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__solver = value
             self.__Free_solvers(
                 [
-                    problem.problemType
+                    problem.problemTypes
                     for problem in self.__dict_problem.values()
-                    if self._Solver_Get(problem.problemType) != SolverType.petsc
+                    if self._Solver_Get(problem.problemTypes) != SolverType.petsc
                 ]
             )
 
@@ -1196,14 +1188,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         solverType: SolverType | None,
         problemType: ProblemType | tuple[ProblemType, ...],
     ) -> None:
-        """Sets the solver of one problem key, `None` = back to `solver`; frees that key's kept PETSc solver on leaving petsc."""
+        """Sets the solver of one monolithic problem, `None` = back to `solver`; frees its kept PETSc solver on leaving petsc."""
+        problemTypes = _As_problemTypes(problemType)
         if solverType is None:
-            self.__dict_solver.pop(problemType, None)
+            self.__dict_solver.pop(problemTypes, None)
         else:
             self.__Check_distributed(solverType)
-            self.__dict_solver[problemType] = SolverType(solverType)
-        if self._Solver_Get(problemType) != SolverType.petsc:
-            self.__Free_solvers([problemType])
+            self.__dict_solver[problemTypes] = SolverType(solverType)
+        if self._Solver_Get(problemTypes) != SolverType.petsc:
+            self.__Free_solvers([problemTypes])
 
     @staticmethod
     def __Check_distributed(solverType: str) -> None:
@@ -1215,12 +1208,28 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Get(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> SolverType:
-        """Solver of one problem key: its own, else `solver`."""
-        return SolverType(self.__dict_solver.get(problemType, self.solver))
+        """Solver of one monolithic problem: its own, else `solver`."""
+        return SolverType(
+            self.__dict_solver.get(_As_problemTypes(problemType), self.solver)
+        )
 
     def __getstate__(self) -> dict:
         # PETSc objects do not pickle, and a problem is bound to its simulation: a copy rebuilds its own
         return {**self.__dict__, "_Simu__dict_problem": {}}
+
+    def __setstate__(self, state: dict) -> None:
+        # files saved before the settings were keyed by tuples key them by a problem type alone
+        for name in (
+            "_Simu__dict_solver",
+            "_Simu__dict_strategy",
+            "_Simu__dict_solver_petsc4py_options",
+        ):
+            if name in state:
+                state[name] = {
+                    _As_problemTypes(problemType): value
+                    for problemType, value in state[name].items()
+                }
+        self.__dict__.update(state)
 
     def _Solver_Set_TimeScheme(self, timeScheme: _TimeScheme) -> None:
         """Sets the time scheme of the next solves, any `_TimeScheme`."""
@@ -1360,17 +1369,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if not callable(strategy):
                 raise TypeError(f"{strategy!r} is not a nonlinear strategy.")
             self.__Check_solves_for_u(self.timeScheme)
-        keys = (
-            [
-                self._Get_monolithic_problem(problemTypes)
-                for problemTypes in self._Get_monolithic_problems()
-            ]
+        list_problemTypes = (
+            self._Get_monolithic_problems()
             if problemType is None
-            else [self._Get_monolithic_problem(problemType)]
+            else [self._Get_monolithic_problemTypes(problemType)]
         )
-        dict_strategy = {k: v for k, v in self.__dict_strategy.items() if k not in keys}
+        dict_strategy = {
+            k: v for k, v in self.__dict_strategy.items() if k not in list_problemTypes
+        }
         if strategy is not None:
-            dict_strategy.update(dict.fromkeys(keys, strategy))
+            dict_strategy.update(dict.fromkeys(list_problemTypes, strategy))
             self._Iter_Record(newtonIter=None, timeIter=None, list_norm_r=None)
         self.__dict_strategy = dict_strategy
 
@@ -1378,13 +1386,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> NonlinearStrategy | None:
         """Nonlinear strategy of the monolithic problem holding `problemType` (default the simulation's), None when linear."""
-        return self.__dict_strategy.get(self._Get_monolithic_problem(problemType))
+        return self.__dict_strategy.get(self._Get_monolithic_problemTypes(problemType))
 
     @property
     def isNonLinear(self) -> bool:
         """Whether a problem of the simulation is solved by a nonlinear strategy."""
         return any(
-            self._Get_monolithic_problem(problemTypes) in self.__dict_strategy
+            problemTypes in self.__dict_strategy
             for problemTypes in self._Get_monolithic_problems()
         )
 
@@ -1459,25 +1467,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         v: _types.FloatArray | None = None,
         a: _types.FloatArray | None = None,
     ) -> None:
-        """Sets the solutions of `problemType`; every problem sharing no field with it goes stale."""
-        if isinstance(problemType, tuple):
-            # one composed vector per problem, sliced per field
-            offsets = self.__Get_problem(problemType).offsets
-            for field, start in zip(problemType, offsets):
-                end = start + _Field_size(self, field)
-                self.__Set_field_solutions(
-                    field,
-                    u[start:end].copy(),
-                    None if v is None else v[start:end].copy(),
-                    None if a is None else a[start:end].copy(),
-                )
-            problemTypes = set(problemType)
-        else:
-            self.__Set_field_solutions(problemType, u, v, a)
-            problemTypes = {problemType}
+        """Sets the solutions of `problemType`, its problem types end to end in one vector; every problem sharing no field with it goes stale."""
+        problemTypes = _As_problemTypes(problemType)
+        start = 0
+        for problemType in problemTypes:
+            end = start + _Field_size(self, problemType)
+            self.__Set_field_solutions(
+                problemType,
+                u[start:end].copy(),
+                None if v is None else v[start:end].copy(),
+                None if a is None else a[start:end].copy(),
+            )
+            start = end
 
         for problem in self.__dict_problem.values():
-            if problemTypes.isdisjoint(problem.problemTypes):
+            if set(problemTypes).isdisjoint(problem.problemTypes):
                 problem.Need_Update()
 
     def __Set_field_solutions(
@@ -1523,12 +1527,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         solutions = self.timeScheme.Evaluate_np1(
             x,
-            self._Get_u_n(problem.problemType),
-            self._Get_v_n(problem.problemType),
-            self._Get_a_n(problem.problemType),
+            self._Get_u_n(problem.problemTypes),
+            self._Get_v_n(problem.problemTypes),
+            self._Get_a_n(problem.problemTypes),
         )
 
-        self._Set_solutions(problem.problemType, *solutions)
+        self._Set_solutions(problem.problemTypes, *solutions)
 
         return solutions[0]
 
@@ -1538,8 +1542,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         backend: Backend,
         x0: TrialSolution | None,
     ) -> _types.FloatArray:
-        """The key's strategy from `x0`'s fields, `u_n` for the others; its norms and time recorded for the next saved iteration."""
-        strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemType)
+        """The problem's strategy from `x0`'s fields, `u_n` for the others; its norms and time recorded for the next saved iteration."""
+        strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemTypes)
         assert strategy is not None
         x0 = x0 or {}
         start = problem.Compose(
@@ -1558,12 +1562,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Get_backend(self, problem: _Problem) -> Backend:
         """The backend of the problem's solver type, options and bounds; guess `u_n` for a linear solve, 0 for Newton's increment."""
-        problemType = problem.problemType
-        solverType = self._Solver_Get(problemType)
+        problemTypes = problem.problemTypes
+        solverType = self._Solver_Get(problemTypes)
         options = None
         if solverType == SolverType.petsc:
-            options = self._Solver_Get_PETSc4Py_Options(problemType)
-        lb, ub = self._Solver_Get_lb_ub(problemType)
+            options = self._Solver_Get_PETSc4Py_Options(problemTypes)
+        lb, ub = self._Solver_Get_lb_ub(problemTypes)
         nonLinear = problem.isNonLinear
         if nonLinear and np.size(lb) + np.size(ub) > 0:
             raise NotImplementedError(
@@ -1574,7 +1578,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             options,
             lb,
             ub,
-            None if nonLinear else self.__Committed_unknown(problemType),
+            None if nonLinear else self.__Committed_unknown(problemTypes),
         )
 
     def __Committed_unknown(
@@ -1596,10 +1600,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         x: TrialSolution | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b before Dirichlet and Lagrange rows of the monolithic problem holding `problemType` or of the fields given: linear, the kept A (the object the solve uses, never write into it) and b, `x` refused; nonlinear, K_t and R with the problem's fields at the trial solution `x` (default committed), the others committed, never kept."""
-        if isinstance(problemType, tuple) and len(problemType) > 1:
-            problem = self.__Get_problem(problemType)
-        else:
-            problem = self.__Problem(problemType)
+        problemTypes = () if problemType is None else _As_problemTypes(problemType)
+        if len(problemTypes) <= 1:
+            problemTypes = self._Get_monolithic_problemTypes(problemType)
+        problem = self.__Get_problem(problemTypes)
         if isinstance(problem, _NonLinearProblem):
             return problem.Get_A_b(
                 None if x is None else problem.Compose(x.__getitem__)
@@ -1673,7 +1677,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
         problemType : ProblemType | tuple[ProblemType, ...], optional
-            Problem type, or monolithic problem of several fields, to configure. ``None`` applies to all of them.
+            Problem type, or monolithic problem of several problem types, to configure. ``None`` applies to all of them.
 
         Raises
         ------
@@ -1779,18 +1783,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # ── Store ─────────────────────────────────────────────────────────────
         list_problemTypes = (
-            list(self.problemTypes)
+            [(problemType,) for problemType in self.problemTypes]
             + [
                 problemTypes
                 for problemTypes in self._Get_monolithic_problems()
                 if len(problemTypes) > 1
             ]
             if problemType is None
-            else [problemType]
+            else [_As_problemTypes(problemType)]
         )
         self.__Free_solvers(list_problemTypes)
-        for problemType in list_problemTypes:
-            self.__dict_solver_petsc4py_options[problemType] = (
+        for problemTypes in list_problemTypes:
+            self.__dict_solver_petsc4py_options[problemTypes] = (
                 kspType,
                 pcType,
                 solverType,
@@ -1801,21 +1805,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[str, str, str]:
         """Returns (kspType, pcType, solverType) petsc4py options for the given (or default) problem type, or monolithic problem."""
 
-        problemType = self.problemType if problemType is None else problemType
+        problemTypes = _As_problemTypes(
+            self.problemType if problemType is None else problemType
+        )
 
-        if problemType not in self.__dict_solver_petsc4py_options:
+        if problemTypes not in self.__dict_solver_petsc4py_options:
             self._Solver_Set_PETSc4Py_Options(
-                *self.__Default_PETSc4Py_Options(problemType),
-                problemType=problemType,
+                *self.__Default_PETSc4Py_Options(problemTypes),
+                problemType=problemTypes,
             )
 
-        return self.__dict_solver_petsc4py_options[problemType]
+        return self.__dict_solver_petsc4py_options[problemTypes]
 
     def __Default_PETSc4Py_Options(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
+        self, problemTypes: tuple[ProblemType, ...]
     ) -> tuple[str, str, str]:
-        """Best available (kspType, pcType, solverType) for the problem type."""
-        if isinstance(problemType, tuple):
+        """Best available (kspType, pcType, solverType) for the monolithic problem."""
+        if len(problemTypes) > 1:
             # several fields side by side, possibly a saddle point: an external LU, the ones a saddle point is accepted with under MPI
             if _PETSc_Has("mumps"):
                 return "preonly", "lu", "mumps"
@@ -1824,7 +1830,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 "lu",
                 "superlu_dist" if _PETSc_Has("superlu_dist") else "petsc",
             )
-        if self.Get_dof_n(problemType) == 1:
+        if self.Get_dof_n(problemTypes[0]) == 1:
             # Scalar problems
             # cg+gamg: works in serial and MPI, no external packages needed.
             # Good default for scalar SPD problems
@@ -1847,11 +1853,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if problemType is None:
             problemType = self.problemType
-        problemTypes = problemType if isinstance(problemType, tuple) else (problemType,)
 
         list_dofs = []
         start = 0
-        for problemType in problemTypes:
+        for problemType in _As_problemTypes(problemType):
             space = self._Get_FunctionSpace(problemType)
             dof_n = self.Get_dof_n(problemType)
             owners = space._dofOwners

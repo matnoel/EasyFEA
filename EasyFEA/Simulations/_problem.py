@@ -54,13 +54,6 @@ class _Problem(ABC):
         )
 
     @property
-    def problemType(self) -> ProblemType | tuple[ProblemType, ...]:
-        """The key of the solver settings: the field alone, else the fields."""
-        return (
-            self.problemTypes[0] if len(self.problemTypes) == 1 else self.problemTypes
-        )
-
-    @property
     def size(self) -> int:
         """Number of dofs of the fields."""
         return _Size(self.layout)
@@ -219,16 +212,16 @@ class _Problem(ABC):
         simu = self.simu
         tic = Tic()
 
-        u_n = simu._Get_u_n(self.problemType)
-        v_n = simu._Get_v_n(self.problemType)
-        a_n = simu._Get_a_n(self.problemType)
+        u_n = simu._Get_u_n(self.problemTypes)
+        v_n = simu._Get_v_n(self.problemTypes)
+        a_n = simu._Get_a_n(self.problemTypes)
         fields = tuple(
             problemType if problemType is not None and problemType.any() else None
             for problemType in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
         b = self.assembly.Get_b(list_contribution, load, fields)
 
-        tic.Tac("Solver", f"b ({self.problemType})", simu._verbosity)
+        tic.Tac("Solver", f"b ({', '.join(self.problemTypes)})", simu._verbosity)
 
         return b
 
@@ -307,7 +300,10 @@ class _Problem(ABC):
                                 rows[self.assembly.Dofs_e(block[0], group)] = True
             self.__termRows = rows
         lagrange = self.Compose(
-            lambda field: BoundaryCondition.Get_dofs(field, self.simu.Bc_Lagrange),  # type: ignore [arg-type]
+            lambda problemType: BoundaryCondition.Get_dofs(
+                problemType,
+                self.simu.Bc_Lagrange,  # type: ignore [arg-type]
+            ),
             isDofs=True,
         )
         connected = self.__termRows.copy()
@@ -324,7 +320,7 @@ class _Problem(ABC):
                 self.Compose(Bc_dofs, isDofs=True)
                 for Bc_dofs in (simu.Bc_dofs_Neumann, simu.Bc_dofs_Dirichlet)
             ]
-            orphans = np.intersect1d(orphans, simu.Get_dofs(self.problemType))
+            orphans = np.intersect1d(orphans, simu.Get_dofs(self.problemTypes))
             touched = np.isin(orphans, np.concatenate(conditions)).sum()
         touched = Reduce_sum(int(touched), simu.mesh.comm)
         if touched > 0:
@@ -365,7 +361,7 @@ class _Problem(ABC):
         }
         A = self.Get_A()
         owned = np.zeros(A.shape[0], dtype=bool)
-        owned[simu.Get_dofs(self.problemType)] = True
+        owned[simu.Get_dofs(self.problemTypes)] = True
         pinned: list[int] = []
         weights = {}
         comm = simu.mesh.comm
@@ -471,7 +467,11 @@ class _LinearProblem(_Problem):
             backend,
             simu.mesh.comm,
         )
-        tic.Tac("Solver", f"Solve {self.problemType} ({backend})", simu._verbosity)
+        tic.Tac(
+            "Solver",
+            f"Solve {', '.join(self.problemTypes)} ({backend})",
+            simu._verbosity,
+        )
         return x
 
 

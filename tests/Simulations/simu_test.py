@@ -1860,15 +1860,38 @@ def test_Simu__Get_monolithic_problems_is_one_per_problem_type(subtests):
             assert simu._Get_monolithic_problems() == expected
 
 
-def test_Simu__Get_monolithic_problem_holds_the_problem_type():
+def test_Simu__Get_monolithic_problemTypes_holds_the_problem_type():
     simu = _incompressible_square()
     U = simu.problemType
 
-    assert simu._Get_monolithic_problem() == (U, PRESSURE)
-    assert simu._Get_monolithic_problem(PRESSURE) == (U, PRESSURE)
-    assert _phasefield()._Get_monolithic_problem("damage") == "damage"
+    assert simu._Get_monolithic_problemTypes() == (U, PRESSURE)
+    assert simu._Get_monolithic_problemTypes(PRESSURE) == (U, PRESSURE)
+    assert _phasefield()._Get_monolithic_problemTypes("damage") == ("damage",)
     with pytest.raises(ValueError, match="not a problem"):
-        simu._Get_monolithic_problem((PRESSURE, U))
+        simu._Get_monolithic_problemTypes((PRESSURE, U))
+
+
+def test_Simu_loads_settings_saved_keyed_by_a_problem_type():
+    simu = _phasefield()
+    simu._Solver_Set(SolverType.scipy, simu.D)
+    simu.Solver_Set_Nonlinear_Strategy(Newton(), simu.U)
+    simu._Solver_Set_PETSc4Py_Options("preonly", "lu", problemType=simu.D)
+    state = simu.__getstate__()
+    # the shape of a file saved before the problem keys were tuples
+    for name in (
+        "_Simu__dict_solver",
+        "_Simu__dict_strategy",
+        "_Simu__dict_solver_petsc4py_options",
+    ):
+        state[name] = {key[0]: value for key, value in state[name].items()}
+
+    loaded = type(simu).__new__(type(simu))
+    loaded.__setstate__(state)
+
+    assert loaded._Solver_Get(simu.D) == SolverType.scipy
+    assert loaded._Solver_Get_Nonlinear_Strategy(simu.U) is not None
+    assert loaded._Solver_Get_Nonlinear_Strategy(simu.D) is None
+    assert loaded._Solver_Get_PETSc4Py_Options(simu.D)[:2] == ("preonly", "lu")
 
 
 def test_Simu_Solve_runs_one_newton_over_coupled_fields(subtests):
