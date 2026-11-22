@@ -20,6 +20,9 @@ build:
       # - uv pip install pypardiso
     pre_build:
       - git lfs pull
+    build:
+      html:
+        - python -m sphinx -T -b html -j 4 -d docs/_build/doctrees docs $READTHEDOCS_OUTPUT/html
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
