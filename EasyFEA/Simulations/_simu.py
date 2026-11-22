@@ -1847,13 +1847,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if problemType is None:
             problemType = self.problemType
+        problemTypes = problemType if isinstance(problemType, tuple) else (problemType,)
 
-        problem = self.__Get_problem(problemType)
-        if isinstance(problemType, tuple):
-            return problem.Compose(self.Get_dofs, isDofs=True)
-
-        owners, rank = problem.Get_dof_owners()
-        return np.arange(problem.size)[Owned(owners, rank)]
+        list_dofs = []
+        start = 0
+        for problemType in problemTypes:
+            space = self._Get_FunctionSpace(problemType)
+            dof_n = self.Get_dof_n(problemType)
+            owners = space._dofOwners
+            if owners is not None:
+                owners = np.repeat(owners, dof_n)
+            size = space.Nn * dof_n
+            list_dofs.append(start + np.arange(size)[Owned(owners, space.rank)])
+            start += size
+        return np.concatenate(list_dofs)
 
     # ----------------------------------------------
     # Boundary conditions
@@ -1963,10 +1970,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Bc_dofs_known_unknown(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> tuple[_types.IntArray, _types.IntArray]:
-        """Returns known and unknown dofs; of a monolithic problem, the fields end to end, a field left free up to a constant pinned at its first DOF."""
+        """Returns known and unknown dofs; of a monolithic problem, the fields end to end, a field left free up to a constant pinned at its first DOF; of a field inside one, its slice. Collective on `mesh.comm`."""
         tic = Tic()
 
-        unknown = self.__Get_problem(problemType).Unknown_mask()
+        problem = self.__Problem(problemType)
+        unknown = problem.Unknown_mask()
+        if problemType in problem.problemTypes and len(problem.problemTypes) > 1:
+            start = problem.offsets[problem.problemTypes.index(problemType)]
+            unknown = unknown[start : start + _Field_size(self, problemType)]
         dofsKnown = np.flatnonzero(~unknown)
         dofsUnknown = np.flatnonzero(unknown)
 
