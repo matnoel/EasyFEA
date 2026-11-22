@@ -135,8 +135,8 @@ class Problem:
     def Sum_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
         """External load, Neumann + the F of `list_contribution`."""
         simu = self.simu
-        dofs = self.dofLayout.Compose(simu.Bc_dofs_Neumann, isDofs=True)
-        dofsValues = self.dofLayout.Compose(simu.Bc_values_Neumann)
+        dofs = self.dofLayout.Concatenate_dofs(simu.Bc_dofs_Neumann)
+        dofsValues = self.dofLayout.Concatenate(simu.Bc_values_Neumann)
 
         load = np.zeros(self.dofLayout.Ndof, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
@@ -184,7 +184,7 @@ class Problem:
             trial = self.simu._Committed() if x is None else self.Trial(x)
             list_contribution = self._Integrate(trial)
             A = self.Sum_A(list_contribution)
-            x = self.dofLayout.Compose(trial.__getitem__)
+            x = self.dofLayout.Concatenate(trial.__getitem__)
         else:
             if x is not None:
                 raise ValueError("A linear problem's A and b do not depend on x.")
@@ -239,10 +239,12 @@ class Problem:
         knownDofs = np.flatnonzero(~self.Unknown_mask())
         target = np.zeros(self.dofLayout.Ndof) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
-            dofs = self.dofLayout.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
+            dofs = self.dofLayout.Concatenate_dofs(simu.Bc_dofs_Dirichlet)
             dofs = np.asarray(dofs, dtype=int)
             target[dofs] = 0.0
-            np.add.at(target, dofs, self.dofLayout.Compose(simu.Bc_values_Dirichlet))
+            np.add.at(
+                target, dofs, self.dofLayout.Concatenate(simu.Bc_values_Dirichlet)
+            )
 
         list_lagrangeConstraint = tuple(
             LagrangeConstraint(
@@ -259,7 +261,7 @@ class Problem:
 
     def Free_mask(self) -> _types.BoolArray:
         """Whether each dof is free: not Dirichlet, not orphan."""
-        dofs = self.dofLayout.Compose(self.simu.Bc_dofs_Dirichlet, isDofs=True)
+        dofs = self.dofLayout.Concatenate_dofs(self.simu.Bc_dofs_Dirichlet)
         free = np.ones(self.dofLayout.Ndof, dtype=bool)
         free[np.asarray(dofs, dtype=int)] = False
         free[self.Orphan_dofs()] = False
@@ -289,12 +291,11 @@ class Problem:
                             for group in groups:
                                 rows[self.assembly.Dofs_e(block[0], group)] = True
             self.__termRows = rows
-        lagrange = self.dofLayout.Compose(
+        lagrange = self.dofLayout.Concatenate_dofs(
             lambda problemType: BoundaryCondition.Get_dofs(
                 problemType,
                 self.simu.Bc_Lagrange,  # type: ignore [arg-type]
-            ),
-            isDofs=True,
+            )
         )
         connected = self.__termRows.copy()
         connected[np.asarray(lagrange, dtype=int)] = True
@@ -307,7 +308,7 @@ class Problem:
         touched = 0
         if orphans.size > 0:
             conditions = [
-                self.dofLayout.Compose(Bc_dofs, isDofs=True)
+                self.dofLayout.Concatenate_dofs(Bc_dofs)
                 for Bc_dofs in (simu.Bc_dofs_Neumann, simu.Bc_dofs_Dirichlet)
             ]
             orphans = np.intersect1d(orphans, simu.Get_dofs(self.problemTypes))

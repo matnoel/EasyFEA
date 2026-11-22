@@ -49,13 +49,48 @@ class Assembly:
         A.data.flags.writeable = False
         return A
 
+    def __Csr_map(
+        self, contributing: tuple
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+        """`(inv, indices, indptr, nnz)`: `inv[k]` the CSR-data slot element entry `k` feeds, the rest scipy's canonical pattern; `inv` int32, slots bounded by nnz < 2^31."""
+        dofLayout = self.dofLayout
+        Ndof = dofLayout.Ndof
+        list_rows, list_cols = [], []
+        for (r, c), groups in contributing:
+            for groupElem in groups:
+                rows_e = dofLayout.Dofs_e(r, groupElem)
+                cols_e = dofLayout.Dofs_e(c, groupElem)
+                list_rows.append(
+                    _FunctionSpace._Get_rows_e(rows_e, cols_e.shape[1]).ravel()
+                )
+                list_cols.append(
+                    _FunctionSpace._Get_columns_e(cols_e, rows_e.shape[1]).ravel()
+                )
+        rows = np.concatenate(list_rows)
+        cols = np.concatenate(list_cols)
+
+        # scipy's own pattern, from a structure-only matrix
+        matrix = sparse.csr_matrix(
+            (np.ones(rows.size), (rows, cols)), shape=(Ndof, Ndof)
+        )
+        matrix.sort_indices()
+
+        # each element entry to the slot of its (row, col), by the sorted row-major index
+        canon = (
+            np.repeat(np.arange(Ndof), np.diff(matrix.indptr)) * Ndof + matrix.indices
+        )
+        inv = np.searchsorted(canon, rows.astype(np.int64) * Ndof + cols).astype(
+            np.int32
+        )
+        return inv, matrix.indices, matrix.indptr, matrix.nnz
+
     def __Get_map(
         self, contributing: tuple
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
         """The CSR map of the contributing blocks, kept per `contributing`."""
         csrMap = self.__maps.get(contributing)
         if csrMap is None:
-            csrMap = _Csr_map(self.dofLayout, contributing)
+            csrMap = self.__Csr_map(contributing)
             self.__maps[contributing] = csrMap
         return csrMap
 
@@ -78,7 +113,7 @@ class Assembly:
             for contribution in list_contribution
             if contribution.slot == "F"
         ]
-        return self.__Scatter(pieces)
+        return self.__Assemble_vector(pieces)
 
     def Get_b(
         self,
@@ -87,7 +122,9 @@ class Assembly:
         fields: tuple[_types.FloatArray | None, ...],
     ) -> _types.FloatArray:
         """`load − Σ coef·R − Σ coef·X_e·field` over the contributions, X_e of the terms declaring no R; a None field is skipped."""
-        return load + self.__Scatter(self.__Pieces(list_contribution, fields, True))
+        return load + self.__Assemble_vector(
+            self.__Element_vectors(list_contribution, fields, True)
+        )
 
     def Get_product(
         self,
@@ -95,9 +132,11 @@ class Assembly:
         fields: tuple[_types.FloatArray | None, ...],
     ) -> _types.FloatArray:
         """`Σ coef·X_e·field` over the contributions' K, C and M, each slot on its field; a None field is skipped."""
-        return self.__Scatter(self.__Pieces(list_contribution, fields, False))
+        return self.__Assemble_vector(
+            self.__Element_vectors(list_contribution, fields, False)
+        )
 
-    def __Pieces(
+    def __Element_vectors(
         self,
         list_contribution: list[_Contribution],
         fields: tuple[_types.FloatArray | None, ...],
@@ -141,7 +180,7 @@ class Assembly:
             self.__dict_dofs_e[problemType, group] = dofs_e
         return dofs_e
 
-    def __Scatter(
+    def __Assemble_vector(
         self, pieces: list[tuple[_Contribution, np.ndarray]]
     ) -> _types.FloatArray:
         """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
@@ -208,35 +247,6 @@ def _Sum(
     # canonical by construction: no sort before the backends
     A.has_canonical_format = True
     return A
-
-
-def _Csr_map(
-    dofLayout: DofLayout, contributing: tuple
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
-    """`(inv, indices, indptr, nnz)`: `inv[k]` the CSR-data slot element entry `k` feeds, the rest scipy's canonical pattern; `inv` int32, slots bounded by nnz < 2^31."""
-    Ndof = dofLayout.Ndof
-    list_rows, list_cols = [], []
-    for (r, c), groups in contributing:
-        for groupElem in groups:
-            rows_e = dofLayout.Dofs_e(r, groupElem)
-            cols_e = dofLayout.Dofs_e(c, groupElem)
-            list_rows.append(
-                _FunctionSpace._Get_rows_e(rows_e, cols_e.shape[1]).ravel()
-            )
-            list_cols.append(
-                _FunctionSpace._Get_columns_e(cols_e, rows_e.shape[1]).ravel()
-            )
-    rows = np.concatenate(list_rows)
-    cols = np.concatenate(list_cols)
-
-    # scipy's own pattern, from a structure-only matrix
-    matrix = sparse.csr_matrix((np.ones(rows.size), (rows, cols)), shape=(Ndof, Ndof))
-    matrix.sort_indices()
-
-    # each element entry to the slot of its (row, col), by the sorted row-major index
-    canon = np.repeat(np.arange(Ndof), np.diff(matrix.indptr)) * Ndof + matrix.indices
-    inv = np.searchsorted(canon, rows.astype(np.int64) * Ndof + cols).astype(np.int32)
-    return inv, matrix.indices, matrix.indptr, matrix.nnz
 
 
 def _Blocks(

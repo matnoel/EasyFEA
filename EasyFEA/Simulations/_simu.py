@@ -1537,7 +1537,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemTypes)
         assert strategy is not None
         x0 = x0 or {}
-        start = problem.dofLayout.Compose(
+        start = problem.dofLayout.Concatenate(
             lambda problemType: (
                 x0[problemType] if problemType in x0 else self._Get_u_n(problemType)
             )
@@ -1598,7 +1598,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         problem = self.__Get_problem(problemTypes)
         return problem.Get_A_b(
-            None if x is None else problem.dofLayout.Compose(x.__getitem__)
+            None if x is None else problem.dofLayout.Concatenate(x.__getitem__)
         )
 
     def _Solver_Set_PETSc4Py_Options(

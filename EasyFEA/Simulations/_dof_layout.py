@@ -46,19 +46,22 @@ class DofLayout:
         space, dof_n, offset = self.blocks[problemType]
         return space.Get_assembly_e(group, dof_n) + offset
 
-    def Compose(
-        self, get: Callable[[ProblemType], np.ndarray], isDofs: bool = False
-    ) -> np.ndarray:
-        """`get(problemType)` of each problemType end to end, dof ids shifted to the problemType's offset when `isDofs`; `get(problemType)` itself for one alone."""
+    def Concatenate(self, get: Callable[[ProblemType], np.ndarray]) -> np.ndarray:
+        """`get(problemType)` of each problem type end to end; `get(problemType)` itself for one alone."""
         if len(self.problemTypes) == 1:
             return get(self.problemTypes[0])
-        parts = [np.asarray(get(problemType)) for problemType in self.problemTypes]
-        if isDofs:
-            parts = [
-                part.astype(int) + self.blocks[problemType][2]
-                for part, problemType in zip(parts, self.problemTypes)
+        return np.concatenate([np.asarray(get(pt)) for pt in self.problemTypes])
+
+    def Concatenate_dofs(self, get: Callable[[ProblemType], np.ndarray]) -> np.ndarray:
+        """`get(problemType)`'s dof ids of each problem type end to end, shifted to its offset in the system."""
+        if len(self.problemTypes) == 1:
+            return get(self.problemTypes[0])
+        return np.concatenate(
+            [
+                np.asarray(get(pt)).astype(int) + self.blocks[pt][2]
+                for pt in self.problemTypes
             ]
-        return np.concatenate(parts)
+        )
 
     def Owners(self) -> tuple[_types.IntArray | None, int]:
         """Owner rank of each dof, None when never partitioned, and this rank."""
