@@ -1506,7 +1506,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem = self.__Problem(problemType)
         problem.Check_monolithic()
 
-        backend = self.__Get_backend(problem.problemType)
+        backend = self.__Get_backend(problem)
         # collective: before the solve, which may raise on one rank only
         problem.Warn_orphan_conditions()
         if isinstance(problem, _NonLinearProblem):
@@ -1552,16 +1552,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x
 
-    def __Get_backend(
-        self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> Backend:
+    def __Get_backend(self, problem: _Problem) -> Backend:
         """The backend of the problem's solver type, options and bounds; guess `u_n` for a linear solve, 0 for Newton's increment."""
+        problemType = problem.problemType
         solverType = self._Solver_Get(problemType)
         options = None
         if solverType == SolverType.petsc:
             options = self._Solver_Get_PETSc4Py_Options(problemType)
         lb, ub = self._Solver_Get_lb_ub(problemType)
-        nonLinear = self._Solver_Get_Nonlinear_Strategy(problemType) is not None
+        nonLinear = problem.isNonLinear
         if nonLinear and np.size(lb) + np.size(ub) > 0:
             raise NotImplementedError(
                 "The solver's bounds hold the solution, a nonlinear strategy solves for its increment: solve this problem linearly, Solver_Set_Nonlinear_Strategy(None, problemType)."
