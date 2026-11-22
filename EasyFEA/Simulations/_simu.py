@@ -56,8 +56,8 @@ from ._problem_type import ProblemType, TrialSolution, _As_problemTypes
 from . import _iterations
 from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
-from ._dof_layout import _DofLayout, _Field_size
-from ._problem import _Problem
+from ._dof_layout import DofLayout, _Field_size
+from ._problem import Problem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
@@ -156,8 +156,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __variables: _iterations.Variables
     __wholeRows: dict[int, list[_iterations.Rows]] = {}
     """By mesh index, the rows of the whole mesh each rank owns, set once the simulation is assembled from them; how an iteration saved over the ranks reads whole."""
-    __dict_problem: dict[tuple[ProblemType, ...], _Problem] = {}
-    """By fields, their `_Problem`; replaced, never written in place."""
+    __dict_problem: dict[tuple[ProblemType, ...], Problem] = {}
+    """By fields, their `Problem`; replaced, never written in place."""
     _resolution: ResolType | None = None
     """overrides the resolution, r2 with Lagrange conditions else r1; for tests"""
 
@@ -197,21 +197,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             f"{problemType} is not a problem of this simulation {problems}."
         )
 
-    def __Get_problem(self, problemTypes: tuple[ProblemType, ...]) -> _Problem:
-        """The `_Problem` of exactly these problem types, kept until the mesh changes or they gain or lose a nonlinear strategy."""
+    def __Get_problem(self, problemTypes: tuple[ProblemType, ...]) -> Problem:
+        """The `Problem` of exactly these problem types, kept until the mesh changes or they gain or lose a nonlinear strategy."""
         isNonLinear = problemTypes in self.__dict_strategy
         problem = self.__dict_problem.get(problemTypes)
         if problem is None or problem.isNonLinear != isNonLinear:
             if problem is not None:
                 problem.Free()
-            problem = _Problem(self, problemTypes, isNonLinear)
+            problem = Problem(self, problemTypes, isNonLinear)
             self.__dict_problem = {**self.__dict_problem, problemTypes: problem}
         return problem
 
     def __Problem(
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> _Problem:
-        """The `_Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
+    ) -> Problem:
+        """The `Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
         return self.__Get_problem(self._Get_monolithic_problemTypes(problemType))
 
     @abstractmethod
@@ -248,7 +248,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         energy = 0.5 * x[dofs] @ product[dofs]
         return Reduce_sum(energy, self.mesh.comm)
 
-    def __Get_reaction(self, problem: _Problem, slots: str | None) -> _types.FloatArray:
+    def __Get_reaction(self, problem: Problem, slots: str | None) -> _types.FloatArray:
         """Internal force of the slots (default the scheme's), complete on owned rows only."""
         if problem.isNonLinear:
             raise NotImplementedError
@@ -1073,7 +1073,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 problem.Free()
 
     def __Forget_mesh(self) -> None:
-        """Forgets what the mesh's connectivity built: the cached values and every `_Problem`, its solver freed. Never in `Need_Update`, which fires on every Newton iteration. Collective."""
+        """Forgets what the mesh's connectivity built: the cached values and every `Problem`, its solver freed. Never in `Need_Update`, which fires on every Newton iteration. Collective."""
         clear_cached_computed_values(self)
         self.__Free_solvers()
         self.__dict_problem = {}
@@ -1462,7 +1462,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> None:
         """Sets the solutions of `problemType`, its problem types end to end in one vector; every problem sharing no field with it goes stale."""
         problemTypes = _As_problemTypes(problemType)
-        for problemType, dofs in _DofLayout(self, problemTypes).slices.items():
+        for problemType, dofs in DofLayout(self, problemTypes).slices.items():
             self.__Set_field_solutions(
                 problemType,
                 u[dofs].copy(),
@@ -1529,7 +1529,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Nonlinear(
         self,
-        problem: _Problem,
+        problem: Problem,
         backend: Backend,
         x0: TrialSolution | None,
     ) -> _types.FloatArray:
@@ -1551,7 +1551,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x
 
-    def __Get_backend(self, problem: _Problem) -> Backend:
+    def __Get_backend(self, problem: Problem) -> Backend:
         """The backend of the problem's solver type, options and bounds; guess `u_n` for a linear solve, 0 for Newton's increment."""
         problemTypes = problem.problemTypes
         solverType = self._Solver_Get(problemTypes)
@@ -1844,9 +1844,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
 
         problemTypes = _As_problemTypes(problemType)
-        dofLayout = _DofLayout(self, problemTypes)
+        dofLayout = DofLayout(self, problemTypes)
         owners, rank = dofLayout.Owners()
-        size = dofLayout.size
+        size = dofLayout.Ndof
         return np.arange(size)[Owned(owners, rank)]
 
     # ----------------------------------------------

@@ -11,7 +11,7 @@ from scipy import sparse
 
 from ..FEM._function_space import _FunctionSpace
 from ..Utilities import _types
-from ._dof_layout import _DofLayout
+from ._dof_layout import DofLayout
 from ._problem_type import ProblemType
 from ._terms import Term, _Contribution
 
@@ -19,16 +19,20 @@ if TYPE_CHECKING:
     from ..FEM import _GroupElem
 
 
-class _Assembly:
+class Assembly:
     """What one problem's contributions sum to (A, b, products) on its fixed `dofLayout`, with their CSR maps; Lagrange rows excluded."""
 
-    def __init__(self, dofLayout: _DofLayout) -> None:
+    def __init__(self, dofLayout: DofLayout) -> None:
         self.dofLayout = dofLayout
-        self.size = dofLayout.size
         self.__maps: dict[tuple, tuple[np.ndarray, np.ndarray, np.ndarray, int]] = {}
         """`{contributing: csr map}`"""
         self.__dict_dofs_e: dict[tuple[str, _GroupElem], _types.IntArray] = {}
         """`{(field, group): dofs_e}`"""
+
+    @property
+    def Ndof(self) -> int:
+        """Number of dofs."""
+        return self.dofLayout.Ndof
 
     def Get_A(
         self,
@@ -41,7 +45,7 @@ class _Assembly:
             for contribution in list_contribution
             if contribution.slot in "KCM"
         ]
-        A = _Sum(matrices, coefs, self.size, self.__Get_map)
+        A = _Sum(matrices, coefs, self.Ndof, self.__Get_map)
         A.data.flags.writeable = False
         return A
 
@@ -65,7 +69,7 @@ class _Assembly:
             if contribution.slot in "KCM"
         ]
         coefK, coefC, coefM = (float(s == slot) for s in "KCM")
-        return _Sum(matrices, (coefK, coefC, coefM), self.size, self.__Get_map)
+        return _Sum(matrices, (coefK, coefC, coefM), self.Ndof, self.__Get_map)
 
     def Get_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
         """The F contributions, summed: the load the terms declare."""
@@ -140,9 +144,9 @@ class _Assembly:
     def __Scatter(
         self, pieces: list[tuple[_Contribution, np.ndarray]]
     ) -> _types.FloatArray:
-        """Element vectors summed into a vector of `size`, each into its contribution's rows."""
+        """Element vectors summed into a vector of `Ndof`, each into its contribution's rows."""
         if not pieces:
-            return np.zeros(self.size)
+            return np.zeros(self.Ndof)
         rows = np.concatenate(
             [
                 self.Dofs_e(contribution.block[0], contribution.group).ravel()
@@ -152,7 +156,7 @@ class _Assembly:
         data = np.concatenate([vector.ravel() for _, vector in pieces])
         if np.iscomplexobj(data):
             raise TypeError("Complex systems are not supported.")
-        return np.bincount(rows, weights=data, minlength=self.size)
+        return np.bincount(rows, weights=data, minlength=self.Ndof)
 
 
 def _Sizes(list_contribution: list[_Contribution]) -> dict:
@@ -207,10 +211,10 @@ def _Sum(
 
 
 def _Csr_map(
-    dofLayout: _DofLayout, contributing: tuple
+    dofLayout: DofLayout, contributing: tuple
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     """`(inv, indices, indptr, nnz)`: `inv[k]` the CSR-data slot element entry `k` feeds, the rest scipy's canonical pattern; `inv` int32, slots bounded by nnz < 2^31."""
-    Ndof = dofLayout.size
+    Ndof = dofLayout.Ndof
     list_rows, list_cols = [], []
     for (r, c), groups in contributing:
         for groupElem in groups:

@@ -15,8 +15,8 @@ from ..Solvers import Constraints, LagrangeConstraint, System
 from ..Solvers._backends import Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Reduce_max, Reduce_sum
-from ._assembly import _Assembly, _Blocks
-from ._dof_layout import _DofLayout
+from ._assembly import Assembly, _Blocks
+from ._dof_layout import DofLayout
 from ._problem_type import ProblemType, TrialSolution
 from ._terms import _Contribution
 from .TimeSchemes import Elliptic
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from ._simu import _Simu
 
 
-class _Problem:
+class Problem:
     """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes; linear, also its contributions and A."""
 
     def __init__(
@@ -38,7 +38,7 @@ class _Problem:
             raise ValueError(f"A field is given twice in {problemTypes}.")
         self.simu = simu
         self.problemTypes = problemTypes
-        self.dofLayout = _DofLayout(simu, problemTypes)
+        self.dofLayout = DofLayout(simu, problemTypes)
         self.isNonLinear = isNonLinear
         """whether the terms read the iterate"""
         self.needUpdate = True
@@ -71,9 +71,9 @@ class _Problem:
         return System(owners, rank, globalIds)
 
     @cached_property
-    def assembly(self) -> _Assembly:
+    def assembly(self) -> Assembly:
         """The assembly on `dofLayout`."""
-        return _Assembly(self.dofLayout)
+        return Assembly(self.dofLayout)
 
     def Free(self) -> None:
         """Destroys the solver kept by the system. Collective."""
@@ -138,7 +138,7 @@ class _Problem:
         dofs = self.dofLayout.Compose(simu.Bc_dofs_Neumann, isDofs=True)
         dofsValues = self.dofLayout.Compose(simu.Bc_values_Neumann)
 
-        load = np.zeros(self.dofLayout.size, dtype=float)
+        load = np.zeros(self.dofLayout.Ndof, dtype=float)
         np.add.at(load, np.asarray(dofs, dtype=int), dofsValues)
         load += self.assembly.Get_load(list_contribution)
         return load
@@ -195,7 +195,7 @@ class _Problem:
                     "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
                 )
             A = self.Get_A()
-            x = np.zeros(self.dofLayout.size)
+            x = np.zeros(self.dofLayout.Ndof)
         load = self.Sum_load(list_contribution)
         return A, self.Sum_b(list_contribution, load, x)
 
@@ -207,7 +207,7 @@ class _Problem:
         x, _ = self.system.Solve(
             A,
             b,
-            np.zeros(self.dofLayout.size),
+            np.zeros(self.dofLayout.Ndof),
             self.Constraints(),
             backend,
             simu.mesh.comm,
@@ -237,7 +237,7 @@ class _Problem:
         """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
         simu = self.simu
         knownDofs = np.flatnonzero(~self.Unknown_mask())
-        target = np.zeros(self.dofLayout.size) if x is None else x.copy()
+        target = np.zeros(self.dofLayout.Ndof) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
             dofs = self.dofLayout.Compose(simu.Bc_dofs_Dirichlet, isDofs=True)
             dofs = np.asarray(dofs, dtype=int)
@@ -260,7 +260,7 @@ class _Problem:
     def Free_mask(self) -> _types.BoolArray:
         """Whether each dof is free: not Dirichlet, not orphan."""
         dofs = self.dofLayout.Compose(self.simu.Bc_dofs_Dirichlet, isDofs=True)
-        free = np.ones(self.dofLayout.size, dtype=bool)
+        free = np.ones(self.dofLayout.Ndof, dtype=bool)
         free[np.asarray(dofs, dtype=int)] = False
         free[self.Orphan_dofs()] = False
         return free
@@ -280,7 +280,7 @@ class _Problem:
         if self.__termRows is None:
             simu = self.simu
             committed = simu._Committed()
-            rows = np.zeros(self.dofLayout.size, dtype=bool)
+            rows = np.zeros(self.dofLayout.Ndof, dtype=bool)
             for problemType in self.problemTypes:
                 for term in simu.Get_terms(committed, problemType):
                     groups = term._Get_groups(simu.mesh)

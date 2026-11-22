@@ -23,7 +23,7 @@ def _Field_size(simu: "_Simu", problemType: ProblemType) -> int:
     return simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
 
 
-class _DofLayout:
+class DofLayout:
     """The dofs of `problemTypes` end to end: sizes, slices, element dofs, owners and global ids."""
 
     def __init__(self, simu: "_Simu", problemTypes: tuple[ProblemType, ...]) -> None:
@@ -38,7 +38,7 @@ class _DofLayout:
             self.blocks[problemType] = (space, dof_n, offset)
             self.slices[problemType] = slice(offset, offset + space.Nn * dof_n)
             offset += space.Nn * dof_n
-        self.size = offset
+        self.Ndof = offset
         """number of dofs"""
 
     def Dofs_e(self, problemType: ProblemType, group: "_GroupElem") -> _types.IntArray:
@@ -75,7 +75,7 @@ class _DofLayout:
     def Owned_mask(self) -> _types.BoolArray:
         """Whether this rank owns each dof."""
         owners, rank = self.Owners()
-        isOwned = np.zeros(self.size, dtype=bool)
+        isOwned = np.zeros(self.Ndof, dtype=bool)
         isOwned[Owned(owners, rank)] = True
         return isOwned
 
