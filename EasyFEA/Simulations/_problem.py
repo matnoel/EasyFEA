@@ -234,7 +234,7 @@ class Problem:
     def Constraints(self, x: _types.FloatArray | None = None) -> Constraints:
         """The known dofs at the Dirichlet values, orphan and pinned ones at x (default 0), every one at x when the scheme solves for a; the Lagrange constraints."""
         simu = self.simu
-        knownDofs = np.flatnonzero(~self.Unknown_mask())
+        knownDofs = np.flatnonzero(~self.Get_unknown_mask())
         target = np.zeros(self.dofLayout.Ndof) if x is None else x.copy()
         if simu.timeScheme.unknown != "a":
             dofs = self.dofLayout.Concatenate_dofs(simu.Bc_dofs_Dirichlet)
@@ -265,7 +265,7 @@ class Problem:
         free[self.__Get_orphan_dofs()] = False
         return free
 
-    def Unknown_mask(self) -> _types.BoolArray:
+    def Get_unknown_mask(self) -> _types.BoolArray:
         """Whether each dof is solved for: free and not pinned. Collective on `mesh.comm`."""
         unknown = self.__Get_free_mask()
         unknown[self.__Get_pinned(unknown)[0]] = False

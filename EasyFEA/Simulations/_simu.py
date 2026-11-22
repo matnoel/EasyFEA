@@ -1961,7 +1961,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         problem = self.__Problem(problemType)
-        unknown = problem.Unknown_mask()
+        unknown = problem.Get_unknown_mask()
         if problemType in problem.problemTypes and len(problem.problemTypes) > 1:
             unknown = unknown[problem.dofLayout.slices[problemType]]
         dofsKnown = np.flatnonzero(~unknown)
