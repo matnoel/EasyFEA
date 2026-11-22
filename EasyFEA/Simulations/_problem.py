@@ -95,7 +95,7 @@ class Problem:
                 f"({names}) solved as one system does not support Lagrange boundary conditions."
             )
 
-    def Trial(self, x: _types.FloatArray) -> TrialSolution:
+    def __Get_trial(self, x: _types.FloatArray) -> TrialSolution:
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
         trial = self.simu._Committed()
         for problemType, dofs in self.dofLayout.slices.items():
@@ -106,7 +106,9 @@ class Problem:
     # Contributions
     # ----------------------------------------------
 
-    def _Integrate(self, trial: TrialSolution | None = None) -> list[_Contribution]:
+    def __Integrate_contributions(
+        self, trial: TrialSolution | None = None
+    ) -> list[_Contribution]:
         """The fields' contributions integrated at `trial` (default committed)."""
         if trial is None:
             trial = self.simu._Committed()
@@ -116,9 +118,9 @@ class Problem:
     def Get_contributions(self) -> list[_Contribution]:
         """The fields' contributions at the committed state, kept when linear."""
         if self.isNonLinear:
-            return self._Integrate()
+            return self.__Integrate_contributions()
         if self.__list_contribution is None:
-            self.__list_contribution = self._Integrate()
+            self.__list_contribution = self.__Integrate_contributions()
         return self.__list_contribution
 
     def Need_Update(self) -> None:
@@ -128,11 +130,7 @@ class Problem:
         self.__list_contribution = None
         self.__A = None
 
-    def Sum_A(self, list_contribution: list[_Contribution]) -> sparse.csr_matrix:
-        """A for the time scheme, summed from `list_contribution`."""
-        return self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
-
-    def Sum_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
+    def __Get_load(self, list_contribution: list[_Contribution]) -> _types.FloatArray:
         """External load, Neumann + the F of `list_contribution`."""
         simu = self.simu
         dofs = self.dofLayout.Concatenate_dofs(simu.Bc_dofs_Neumann)
@@ -143,13 +141,10 @@ class Problem:
         load += self.assembly.Get_load(list_contribution)
         return load
 
-    def Sum_b(
-        self,
-        list_contribution: list[_Contribution],
-        load: _types.FloatArray,
-        x: _types.FloatArray,
+    def __Get_b(
+        self, list_contribution: list[_Contribution], x: _types.FloatArray
     ) -> _types.FloatArray:
-        """b of `A dx = b` at the iterate x: `load` minus the internal forces of `list_contribution`."""
+        """b of `A dx = b` at the iterate x: the load minus the internal forces of `list_contribution`."""
         simu = self.simu
         tic = Tic()
 
@@ -160,16 +155,20 @@ class Problem:
             problemType if problemType is not None and problemType.any() else None
             for problemType in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
-        b = self.assembly.Get_b(list_contribution, load, fields)
+        b = self.assembly.Get_b(
+            list_contribution, self.__Get_load(list_contribution), fields
+        )
 
         tic.Tac("Solver", f"b ({', '.join(self.problemTypes)})", simu._verbosity)
 
         return b
 
-    def Get_A(self) -> sparse.csr_matrix:
+    def __Get_A(self) -> sparse.csr_matrix:
         """A for the time scheme at the committed state; linear, kept while the contributions and coefs hold."""
         if self.isNonLinear:
-            return self.Sum_A(self.Get_contributions())
+            return self.assembly.Get_A(
+                self.Get_contributions(), self.simu.timeScheme.coefs
+            )
         coefs = self.simu.timeScheme.coefs
         if self.__A is None or coefs != self.__ACoefs:
             self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
@@ -181,9 +180,9 @@ class Problem:
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b of `A dx = b` at the iterate x (default committed); linear, at x = 0 and `x` refused."""
         if self.isNonLinear:
-            trial = self.simu._Committed() if x is None else self.Trial(x)
-            list_contribution = self._Integrate(trial)
-            A = self.Sum_A(list_contribution)
+            trial = self.simu._Committed() if x is None else self.__Get_trial(x)
+            list_contribution = self.__Integrate_contributions(trial)
+            A = self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
             x = self.dofLayout.Concatenate(trial.__getitem__)
         else:
             if x is not None:
@@ -194,10 +193,9 @@ class Problem:
                 raise ValueError(
                     "A term declaring an internal force R needs a nonlinear strategy: call `Solver_Set_Nonlinear_Strategy`, or declare a force independent of u in the F slot."
                 )
-            A = self.Get_A()
+            A = self.__Get_A()
             x = np.zeros(self.dofLayout.Ndof)
-        load = self.Sum_load(list_contribution)
-        return A, self.Sum_b(list_contribution, load, x)
+        return A, self.__Get_b(list_contribution, x)
 
     def Solve(self, backend: Backend) -> _types.FloatArray:
         """x of `A x = b`, one solve of a linear problem."""
@@ -221,7 +219,7 @@ class Problem:
 
     def Get_load(self) -> _types.FloatArray:
         """External load at the committed state, Neumann + the terms' F."""
-        return self.Sum_load(self.Get_contributions())
+        return self.__Get_load(self.Get_contributions())
 
     def Get_product(
         self, fields: tuple[_types.FloatArray | None, ...]
@@ -259,25 +257,25 @@ class Problem:
             knownDofs, target[knownDofs], list_lagrangeConstraint, simu._resolution
         )
 
-    def Free_mask(self) -> _types.BoolArray:
+    def __Get_free_mask(self) -> _types.BoolArray:
         """Whether each dof is free: not Dirichlet, not orphan."""
         dofs = self.dofLayout.Concatenate_dofs(self.simu.Bc_dofs_Dirichlet)
         free = np.ones(self.dofLayout.Ndof, dtype=bool)
         free[np.asarray(dofs, dtype=int)] = False
-        free[self.Orphan_dofs()] = False
+        free[self.__Get_orphan_dofs()] = False
         return free
 
     def Unknown_mask(self) -> _types.BoolArray:
         """Whether each dof is solved for: free and not pinned. Collective on `mesh.comm`."""
-        unknown = self.Free_mask()
-        unknown[self.Pinned(unknown)[0]] = False
+        unknown = self.__Get_free_mask()
+        unknown[self.__Get_pinned(unknown)[0]] = False
         return unknown
 
-    def Orphan_dofs(self) -> _types.IntArray:
+    def __Get_orphan_dofs(self) -> _types.IntArray:
         """Dofs in no element and no Lagrange condition: known, 0 unless a Dirichlet value sets them, loads dropped."""
-        return np.flatnonzero(~self.Connected_rows())
+        return np.flatnonzero(~self.__Get_connected_rows())
 
-    def Connected_rows(self) -> _types.BoolArray:
+    def __Get_connected_rows(self) -> _types.BoolArray:
         """Rows a K, C or M term fills on its groups, ghost elements included, and the Lagrange dofs; read from the committed terms, never integrated; a copy."""
         if self.__termRows is None:
             simu = self.simu
@@ -304,7 +302,7 @@ class Problem:
     def Warn_orphan_conditions(self) -> None:
         """Warns when a load or a Dirichlet condition touches an orphan dof. Collective on `mesh.comm`."""
         simu = self.simu
-        orphans = self.Orphan_dofs()
+        orphans = self.__Get_orphan_dofs()
         touched = 0
         if orphans.size > 0:
             conditions = [
@@ -323,7 +321,7 @@ class Problem:
     # Pinned dofs
     # ----------------------------------------------
 
-    def Pinned(
+    def __Get_pinned(
         self, free: _types.BoolArray
     ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
         """Dofs pinning the fields left free up to a constant, and their zero-mean weights, kept until `free` changes. Collective on `mesh.comm`."""
@@ -350,7 +348,7 @@ class Problem:
             for slot, rows, cols in _Blocks(terms)
             if slot in "KCM" and rows == cols
         }
-        A = self.Get_A()
+        A = self.__Get_A()
         owned = self.dofLayout.Owned_mask()
         pinned: list[int] = []
         weights = {}
@@ -389,7 +387,7 @@ class Problem:
         simu = self.simu
         comm = simu.mesh.comm
         slices = self.dofLayout.slices
-        _, dict_weights = self.Pinned(self.Free_mask())
+        _, dict_weights = self.__Get_pinned(self.__Get_free_mask())
         for problemType, weights in dict_weights.items():
             values = x[slices[problemType]]
             owned = simu.Get_dofs(problemType)
