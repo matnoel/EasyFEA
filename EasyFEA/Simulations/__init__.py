@@ -5,9 +5,9 @@
 
 """This module contains all available simulation classes."""
 
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu, Load_Simu
-from ._terms import Term, Integrate_terms
+from .Problem._terms import Term, Integrate_terms
 from ._utils import Save_pickle, Load_pickle
 
 # ------------------------------------------------------------------------------

@@ -2,44 +2,25 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Nonlinear strategies over a `NonlinearProblem`, through its `System`: Newton-Raphson."""
+"""Nonlinear strategies over a `_Problem`, through its `System`: Newton-Raphson."""
 
-from typing import Any, Protocol
-
-from scipy import sparse
+from typing import Protocol
 
 from ..Utilities import _params, _types
 from ..Utilities._mpi import MPI_RANK
 from ._backends import Backend
-from ._constraints import Constraints
-from ._system import System
+from ._problem_protocol import _Problem
 
 
 class NotConvergedError(AssertionError):
     """Newton ran out of iterations."""
 
 
-class NonlinearProblem(Protocol):
-    """What a nonlinear strategy reads: A and b at an iterate, its constraints, the system and `comm` (None = no reduction)."""
-
-    @property
-    def system(self) -> System: ...
-
-    @property
-    def comm(self) -> Any: ...
-
-    def Get_A_b(
-        self, x: _types.FloatArray
-    ) -> tuple[sparse.csr_matrix, _types.FloatArray]: ...
-
-    def Constraints(self, x: _types.FloatArray) -> Constraints: ...
-
-
 class NonlinearStrategy(Protocol):
-    """Solves a `NonlinearProblem` from `x0`: x and b's norm per iteration. Collective on `problem.comm`."""
+    """Solves a `_Problem` from `x0`: x and b's norm per iteration. Collective on `problem.comm`."""
 
     def __call__(
-        self, problem: NonlinearProblem, backend: Backend, x0: _types.FloatArray
+        self, problem: _Problem, backend: Backend, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]: ...
 
 
@@ -73,7 +54,7 @@ class Newton:
         self.verbosity = verbosity
 
     def __call__(
-        self, problem: NonlinearProblem, backend: Backend, x0: _types.FloatArray
+        self, problem: _Problem, backend: Backend, x0: _types.FloatArray
     ) -> tuple[_types.FloatArray, list[float]]:
         system, comm = problem.system, problem.comm
         x = x0.copy()

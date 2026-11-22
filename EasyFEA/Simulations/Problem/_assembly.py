@@ -9,14 +9,14 @@ from typing import TYPE_CHECKING, Callable, Iterator
 import numpy as np
 from scipy import sparse
 
-from ..FEM._function_space import _FunctionSpace
-from ..Utilities import _types
+from ...FEM._function_space import _FunctionSpace
+from ...Utilities import _types
 from ._dof_layout import DofLayout
 from ._problem_type import ProblemType
 from ._terms import Term, _Contribution
 
 if TYPE_CHECKING:
-    from ..FEM import _GroupElem
+    from ...FEM import _GroupElem
 
 
 class Assembly:

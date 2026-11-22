@@ -31,8 +31,8 @@ from ..FEM import _GroupElem
 from ..Solvers import Newton
 from ._simu import _Simu
 from .TimeSchemes import Hyperbolic
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 
 
 class HyperElastic(_Simu):
@@ -175,7 +175,7 @@ class HyperElastic(_Simu):
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
         r"""Terms of ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``.
 
-        The elastic, active fiber and Kelvin–Voigt stresses come as one ``"KRC"`` term, on one kinematics; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` :func:`~EasyFEA.Simulations._terms.Integrate_terms` supplies. The ``R`` slot: these operators return the **internal** force, which reaches the right-hand side negated.
+        The elastic, active fiber and Kelvin–Voigt stresses come as one ``"KRC"`` term, on one kinematics; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` :func:`~EasyFEA.Simulations.Problem._terms.Integrate_terms` supplies. The ``R`` slot: these operators return the **internal** force, which reaches the right-hand side negated.
         """
         if problemType is None:
             problemType = self.problemType

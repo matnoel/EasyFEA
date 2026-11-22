@@ -30,8 +30,8 @@ from ..Models.Beam._beam import BeamStructure, _Beam
 
 # simu
 from ._simu import _Simu, SolverType
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 
 # component layouts of BeamStructure.Compute_Epsilon / Compute_Sigma, keyed by dof_n
 _STRAINS = {1: ["ux'"], 3: ["ux'", "rz'"], 6: ["ux'", "rx'", "ry'", "rz'"]}

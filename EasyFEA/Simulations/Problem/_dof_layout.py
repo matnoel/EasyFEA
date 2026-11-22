@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
-from ..FEM._function_space import _FunctionSpace
-from ..Utilities import _types
-from ..Utilities._mpi import Owned
+from ...FEM._function_space import _FunctionSpace
+from ...Utilities import _types
+from ...Utilities._mpi import Owned
 from ._problem_type import ProblemType
 
 if TYPE_CHECKING:
-    from ..FEM import _GroupElem
-    from ._simu import _Simu
+    from ...FEM import _GroupElem
+    from .._simu import _Simu
 
 
 def _Field_size(simu: "_Simu", problemType: ProblemType) -> int:

@@ -30,7 +30,7 @@ from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations import Integrate_terms
 from EasyFEA.Solvers import Newton
 from EasyFEA.Solvers._backends import CAN_USE_PYPARDISO, Backend, _Get_PETSc
-from EasyFEA.Solvers._newton import NonlinearProblem
+from EasyFEA.Solvers._problem_protocol import _Problem
 from EasyFEA.Utilities import MPI_SIZE
 
 from _numerics import rel_error
@@ -1516,7 +1516,7 @@ class _RecordingNewton:
         self.norms: list[float] = []
 
     def __call__(
-        self, problem: NonlinearProblem, backend: Backend, x0: np.ndarray
+        self, problem: _Problem, backend: Backend, x0: np.ndarray
     ) -> tuple[np.ndarray, list[float]]:
         self.fields.append(problem.problemTypes)
         self.x, self.norms = self.newton(problem, backend, x0)

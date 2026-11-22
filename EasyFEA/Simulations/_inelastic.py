@@ -23,8 +23,8 @@ from ..Models.InElastic._behavior import _Behavior
 
 from ..Solvers import Newton
 from ._simu import _Simu
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 
 
 class InElastic(_Simu):

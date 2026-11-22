@@ -19,9 +19,9 @@ from ..FEM._kelvin_mandel import Tensor_to_Kelvin
 from ..Models.HyperElastic._laws import _HyperElastic
 from ..Utilities import _types
 from ..Solvers import Newton
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType, TrialSolution
 from ._simu import _Simu
-from ._terms import Term
+from .Problem._terms import Term
 from ._utils import (
     Result_strain_or_stress_field_e,
     Stress_names,

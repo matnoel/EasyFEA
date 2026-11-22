@@ -42,7 +42,7 @@ from ._function_space import _FunctionSpace
 
 if TYPE_CHECKING:
     from ._group_elem import _GroupElem
-    from ..Simulations._problem_type import ProblemType
+    from ..Simulations.Problem._problem_type import ProblemType
 
 # others
 if TYPE_CHECKING:

@@ -23,8 +23,8 @@ from ._utils import (
 
 # simu
 from ._simu import _Simu, SolverType
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 
 
 class PhaseField(_Simu):

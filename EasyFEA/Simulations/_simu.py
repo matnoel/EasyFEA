@@ -52,12 +52,12 @@ from ..FEM._mesh import _MeshPart
 from ..Models import _IModel
 
 # simu
-from ._problem_type import ProblemType, TrialSolution, _As_problemTypes
+from .Problem._problem_type import ProblemType, TrialSolution, _As_problemTypes
 from . import _iterations
-from ._terms import Term, Integrate_terms, _Contribution
-from ._assembly import _Blocks
-from ._dof_layout import DofLayout, _Field_size
-from ._problem import Problem
+from .Problem._terms import Term, Integrate_terms, _Contribution
+from .Problem._assembly import _Blocks
+from .Problem._dof_layout import DofLayout, _Field_size
+from .Problem._problem import Problem
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
@@ -1038,7 +1038,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def thickness(self) -> float:
-        """Out-of-plane thickness in 2D, 1 otherwise. Operators integrate over the element's own dimension, so every 2D contribution is scaled by this once, in :func:`~EasyFEA.Simulations._terms.Integrate_terms`."""
+        """Out-of-plane thickness in 2D, 1 otherwise. Operators integrate over the element's own dimension, so every 2D contribution is scaled by this once, in :func:`~EasyFEA.Simulations.Problem._terms.Integrate_terms`."""
         return self.model.thickness if self.dim == 2 else 1.0
 
     def __Update_mesh(self, index: int) -> None:

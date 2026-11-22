@@ -12,14 +12,14 @@ from typing import Any, Callable, TYPE_CHECKING
 
 import numpy as np
 
-from ..Utilities import _types
-from ..Utilities._cache import cached_computed_values
+from ...Utilities import _types
+from ...Utilities._cache import cached_computed_values
 
 if TYPE_CHECKING:
     from typing import Concatenate
 
-    from ..FEM import Mesh, _GroupElem
-    from ._simu import _Simu
+    from ...FEM import Mesh, _GroupElem
+    from .._simu import _Simu
     from ._problem_type import ProblemType
 
     # what a checker enforces: the first positional argument is the element group, the rest are the term's kwargs

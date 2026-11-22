@@ -10,22 +10,23 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
-from ..FEM import BoundaryCondition, Operators
-from ..Solvers import Constraints, LagrangeConstraint, System
-from ..Solvers._backends import Backend
-from ..Utilities import Terminal, Tic, _types
-from ..Utilities._mpi import Reduce_max, Reduce_sum
+from ...FEM import BoundaryCondition, Operators
+from ...Solvers import Constraints, LagrangeConstraint, System
+from ...Solvers._backends import Backend
+from ...Solvers._problem_protocol import _Problem
+from ...Utilities import Terminal, Tic, _types
+from ...Utilities._mpi import Reduce_max, Reduce_sum
 from ._assembly import Assembly, _Blocks
 from ._dof_layout import DofLayout
 from ._problem_type import ProblemType, TrialSolution
 from ._terms import _Contribution
-from .TimeSchemes import Elliptic
+from ..TimeSchemes import Elliptic
 
 if TYPE_CHECKING:
-    from ._simu import _Simu
+    from .._simu import _Simu
 
 
-class Problem:
+class Problem(_Problem):
     """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes; linear, also its contributions and A."""
 
     def __init__(

@@ -25,8 +25,8 @@ from ..Models.Elastic._laws import _Elastic
 
 # simu
 from ._simu import _Simu
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 from .TimeSchemes import Hyperbolic
 
 

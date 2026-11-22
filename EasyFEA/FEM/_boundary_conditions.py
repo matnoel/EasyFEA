@@ -14,7 +14,7 @@ from ._function_space import _FunctionSpace
 from ..Utilities import _types
 
 if TYPE_CHECKING:
-    from ..Simulations._problem_type import ProblemType
+    from ..Simulations.Problem._problem_type import ProblemType
 
 
 class BoundaryCondition:

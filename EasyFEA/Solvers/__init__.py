@@ -9,7 +9,6 @@ from ._constraints import ResolType, Constraints, LagrangeConstraint
 from ._system import System
 from ._newton import (
     Newton,
-    NonlinearProblem,
     NonlinearStrategy,
     NotConvergedError,
 )

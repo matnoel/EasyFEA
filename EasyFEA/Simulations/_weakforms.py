@@ -20,8 +20,8 @@ from .. import Models
 # simu
 from ..Solvers import Newton
 from ._simu import _Simu
-from ._terms import Term
-from ._problem_type import ProblemType, TrialSolution
+from .Problem._terms import Term
+from .Problem._problem_type import ProblemType, TrialSolution
 
 
 class WeakForms(_Simu):
@@ -124,7 +124,7 @@ class WeakForms(_Simu):
         return 1.0 if self.mesh.inDim == 3 else self.weakForms.thickness
 
     def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
-        """One term per form the user supplied; :func:`~EasyFEA.Simulations._terms.Integrate_terms` applies :py:attr:`thickness` to each.
+        """One term per form the user supplied; :func:`~EasyFEA.Simulations.Problem._terms.Integrate_terms` applies :py:attr:`thickness` to each.
 
         The K/C/M forms declare no ``R``, so they are linear: b takes ``-K·u_t`` / ``-C·v_t`` / ``-M·a_t`` from them. ``computeF`` is a load, hence the ``F`` slot.
         """
