@@ -30,7 +30,6 @@ from Simulations._simus import (
 from ._simus import L, H, element_tags, far_meshes
 
 
-
 def _drawn(ax, kind) -> list:
     return [c for c in ax.collections if type(c) is kind]
 
