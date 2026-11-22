@@ -31,6 +31,34 @@ def _Field_size(simu: "_Simu", problemType: ProblemType) -> int:
     return simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
 
 
+def _Slices(
+    simu: "_Simu", problemTypes: tuple[ProblemType, ...]
+) -> dict[ProblemType, slice]:
+    """Where each problem type's dofs sit in `problemTypes` end to end."""
+    slices = {}
+    start = 0
+    for problemType in problemTypes:
+        stop = start + _Field_size(simu, problemType)
+        slices[problemType] = slice(start, stop)
+        start = stop
+    return slices
+
+
+def _Dof_owners(
+    simu: "_Simu", problemTypes: tuple[ProblemType, ...]
+) -> tuple[_types.IntArray | None, int]:
+    """Owner rank of each dof of `problemTypes` end to end, None when never partitioned, and this rank."""
+    spaces = [simu._Get_FunctionSpace(problemType) for problemType in problemTypes]
+    rank = spaces[0].rank
+    if any(space._dofOwners is None for space in spaces):
+        return None, rank
+    owners = [
+        np.repeat(space._dofOwners, simu.Get_dof_n(problemType))
+        for problemType, space in zip(problemTypes, spaces)
+    ]
+    return np.concatenate(owners), rank
+
+
 class _Problem(ABC):
     """Fields of a simulation solved as one system ``[u | p | …]``: its system, assembly and contributions, kept until the mesh changes."""
 
@@ -129,18 +157,7 @@ class _Problem(ABC):
 
     def Get_dof_owners(self) -> tuple[_types.IntArray | None, int]:
         """Owner rank of each dof, None when never partitioned, and this rank."""
-        simu = self.simu
-        spaces = [
-            simu._Get_FunctionSpace(problemType) for problemType in self.problemTypes
-        ]
-        rank = spaces[0].rank
-        if any(space._dofOwners is None for space in spaces):
-            return None, rank
-        owners = [
-            np.repeat(space._dofOwners, simu.Get_dof_n(problemType))
-            for problemType, space in zip(self.problemTypes, spaces)
-        ]
-        return np.concatenate(owners), rank
+        return _Dof_owners(self.simu, self.problemTypes)
 
     def Owned_mask(self) -> _types.BoolArray:
         """Whether this rank owns each dof."""
@@ -163,8 +180,8 @@ class _Problem(ABC):
     def Trial(self, x: _types.FloatArray) -> TrialSolution:
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
         trial = self.simu._Committed()
-        for problemType, start in zip(self.problemTypes, self.offsets):
-            trial[problemType] = x[start : start + _Field_size(self.simu, problemType)]
+        for problemType, dofs in _Slices(self.simu, self.problemTypes).items():
+            trial[problemType] = x[dofs]
         return trial
 
     # ----------------------------------------------
@@ -360,16 +377,15 @@ class _Problem(ABC):
             if slot in "KCM" and rows == cols
         }
         A = self.Get_A()
-        owned = np.zeros(A.shape[0], dtype=bool)
-        owned[simu.Get_dofs(self.problemTypes)] = True
+        owned = self.Owned_mask()
         pinned: list[int] = []
         weights = {}
         comm = simu.mesh.comm
-        for problemType, start in zip(self.problemTypes, self.offsets):
+        for problemType, dofs in _Slices(simu, self.problemTypes).items():
             if simu.Get_dof_n(problemType) != 1 or problemType in diagonal:
                 continue
             isField = np.zeros(A.shape[0], dtype=bool)
-            isField[start : start + _Field_size(simu, problemType)] = True
+            isField[dofs] = True
             # rows complete only where owned under MPI
             A_rc = A[:, isField][owned & free & ~isField]
             constant = Reduce_sum(np.sum((A_rc @ np.ones(A_rc.shape[1])) ** 2), comm)
@@ -377,7 +393,7 @@ class _Problem(ABC):
             if constant <= (1e-10) ** 2 * scale:
                 space = simu._Get_FunctionSpace(problemType)
                 node = space.Get_dof_nodes(np.flatnonzero(space.globalNodes == 0))
-                pinned.extend(start + space.Get_dofs(node, 1))
+                pinned.extend(dofs.start + space.Get_dofs(node, 1))
                 weights[problemType] = self.__Get_weights(problemType)
         return np.asarray(pinned, dtype=np.int64), weights
 
@@ -398,11 +414,10 @@ class _Problem(ABC):
         """Shifts each pinned field to zero mean, ``∫ field dΩ = 0`` with weights ``∫ N_i dΩ``, in place in `x`. Collective on `mesh.comm`."""
         simu = self.simu
         comm = simu.mesh.comm
-        offsets = self.offsets
+        slices = _Slices(simu, self.problemTypes)
         _, dict_weights = self.Pinned(self.Free_mask())
         for problemType, weights in dict_weights.items():
-            start = offsets[self.problemTypes.index(problemType)]
-            values = x[start : start + weights.size]
+            values = x[slices[problemType]]
             owned = simu.Get_dofs(problemType)
             mean = Reduce_sum(weights[owned] @ values[owned], comm) / Reduce_sum(
                 weights[owned].sum(), comm

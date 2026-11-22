@@ -56,7 +56,14 @@ from ._problem_type import ProblemType, TrialSolution, _As_problemTypes
 from . import _iterations
 from ._terms import Term, Integrate_terms, _Contribution
 from ._assembly import _Blocks
-from ._problem import _Field_size, _LinearProblem, _NonLinearProblem, _Problem
+from ._problem import (
+    _Dof_owners,
+    _Field_size,
+    _LinearProblem,
+    _NonLinearProblem,
+    _Problem,
+    _Slices,
+)
 from .TimeSchemes import _TimeScheme, Elliptic, Parabolic, Hyperbolic
 from ..Solvers import (
     SolverType,
@@ -1469,19 +1476,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> None:
         """Sets the solutions of `problemType`, its problem types end to end in one vector; every problem sharing no field with it goes stale."""
         problemTypes = _As_problemTypes(problemType)
-        start = 0
-        for problemType in problemTypes:
-            end = start + _Field_size(self, problemType)
+        for problemType, dofs in _Slices(self, problemTypes).items():
             self.__Set_field_solutions(
                 problemType,
-                u[start:end].copy(),
-                None if v is None else v[start:end].copy(),
-                None if a is None else a[start:end].copy(),
+                u[dofs].copy(),
+                None if v is None else v[dofs].copy(),
+                None if a is None else a[dofs].copy(),
             )
-            start = end
 
+        solved = set(problemTypes)
         for problem in self.__dict_problem.values():
-            if set(problemTypes).isdisjoint(problem.problemTypes):
+            if solved.isdisjoint(problem.problemTypes):
                 problem.Need_Update()
 
     def __Set_field_solutions(
@@ -1600,9 +1605,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         x: TrialSolution | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b before Dirichlet and Lagrange rows of the monolithic problem holding `problemType` or of the fields given: linear, the kept A (the object the solve uses, never write into it) and b, `x` refused; nonlinear, K_t and R with the problem's fields at the trial solution `x` (default committed), the others committed, never kept."""
-        problemTypes = () if problemType is None else _As_problemTypes(problemType)
-        if len(problemTypes) <= 1:
-            problemTypes = self._Get_monolithic_problemTypes(problemType)
+        problemTypes = (
+            problemType
+            if isinstance(problemType, tuple) and len(problemType) > 1
+            else self._Get_monolithic_problemTypes(problemType)
+        )
         problem = self.__Get_problem(problemTypes)
         if isinstance(problem, _NonLinearProblem):
             return problem.Get_A_b(
@@ -1783,12 +1790,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # ── Store ─────────────────────────────────────────────────────────────
         list_problemTypes = (
-            [(problemType,) for problemType in self.problemTypes]
-            + [
-                problemTypes
-                for problemTypes in self._Get_monolithic_problems()
-                if len(problemTypes) > 1
-            ]
+            list(
+                dict.fromkeys(
+                    [(problemType,) for problemType in self.problemTypes]
+                    + self._Get_monolithic_problems()
+                )
+            )
             if problemType is None
             else [_As_problemTypes(problemType)]
         )
@@ -1854,18 +1861,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
 
-        list_dofs = []
-        start = 0
-        for problemType in _As_problemTypes(problemType):
-            space = self._Get_FunctionSpace(problemType)
-            dof_n = self.Get_dof_n(problemType)
-            owners = space._dofOwners
-            if owners is not None:
-                owners = np.repeat(owners, dof_n)
-            size = space.Nn * dof_n
-            list_dofs.append(start + np.arange(size)[Owned(owners, space.rank)])
-            start += size
-        return np.concatenate(list_dofs)
+        problemTypes = _As_problemTypes(problemType)
+        owners, rank = _Dof_owners(self, problemTypes)
+        size = sum(_Field_size(self, problemType) for problemType in problemTypes)
+        return np.arange(size)[Owned(owners, rank)]
 
     # ----------------------------------------------
     # Boundary conditions
@@ -1981,8 +1980,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problem = self.__Problem(problemType)
         unknown = problem.Unknown_mask()
         if problemType in problem.problemTypes and len(problem.problemTypes) > 1:
-            start = problem.offsets[problem.problemTypes.index(problemType)]
-            unknown = unknown[start : start + _Field_size(self, problemType)]
+            unknown = unknown[_Slices(self, problem.problemTypes)[problemType]]
         dofsKnown = np.flatnonzero(~unknown)
         dofsUnknown = np.flatnonzero(unknown)
 
