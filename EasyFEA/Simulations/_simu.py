@@ -1547,7 +1547,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if MPI_RANK == 0:
             Terminal.Section(f"{name} problem at iteration {self.Niter}")
         tic = Tic()
-        x, norms = problem.Solve(backend, strategy, start)
+        x, norms = strategy(problem, backend, start)
         timeIter = tic.Tac(f"Resolution {name}", "Newton iterations", False)
         self._Iter_Record(newtonIter=len(norms), timeIter=timeIter, list_norm_r=norms)
         return x

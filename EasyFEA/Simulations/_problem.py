@@ -13,7 +13,7 @@ from scipy import sparse
 
 from ..FEM import BoundaryCondition, Operators
 from ..FEM._function_space import _FunctionSpace
-from ..Solvers import Constraints, LagrangeConstraint, NonlinearStrategy, System
+from ..Solvers import Constraints, LagrangeConstraint, System
 from ..Solvers._backends import Backend
 from ..Utilities import Terminal, Tic, _types
 from ..Utilities._mpi import Owned, Reduce_max, Reduce_sum
@@ -493,9 +493,3 @@ class _NonLinearProblem(_Problem):
         load = self.Sum_load(list_contribution)
         b = self.Sum_b(list_contribution, load, self.Compose(trial.__getitem__))
         return self.Sum_A(list_contribution), b
-
-    def Solve(
-        self, backend: Backend, strategy: NonlinearStrategy, x0: _types.FloatArray
-    ) -> tuple[_types.FloatArray, list[float]]:
-        """The strategy from `x0`: x and b's norms."""
-        return strategy(self, backend, x0)
