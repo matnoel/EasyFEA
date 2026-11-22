@@ -6,7 +6,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from matplotlib import animation, colors
+from matplotlib import colors
 from matplotlib.collections import LineCollection, PolyCollection
 from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -29,9 +29,6 @@ from Simulations._simus import (
 
 from ._simus import L, H, element_tags, far_meshes
 
-needs_ffmpeg = pytest.mark.skipif(
-    not animation.FFMpegWriter.isAvailable(), reason="needs ffmpeg"
-)
 
 
 def _drawn(ax, kind) -> list:
@@ -866,7 +863,6 @@ def test_Plot_Bar_writes_each_time_in_or_beside_its_bar():
 # ----------------------------------------------
 # Movie_simu / Movie_func
 # ----------------------------------------------
-@needs_ffmpeg
 @pytest.mark.filterwarnings("ignore:FigureCanvasAgg is non-interactive")
 def test_Movie_simu_writes_one_frame_per_iteration_up_to_N(bar_simu, tmp_path):
     Matplotlib.Movie_simu(bar_simu, "ux", str(tmp_path), "ux.gif", N=2, plotMesh=True)
@@ -890,7 +886,6 @@ def test_Movie_simu_needs_the_gathered_simulation(bar_simu, monkeypatch, tmp_pat
         Matplotlib.Movie_simu(bar_simu, "Svm", str(tmp_path))
 
 
-@needs_ffmpeg
 def test_Movie_func_calls_func_once_per_frame(tmp_path):
     calls = []
 

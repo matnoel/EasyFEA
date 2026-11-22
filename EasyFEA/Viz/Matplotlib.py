@@ -1939,7 +1939,12 @@ def Movie_func(
     # Name of the video in the folder where the folder is communicated
     filename = Folder.Join(folder, filename, mkdir=True)
 
-    writer = animation.FFMpegWriter(_Movie_fps(filename, fps))
+    fps = _Movie_fps(filename, fps)
+    writer = (
+        animation.PillowWriter(fps)
+        if filename.lower().endswith(".gif")
+        else animation.FFMpegWriter(fps)
+    )
     with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
         tic = Tic()
         for i in range(N):

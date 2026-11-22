@@ -4,7 +4,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
-from matplotlib import animation
 
 from EasyFEA import Matplotlib, PyVista
 from EasyFEA.Viz import Viewer
@@ -86,9 +85,6 @@ def test_Viewer_Movie_simu_leaves_the_simulation_where_it_is(
     live = live_state(simu)
     for module in VIEWERS:
         with subtests.test(module=module.__name__):
-            if module is Matplotlib and not animation.FFMpegWriter.isAvailable():
-                pytest.skip("needs ffmpeg")
-
             module.Movie_simu(simu, "ux", str(tmp_path / module.__name__))
 
             assert_same_state(live_state(simu), live)
