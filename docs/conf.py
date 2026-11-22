@@ -164,6 +164,9 @@ pyvista.set_plot_theme("document")
 pyvista.BUILDING_GALLERY = True
 os.environ["PYVISTA_BUILDING_GALLERY"] = "true"
 os.environ["EASYFEA_BUILDING_GALLERY"] = "true"
+# the gallery's parallel workers never run this file, they only inherit the environment
+os.environ["PYVISTA_OFF_SCREEN"] = "true"
+os.environ["PYVISTA_PLOT_THEME"] = "document"
 
 
 def natural_sort_key(s):
