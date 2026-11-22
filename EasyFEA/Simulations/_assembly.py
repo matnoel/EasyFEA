@@ -136,13 +136,13 @@ class _Assembly:
             )
         return pieces
 
-    def Dofs_e(self, field: str, group: "_GroupElem") -> _types.IntArray:
-        """`field`'s dofs on each element of `group`, in the problem's vector; kept."""
-        dofs_e = self.__dict_dofs_e.get((field, group))
+    def Dofs_e(self, problemType: ProblemType, group: "_GroupElem") -> _types.IntArray:
+        """`problemType`'s dofs on each element of `group`, in the problem's vector; kept."""
+        dofs_e = self.__dict_dofs_e.get((problemType, group))
         if dofs_e is None:
-            dofs_e = _Dofs_e(self.layout, field, group)
+            dofs_e = _Dofs_e(self.layout, problemType, group)
             dofs_e.flags.writeable = False
-            self.__dict_dofs_e[field, group] = dofs_e
+            self.__dict_dofs_e[problemType, group] = dofs_e
         return dofs_e
 
     def __Scatter(
@@ -163,12 +163,14 @@ class _Assembly:
         return np.bincount(rows, weights=data, minlength=self.size)
 
 
-def _Dofs_e(layout: tuple, field, group) -> _types.IntArray:
-    """`field`'s dofs on each element of `group`, in the problem's vector."""
-    for problemType, space, dof_n, offset in layout:
-        if problemType == field:
+def _Dofs_e(
+    layout: tuple, problemType: ProblemType, group: "_GroupElem"
+) -> _types.IntArray:
+    """`problemType`'s dofs on each element of `group`, in the problem's vector."""
+    for other, space, dof_n, offset in layout:
+        if other == problemType:
             return space.Get_assembly_e(group, dof_n) + offset
-    raise KeyError(field)
+    raise KeyError(problemType)
 
 
 def _Sizes(list_contribution: list[_Contribution]) -> dict:

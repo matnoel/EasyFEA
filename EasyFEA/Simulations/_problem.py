@@ -26,9 +26,9 @@ if TYPE_CHECKING:
     from ._simu import _Simu
 
 
-def _Field_size(simu: "_Simu", field: ProblemType) -> int:
+def _Field_size(simu: "_Simu", problemType: ProblemType) -> int:
     """Number of dofs of one field."""
-    return simu._Get_FunctionSpace(field).Nn * simu.Get_dof_n(field)
+    return simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
 
 
 class _Problem(ABC):
@@ -37,11 +37,11 @@ class _Problem(ABC):
     isNonLinear: bool
     """whether the terms read the iterate"""
 
-    def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
-        if len(set(fields)) < len(fields):
-            raise ValueError(f"A field is given twice in {fields}.")
+    def __init__(self, simu: "_Simu", problemTypes: tuple[ProblemType, ...]) -> None:
+        if len(set(problemTypes)) < len(problemTypes):
+            raise ValueError(f"A field is given twice in {problemTypes}.")
         self.simu = simu
-        self.fields = fields
+        self.problemTypes = problemTypes
         self.needUpdate = True
         """whether the contributions changed since last integrated"""
         self.__termRows: _types.BoolArray | None = None
@@ -56,7 +56,9 @@ class _Problem(ABC):
     @property
     def problemType(self) -> ProblemType | tuple[ProblemType, ...]:
         """The key of the solver settings: the field alone, else the fields."""
-        return self.fields[0] if len(self.fields) == 1 else self.fields
+        return (
+            self.problemTypes[0] if len(self.problemTypes) == 1 else self.problemTypes
+        )
 
     @property
     def size(self) -> int:
@@ -73,10 +75,10 @@ class _Problem(ABC):
         """`(field, space, dof_n, offset)` of each field, side by side."""
         layout = []
         offset = 0
-        for field in self.fields:
-            space = self.simu._Get_FunctionSpace(field)
-            dof_n = self.simu.Get_dof_n(field)
-            layout.append((field, space, dof_n, offset))
+        for problemType in self.problemTypes:
+            space = self.simu._Get_FunctionSpace(problemType)
+            dof_n = self.simu.Get_dof_n(problemType)
+            layout.append((problemType, space, dof_n, offset))
             offset += space.Nn * dof_n
         return tuple(layout)
 
@@ -106,9 +108,9 @@ class _Problem(ABC):
 
     def Check_monolithic(self) -> None:
         """Rejects what fields solved side by side cannot run yet; nothing for a field alone."""
-        if len(self.fields) == 1:
+        if len(self.problemTypes) == 1:
             return
-        names = ", ".join(self.fields)
+        names = ", ".join(self.problemTypes)
         if not isinstance(self.simu.timeScheme, Elliptic):
             # each block would need its own time-scheme coefficients
             raise NotImplementedError(
@@ -122,10 +124,10 @@ class _Problem(ABC):
     def Compose(
         self, get: Callable[[ProblemType], np.ndarray], isDofs: bool = False
     ) -> np.ndarray:
-        """`get(field)` of each field end to end, dof ids shifted to the field's offset when `isDofs`; `get(field)` itself for a field alone."""
-        if len(self.fields) == 1:
-            return get(self.fields[0])
-        parts = [np.asarray(get(field)) for field in self.fields]
+        """`get(problemType)` of each problemType end to end, dof ids shifted to the problemType's offset when `isDofs`; `get(problemType)` itself for a problemType alone."""
+        if len(self.problemTypes) == 1:
+            return get(self.problemTypes[0])
+        parts = [np.asarray(get(problemType)) for problemType in self.problemTypes]
         if isDofs:
             parts = [
                 part.astype(int) + offset for part, offset in zip(parts, self.offsets)
@@ -135,13 +137,15 @@ class _Problem(ABC):
     def Get_dof_owners(self) -> tuple[_types.IntArray | None, int]:
         """Owner rank of each dof, None when never partitioned, and this rank."""
         simu = self.simu
-        spaces = [simu._Get_FunctionSpace(field) for field in self.fields]
+        spaces = [
+            simu._Get_FunctionSpace(problemType) for problemType in self.problemTypes
+        ]
         rank = spaces[0].rank
         if any(space._dofOwners is None for space in spaces):
             return None, rank
         owners = [
-            np.repeat(space._dofOwners, simu.Get_dof_n(field))
-            for field, space in zip(self.fields, spaces)
+            np.repeat(space._dofOwners, simu.Get_dof_n(problemType))
+            for problemType, space in zip(self.problemTypes, spaces)
         ]
         return np.concatenate(owners), rank
 
@@ -155,19 +159,19 @@ class _Problem(ABC):
     def __Get_dof_globalIds(self) -> _types.IntArray:
         """Global id of each dof, unique over the ranks."""
         globalIds = []
-        for f, field in enumerate(self.fields):
-            space = self.simu._Get_FunctionSpace(field)
-            dof_n = self.simu.Get_dof_n(field)
+        for f, problemType in enumerate(self.problemTypes):
+            space = self.simu._Get_FunctionSpace(problemType)
+            dof_n = self.simu.Get_dof_n(problemType)
             nodes = space.globalNodes[space._dofNodes].astype(np.int64)
             dofs = nodes[:, None] * dof_n + np.arange(dof_n)
-            globalIds.append((dofs * len(self.fields) + f).ravel())
+            globalIds.append((dofs * len(self.problemTypes) + f).ravel())
         return np.concatenate(globalIds)
 
     def Trial(self, x: _types.FloatArray) -> TrialSolution:
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
         trial = self.simu._Committed()
-        for field, start in zip(self.fields, self.offsets):
-            trial[field] = x[start : start + _Field_size(self.simu, field)]
+        for problemType, start in zip(self.problemTypes, self.offsets):
+            trial[problemType] = x[start : start + _Field_size(self.simu, problemType)]
         return trial
 
     # ----------------------------------------------
@@ -179,7 +183,7 @@ class _Problem(ABC):
         if trial is None:
             trial = self.simu._Committed()
         self.needUpdate = False
-        return self.simu._Get_list_contribution(self.fields, trial)
+        return self.simu._Get_list_contribution(self.problemTypes, trial)
 
     @abstractmethod
     def Get_contributions(self) -> list[_Contribution]:
@@ -219,8 +223,8 @@ class _Problem(ABC):
         v_n = simu._Get_v_n(self.problemType)
         a_n = simu._Get_a_n(self.problemType)
         fields = tuple(
-            field if field is not None and field.any() else None
-            for field in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
+            problemType if problemType is not None and problemType.any() else None
+            for problemType in simu.timeScheme.Evaluate(x, u_n, v_n, a_n)
         )
         b = self.assembly.Get_b(list_contribution, load, fields)
 
@@ -264,7 +268,7 @@ class _Problem(ABC):
                 float(condition.dofsValues[0]),
             )
             for condition in simu.Bc_Lagrange
-            if condition.problemType in self.fields
+            if condition.problemType in self.problemTypes
         )
         return Constraints(
             knownDofs, target[knownDofs], list_lagrangeConstraint, simu._resolution
@@ -294,10 +298,10 @@ class _Problem(ABC):
             simu = self.simu
             committed = simu._Committed()
             rows = np.zeros(self.size, dtype=bool)
-            for field in self.fields:
-                for term in simu.Get_terms(committed, field):
+            for problemType in self.problemTypes:
+                for term in simu.Get_terms(committed, problemType):
                     groups = term._Get_groups(simu.mesh)
-                    for slot, block in zip(term.slots, term._Get_blocks(field)):
+                    for slot, block in zip(term.slots, term._Get_blocks(problemType)):
                         if slot in "KCM":
                             for group in groups:
                                 rows[self.assembly.Dofs_e(block[0], group)] = True
@@ -336,7 +340,7 @@ class _Problem(ABC):
         self, free: _types.BoolArray
     ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
         """Dofs pinning the fields left free up to a constant, and their zero-mean weights, kept until `free` changes. Collective on `mesh.comm`."""
-        if len(self.fields) == 1:
+        if len(self.problemTypes) == 1:
             return np.empty(0, dtype=np.int64), {}
         stale = self.__pinnedFor is None or not np.array_equal(free, self.__pinnedFor)
         if Reduce_max(stale, self.simu.mesh.comm):
@@ -350,7 +354,10 @@ class _Problem(ABC):
         """DOF at global node 0 of each scalar field without a diagonal block whose constant the other fields' free equations are blind to, ``‖A_rc[free] · 1‖ ≤ ε ‖A_rc[free]‖``, and the field's zero-mean weights."""
         simu = self.simu
         committed = simu._Committed()
-        terms = {field: simu.Get_terms(committed, field) for field in self.fields}
+        terms = {
+            problemType: simu.Get_terms(committed, problemType)
+            for problemType in self.problemTypes
+        }
         diagonal = {
             rows
             for slot, rows, cols in _Blocks(terms)
@@ -362,26 +369,26 @@ class _Problem(ABC):
         pinned: list[int] = []
         weights = {}
         comm = simu.mesh.comm
-        for field, start in zip(self.fields, self.offsets):
-            if simu.Get_dof_n(field) != 1 or field in diagonal:
+        for problemType, start in zip(self.problemTypes, self.offsets):
+            if simu.Get_dof_n(problemType) != 1 or problemType in diagonal:
                 continue
             isField = np.zeros(A.shape[0], dtype=bool)
-            isField[start : start + _Field_size(simu, field)] = True
+            isField[start : start + _Field_size(simu, problemType)] = True
             # rows complete only where owned under MPI
             A_rc = A[:, isField][owned & free & ~isField]
             constant = Reduce_sum(np.sum((A_rc @ np.ones(A_rc.shape[1])) ** 2), comm)
             scale = Reduce_sum(A_rc.multiply(A_rc).sum(), comm)
             if constant <= (1e-10) ** 2 * scale:
-                space = simu._Get_FunctionSpace(field)
+                space = simu._Get_FunctionSpace(problemType)
                 node = space.Get_dof_nodes(np.flatnonzero(space.globalNodes == 0))
                 pinned.extend(start + space.Get_dofs(node, 1))
-                weights[field] = self.__Get_weights(field)
+                weights[problemType] = self.__Get_weights(problemType)
         return np.asarray(pinned, dtype=np.int64), weights
 
-    def __Get_weights(self, field: ProblemType) -> _types.FloatArray:
+    def __Get_weights(self, problemType: ProblemType) -> _types.FloatArray:
         """``∫ N_i dΩ`` of each node of a scalar field."""
         simu = self.simu
-        space = simu._Get_FunctionSpace(field)
+        space = simu._Get_FunctionSpace(problemType)
         weights = np.zeros(space.Nn)
         dim = simu.mesh.dim
         for groupElem, spaceGroup in zip(
@@ -397,10 +404,10 @@ class _Problem(ABC):
         comm = simu.mesh.comm
         offsets = self.offsets
         _, dict_weights = self.Pinned(self.Free_mask())
-        for field, weights in dict_weights.items():
-            start = offsets[self.fields.index(field)]
+        for problemType, weights in dict_weights.items():
+            start = offsets[self.problemTypes.index(problemType)]
             values = x[start : start + weights.size]
-            owned = simu.Get_dofs(field)
+            owned = simu.Get_dofs(problemType)
             mean = Reduce_sum(weights[owned] @ values[owned], comm) / Reduce_sum(
                 weights[owned].sum(), comm
             )
@@ -412,8 +419,8 @@ class _LinearProblem(_Problem):
 
     isNonLinear = False
 
-    def __init__(self, simu: "_Simu", fields: tuple[ProblemType, ...]) -> None:
-        super().__init__(simu, fields)
+    def __init__(self, simu: "_Simu", problemTypes: tuple[ProblemType, ...]) -> None:
+        super().__init__(simu, problemTypes)
         self.__list_contribution: list[_Contribution] | None = None
         self.__A: sparse.csr_matrix | None = None
         """the kept A, read-only"""

@@ -292,14 +292,14 @@ class Term:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]
 
-    def _Get_field_groups(
-        self, simu: "_Simu", fields: tuple["ProblemType", ...]
+    def _Get_problemTypes_groups(
+        self, simu: "_Simu", problemTypes: tuple["ProblemType", ...]
     ) -> list[tuple["_GroupElem", ...]]:
         """Each of :py:meth:`_Get_groups`, followed by the group of each of `fields` on its elements."""
         groups = self._Get_groups(simu.mesh)
         lists = [
-            simu._Get_FunctionSpace(field).Get_list_groupElem(self.__dim)
-            for field in fields
+            simu._Get_FunctionSpace(problemType).Get_list_groupElem(self.__dim)
+            for problemType in problemTypes
         ]
         return [
             (groupElem, *spaceGroups)
@@ -350,11 +350,15 @@ def Integrate_terms(
 
     for term in terms:
         blocks = term._Get_blocks(problemType)
-        fields = tuple(dict.fromkeys(field for block in blocks for field in block))
+        problemTypes = tuple(
+            dict.fromkeys(problemType for block in blocks for problemType in block)
+        )
         coef = thickness * term.scale
 
         # operators see each field's own group: P2 u on TETRA4 integrates on TETRA10
-        for groupElem, *spaceGroups in term._Get_field_groups(simu, fields):
+        for groupElem, *spaceGroups in term._Get_problemTypes_groups(
+            simu, problemTypes
+        ):
             if term.constant:
                 arrays = term._Cached(simu, groupElem, spaceGroups, blocks)
             else:
@@ -407,13 +411,13 @@ def _Check_shape(
     simu: "_Simu",
 ) -> None:
     """Rejects a contribution not shaped by its block's spaces on `groupElem`: ``(Ne, n_rows, n_cols)`` for a matrix, ``(Ne, n_rows)`` for a vector — a swapped ``(rows, cols)`` pair fails here."""
-    fields = block[: _SLOT_RANK[slot] - 1]
+    problemTypes = block[: _SLOT_RANK[slot] - 1]
     shape = (
         groupElem.Ne,
         *(
-            simu._Get_FunctionSpace(field).Get_connect(groupElem).shape[1]
-            * simu.Get_dof_n(field)
-            for field in fields
+            simu._Get_FunctionSpace(problemType).Get_connect(groupElem).shape[1]
+            * simu.Get_dof_n(problemType)
+            for problemType in problemTypes
         ),
     )
     if np.shape(contribution) == shape:

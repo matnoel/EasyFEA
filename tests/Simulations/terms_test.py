@@ -169,14 +169,19 @@ def test_Term__Get_field_groups_follows_each_group_with_those_of_the_fields():
     simu = incompressible(domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True))
     groupElem = simu.mesh.groupElem
 
-    [(group, pGroup)] = Term("K", Operator)._Get_field_groups(simu, (PRESSURE,))
+    [(group, pGroup)] = Term("K", Operator)._Get_problemTypes_groups(simu, (PRESSURE,))
     assert group is groupElem and pGroup.elemType == ElemType.QUAD4
 
-    [(group, pGroup)] = Term("K", Operator, dim=1)._Get_field_groups(simu, (PRESSURE,))
+    [(group, pGroup)] = Term("K", Operator, dim=1)._Get_problemTypes_groups(
+        simu, (PRESSURE,)
+    )
     assert group.elemType == ElemType.SEG3 and pGroup.elemType == ElemType.SEG2
 
-    assert Term("K", Operator)._Get_field_groups(simu, ()) == [(groupElem,)]
-    assert Term("K", Operator, tag="missing")._Get_field_groups(simu, (PRESSURE,)) == []
+    assert Term("K", Operator)._Get_problemTypes_groups(simu, ()) == [(groupElem,)]
+    assert (
+        Term("K", Operator, tag="missing")._Get_problemTypes_groups(simu, (PRESSURE,))
+        == []
+    )
 
 
 def test_Term__Get_blocks_resolves_a_free_slot_to_the_integrated_problem():

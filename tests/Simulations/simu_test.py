@@ -1518,7 +1518,7 @@ class _RecordingNewton:
     def __call__(
         self, problem: _NonLinearProblem, backend: Backend, x0: np.ndarray
     ) -> tuple[np.ndarray, list[float]]:
-        self.fields.append(problem.fields)
+        self.fields.append(problem.problemTypes)
         self.x, self.norms = self.newton(problem, backend, x0)
         return self.x, self.norms
 

@@ -24,10 +24,12 @@ def _Get_space_coord(
     spaceCoord = simu._Get_FunctionSpace(problemType).coord.copy()
     Nn = coord.shape[0]
     spaceCoord[:Nn] = coord
-    field = simu.problemType
-    dof_n = simu.Get_dof_n(field)
+    simuProblemType = simu.problemType
+    dof_n = simu.Get_dof_n(simuProblemType)
     if deformFactor != 0 and spaceCoord.shape[0] > Nn and dof_n == simu.dim:
-        u = simu._Get_FunctionSpace(field).Get_nodeValues(simu._Get_u_n(field), dof_n)
+        u = simu._Get_FunctionSpace(simuProblemType).Get_nodeValues(
+            simu._Get_u_n(simuProblemType), dof_n
+        )
         u_n = u.reshape(-1, dof_n)
         added = np.arange(Nn, min(spaceCoord.shape[0], u_n.shape[0]))
         spaceCoord[added, :dof_n] += u_n[added] * np.abs(deformFactor)
