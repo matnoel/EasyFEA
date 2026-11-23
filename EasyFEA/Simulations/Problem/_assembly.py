@@ -236,13 +236,12 @@ def _Sum(
         for group, n in groups.items():
             spans[block, group] = size
             size += n
-    entries = np.zeros(size)
-    for contribution in list_contribution:
+    active = [c for c in list_contribution if coefs["KCM".index(c.slot)] != 0]
+    if any(np.iscomplexobj(c.array) for c in active):
+        raise TypeError("Complex systems are not supported.")
+    entries = np.zeros(size) if active else None
+    for contribution in active:
         weight = coefs["KCM".index(contribution.slot)]
-        if weight == 0:
-            continue
-        if np.iscomplexobj(contribution.array):
-            raise TypeError("Complex systems are not supported.")
         start = spans[contribution.block, contribution.group]
         entries[start : start + contribution.array.size] += (
             weight * contribution.coef
@@ -254,8 +253,13 @@ def _Sum(
     else:
         contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
         inv, indices, indptr, nnz = Get_map(contributing)
-        assert entries.size == inv.size, "A's map does not match its contributions."
-        data = np.bincount(inv, weights=entries, minlength=nnz)
+        assert size == inv.size, "A's map does not match its contributions."
+        # no active slot: the pattern alone, no scatter
+        data = (
+            np.bincount(inv, weights=entries, minlength=nnz)
+            if active
+            else np.zeros(nnz)
+        )
         A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
     # canonical by construction: no sort before the backends
     A.has_canonical_format = True
