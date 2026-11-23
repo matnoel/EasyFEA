@@ -280,11 +280,23 @@ class _Mapping:
     @cache_computed_values
     def __Get_J_e(self) -> _types.FloatArray:
         """Jacobian matrix of each linear simplex (Ne, dim, ncols), shared by every matrix type; a plain array, one GEMM over all elements."""
-        dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
-        coord_e = self.__Get_frame_coord_e()  # (Ne, nPe, ncols)
-        Ne, nPe, ncols = coord_e.shape
-        J = dN @ coord_e.transpose(1, 0, 2).reshape(nPe, Ne * ncols)
+        groupElem = self.__groupElem
+        dN = groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
+        if groupElem.dim == groupElem.inDim:
+            # nodes first, so the product needs no transposed copy
+            coord_p = groupElem.coord[groupElem._nodesIdx[groupElem.connect.T]][
+                ..., : groupElem.dim
+            ]
+        else:
+            coord_p = self.__Get_frame_coord_e().transpose(1, 0, 2)
+        nPe, Ne, ncols = coord_p.shape
+        J = dN @ coord_p.reshape(nPe, Ne * ncols)
         return J.reshape(dN.shape[0], Ne, ncols).transpose(1, 0, 2)
+
+    @cache_computed_values
+    def __Get_inv_J_e(self) -> _types.FloatArray:
+        """J⁻¹ of each linear simplex (Ne, dim, dim), plain."""
+        return Inv(self.__Get_J_e())
 
     @cache_computed_values
     def __Get_det_e(self) -> FeArray.FeArrayALike:
@@ -294,7 +306,24 @@ class _Mapping:
     @cache_computed_values
     def __Get_invJ_e(self) -> FeArray.FeArrayALike:
         """J⁻¹ of each linear simplex (Ne, 1, dim, dim)."""
-        return FeArray.asfearray(Inv(self.__Get_J_e())[:, None])
+        return FeArray.asfearray(self.__Get_inv_J_e()[:, None])
+
+    def Get_dN_e_pg_simplex(
+        self, matrixType: MatrixType
+    ) -> FeArray.FeArrayALike | None:
+        """∂N/∂x of a linear simplex on the Gauss points of `matrixType` (Ne, nPg, dim, nPe), one GEMM per element then a view; None off simplices."""
+        if not self.__Is_simplex() or self.__groupElem.dim == 0:
+            return None
+        return self.__Broadcast_pg(self.__Get_dN_e(), matrixType)
+
+    @cache_computed_values
+    def __Get_dN_e(self) -> FeArray.FeArrayALike:
+        """∂N/∂x of each linear simplex (Ne, 1, dim, nPe)."""
+        dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
+        invJ = self.__Get_inv_J_e()  # (Ne, dim, dim)
+        Ne, dim = invJ.shape[:2]
+        dN_e = (invJ.reshape(Ne * dim, dim) @ dN).reshape(Ne, 1, dim, dN.shape[1])
+        return FeArray.asfearray(dN_e)
 
     def __Broadcast_pg(
         self, array_e: FeArray.FeArrayALike, matrixType: MatrixType

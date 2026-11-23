@@ -820,6 +820,10 @@ class _GroupElem:
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
 
+        dN_e_pg = self.__mapping.Get_dN_e_pg_simplex(matrixType)
+        if dN_e_pg is not None:
+            return dN_e_pg
+
         invJ_e_pg = self._Get_invJ_e_pg(matrixType)
 
         dN_pg = self.Get_dN_pg(matrixType)
