@@ -98,7 +98,7 @@ class Problem(_Problem):
 
     def __Get_trial(self, x: _types.FloatArray) -> TrialSolution:
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
-        trial = self.simu._Committed()
+        trial = self.simu._Get_committed_unknown()
         for problemType, dofs in self.dofLayout.slices.items():
             trial[problemType] = x[dofs]
         return trial
@@ -112,7 +112,7 @@ class Problem(_Problem):
     ) -> list[_Contribution]:
         """The fields' contributions integrated at `trial` (default committed)."""
         if trial is None:
-            trial = self.simu._Committed()
+            trial = self.simu._Get_committed_unknown()
         self.needUpdate = False
         return self.simu._Get_list_contribution(self.problemTypes, trial)
 
@@ -181,7 +181,9 @@ class Problem(_Problem):
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b of `A dx = b` at the iterate x (default committed); linear, at x = 0 and `x` refused."""
         if self.isNonLinear:
-            trial = self.simu._Committed() if x is None else self.__Get_trial(x)
+            trial = (
+                self.simu._Get_committed_unknown() if x is None else self.__Get_trial(x)
+            )
             list_contribution = self.__Integrate_contributions(trial)
             A = self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
             x = self.dofLayout.Concatenate(trial.__getitem__)
@@ -280,7 +282,7 @@ class Problem(_Problem):
         """Rows a K, C or M term fills on its groups, ghost elements included, and the Lagrange dofs; read from the committed terms, never integrated; a copy."""
         if self.__termRows is None:
             simu = self.simu
-            committed = simu._Committed()
+            committed = simu._Get_committed_unknown()
             rows = np.zeros(self.dofLayout.Ndof, dtype=bool)
             for problemType in self.problemTypes:
                 for term in simu.Get_terms(committed, problemType):
@@ -339,7 +341,7 @@ class Problem(_Problem):
     ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
         """DOF at global node 0 of each scalar field without a diagonal block whose constant the other fields' free equations are blind to, ``‖A_rc[free] · 1‖ ≤ ε ‖A_rc[free]‖``, and the field's zero-mean weights."""
         simu = self.simu
-        committed = simu._Committed()
+        committed = simu._Get_committed_unknown()
         terms = {
             problemType: simu.Get_terms(committed, problemType)
             for problemType in self.problemTypes

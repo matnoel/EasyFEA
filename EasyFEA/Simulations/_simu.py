@@ -1332,7 +1332,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
         if x is None:
-            x = self._Committed()
+            x = self._Get_committed_unknown()
 
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
@@ -1346,10 +1346,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             None if a_t is None else space.Get_nodeValues(a_t, dof_n),
         )
 
-    def _Committed(self) -> TrialSolution:
+    def _Get_committed_unknown(self) -> TrialSolution:
         """Each field's committed value of the time scheme's unknown: `u_n`, `v_n` or `a_n`."""
         return {
-            problemType: self.__Committed_unknown(problemType)
+            problemType: self.__Get_unknown_n(problemType)
             for problemType in self.problemTypes
         }
 
@@ -1570,10 +1570,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             options,
             lb,
             ub,
-            None if nonLinear else self.__Committed_unknown(problemTypes),
+            None if nonLinear else self.__Get_unknown_n(problemTypes),
         )
 
-    def __Committed_unknown(
+    def __Get_unknown_n(
         self, problemType: ProblemType | tuple[ProblemType, ...]
     ) -> _types.FloatArray:
         """The committed value of what the time scheme solves for, `u_n`, `v_n` or `a_n`."""
