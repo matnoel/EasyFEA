@@ -2,7 +2,7 @@
 
 This document describes the changes made to the project.
 
-## Unreleased
+## 8.0.0 (November 23, 2026):
 
 ### MPI (issue #73)
 

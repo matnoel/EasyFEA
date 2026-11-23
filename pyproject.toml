@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easyfea"
-version = "7.3.0"
+version = "8.0.0"
 description = "User-friendly Python library that simplifies finite element analysis."
 authors = [{ name = "Matthieu Noel", email = "matthieu.noel@inria.fr" }]
 readme = "README.md"
