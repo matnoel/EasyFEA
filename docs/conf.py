@@ -210,7 +210,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
-    "parallel": True,  # follows sphinx-build -j
+    "parallel": 2,  # an int, not True: True follows sphinx-build -j, which RTD never passes
 }
 
 # -- Options for HTML output -------------------------------------------------
