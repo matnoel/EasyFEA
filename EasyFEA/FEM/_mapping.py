@@ -278,20 +278,23 @@ class _Mapping:
         return groupElem.nPe == groupElem.dim + 1
 
     @cache_computed_values
-    def __Get_J_e(self) -> FeArray.FeArrayALike:
-        """Jacobian matrix of each linear simplex (Ne, 1, dim, ncols), shared by every matrix type."""
-        dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]
-        return FeArray.asfearray((dN @ self.__Get_frame_coord_e())[:, None])
+    def __Get_J_e(self) -> _types.FloatArray:
+        """Jacobian matrix of each linear simplex (Ne, dim, ncols), shared by every matrix type; a plain array, one GEMM over all elements."""
+        dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
+        coord_e = self.__Get_frame_coord_e()  # (Ne, nPe, ncols)
+        Ne, nPe, ncols = coord_e.shape
+        J = dN @ coord_e.transpose(1, 0, 2).reshape(nPe, Ne * ncols)
+        return J.reshape(dN.shape[0], Ne, ncols).transpose(1, 0, 2)
 
     @cache_computed_values
     def __Get_det_e(self) -> FeArray.FeArrayALike:
         """det J of each linear simplex (Ne, 1)."""
-        return Det(self.__Get_J_e())
+        return FeArray.asfearray(Det(self.__Get_J_e())[:, None])
 
     @cache_computed_values
     def __Get_invJ_e(self) -> FeArray.FeArrayALike:
         """J⁻¹ of each linear simplex (Ne, 1, dim, dim)."""
-        return Inv(self.__Get_J_e())
+        return FeArray.asfearray(Inv(self.__Get_J_e())[:, None])
 
     def __Broadcast_pg(
         self, array_e: FeArray.FeArrayALike, matrixType: MatrixType
@@ -307,7 +310,7 @@ class _Mapping:
         if self.__groupElem.dim == 0:
             return None  # type: ignore [return-value]
         if self.__Is_simplex():
-            return self.__Broadcast_pg(self.__Get_J_e(), matrixType)
+            return self.__Broadcast_pg(self.__Get_J_e()[:, None], matrixType)
         return FeArray.asfearray(
             self.__Get_dx_e_pg(matrixType, self.__Get_frame_coord_e())
         )
