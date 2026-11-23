@@ -272,11 +272,42 @@ class _Mapping:
             coord_e = coord_e @ self.Get_frame_e()
         return coord_e[:, :, : groupElem.dim]
 
+    def __Is_simplex(self) -> bool:
+        """Whether the group is a linear simplex: ∂N/∂ξ and the Jacobian are constant."""
+        groupElem = self.__groupElem
+        return groupElem.nPe == groupElem.dim + 1
+
+    @cache_computed_values
+    def __Get_J_e(self) -> FeArray.FeArrayALike:
+        """Jacobian matrix of each linear simplex (Ne, 1, dim, ncols), shared by every matrix type."""
+        dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]
+        return FeArray.asfearray((dN @ self.__Get_frame_coord_e())[:, None])
+
+    @cache_computed_values
+    def __Get_det_e(self) -> FeArray.FeArrayALike:
+        """det J of each linear simplex (Ne, 1)."""
+        return Det(self.__Get_J_e())
+
+    @cache_computed_values
+    def __Get_invJ_e(self) -> FeArray.FeArrayALike:
+        """J⁻¹ of each linear simplex (Ne, 1, dim, dim)."""
+        return Inv(self.__Get_J_e())
+
+    def __Broadcast_pg(
+        self, array_e: FeArray.FeArrayALike, matrixType: MatrixType
+    ) -> FeArray.FeArrayALike:
+        """A per-element (Ne, 1, ...) array repeated on the Gauss points of `matrixType`, a view."""
+        nPg = self.__groupElem.Get_gauss(matrixType).nPg
+        shape = (array_e.shape[0], nPg, *array_e.shape[2:])
+        return FeArray.asfearray(np.broadcast_to(np.asarray(array_e), shape))
+
     @cache_computed_values
     def Get_J_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Jacobian matrix, one row per reference axis: ``J[k, d] = ∂x_d/∂ξ_k``, in the element frame for a line or face in space."""
         if self.__groupElem.dim == 0:
             return None  # type: ignore [return-value]
+        if self.__Is_simplex():
+            return self.__Broadcast_pg(self.__Get_J_e(), matrixType)
         return FeArray.asfearray(
             self.__Get_dx_e_pg(matrixType, self.__Get_frame_coord_e())
         )
@@ -291,6 +322,11 @@ class _Mapping:
             return None  # type: ignore [return-value]
 
         if groupElem.dim == groupElem.inDim:
+            if self.__Is_simplex():
+                det_e = self.__Get_det_e()
+                if absoluteValues:
+                    det_e = np.abs(det_e)
+                return self.__Broadcast_pg(det_e, matrixType)
             jacobian_e_pg = Det(self.Get_J_e_pg(matrixType))
             if absoluteValues:
                 jacobian_e_pg = np.abs(jacobian_e_pg)
@@ -305,6 +341,8 @@ class _Mapping:
         """Inverse Jacobian matrix: ``dN_e_pg = invJ_e_pg @ dN_pg``."""
         if self.__groupElem.dim == 0:
             return None  # type: ignore [return-value]
+        if self.__Is_simplex():
+            return self.__Broadcast_pg(self.__Get_invJ_e(), matrixType)
         return Inv(self.Get_J_e_pg(matrixType))
 
     def __Get_hessian_pg(self, matrixType: MatrixType) -> _types.FloatArray:
