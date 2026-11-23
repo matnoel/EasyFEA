@@ -6,14 +6,18 @@ This document describes the changes made to the project.
 
 ### Assembly speed-up
 
-- The CSR map (once per mesh) comes from two counting sorts instead of a search and a per-row sort.
-- Linear simplices (`SEG2`, `TRI3`, `TETRA4`) compute `J`, `detJ`, `J⁻¹` and `∂N/∂x` once per element, shared by every matrix type, then view them on the Gauss points.
-- The element sum scatters each contribution straight into the CSR data on int32 slots and skips zero-weight slots (`C`, `M` of a static problem).
+- The CSR map (once per mesh) comes from two counting sorts instead of a search and a
+  per-row sort.
+- Linear simplices (`SEG2`, `TRI3`, `TETRA4`) compute `J`, `detJ`, `J⁻¹` and `∂N/∂x`
+  once per element, shared by every matrix type, then view them on the Gauss points.
+- The element sum scatters each contribution straight into the CSR data on int32 slots
+  and skips zero-weight slots (`C`, `M` of a static problem).
 - `Linear.V` contracts the load and the source part in one `einsum`.
 
 ### Timing
 
-- `Tic` reports "Matrix" for the assembly of `A` and `b`, and "Solver" for the system solve; its summary prints on rank 0 only.
+- `Tic` reports "Matrix" for the assembly of `A` and `b`, and "Solver" for the system
+  solve; its summary prints on rank 0 only.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v8.0.0...v8.0.1
 
