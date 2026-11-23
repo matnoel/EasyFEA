@@ -260,10 +260,16 @@ def _Sum(
         for contribution in active:
             weight = coefs["KCM".index(contribution.slot)] * contribution.coef
             start = spans[contribution.block, contribution.group]
-            piece = np.bincount(
-                inv[start : start + contribution.array.size],
-                weights=contribution.array.ravel(),
-                minlength=nnz,
+            values = np.ascontiguousarray(contribution.array, dtype=float).ravel()
+            piece = np.zeros(nnz)
+            # scipy's COO mat-vec on a 1-column x is a scatter-add on int32 slots (bincount would widen them to int64); the zero columns are untouched calloc pages
+            _sparsetools.coo_matvec(
+                values.size,
+                inv[start : start + values.size],
+                np.zeros(values.size, np.int32),
+                values,
+                np.ones(1),
+                piece,
             )
             data += piece if weight == 1.0 else weight * piece
         A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
