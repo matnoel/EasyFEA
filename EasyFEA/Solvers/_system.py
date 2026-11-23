@@ -120,7 +120,7 @@ class System:
                 )
                 for lagrangeConstraint in list_lagrangeConstraint
             ]
-            A, b = _Border(A, b, shifted, comm)
+            A, b = _Lagrange(A, b, shifted, comm)
         knownDofs = constraints.knownDofs
         known = np.zeros(b.size, dtype=bool)
         known[knownDofs] = True
@@ -151,20 +151,20 @@ class System:
         return Reduce_sum(int(np.count_nonzero(diagonal == 0)), comm) > 0
 
 
-def _Border(
+def _Lagrange(
     A: sparse.csr_matrix,
     b: _types.FloatArray,
     list_lagrangeConstraint: list[LagrangeConstraint],
     comm,
 ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
-    """A and b grown by one row per Lagrange constraint, A bordered, both scaled by `max|A|`."""
+    """A and b grown by one row per Lagrange constraint, A augmented, both scaled by `max|A|`."""
     if comm is not None:
         raise NotImplementedError(
             "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
         )
     alpha = float(np.abs(A.data).max(initial=0.0))
     size = b.size
-    sizeBordered = size + len(list_lagrangeConstraint)
+    sizeAugmented = size + len(list_lagrangeConstraint)
     b = np.concatenate([b, np.zeros(len(list_lagrangeConstraint))])
     rows, cols, values = [], [], []
     for i, lagrangeConstraint in enumerate(list_lagrangeConstraint, size):
@@ -176,14 +176,14 @@ def _Border(
         b[i] = alpha * lagrangeConstraint.value
     # A's entries kept, explicit zeros included: the same pattern, the same ordering
     coo = A.tocoo()
-    bordered = sparse.csr_matrix(
+    augmented = sparse.csr_matrix(
         (
             np.concatenate([coo.data, *values]),
             (np.concatenate([coo.row, *rows]), np.concatenate([coo.col, *cols])),
         ),
-        shape=(sizeBordered, sizeBordered),
+        shape=(sizeAugmented, sizeAugmented),
     )
-    return bordered, b
+    return augmented, b
 
 
 def _Penalty(
