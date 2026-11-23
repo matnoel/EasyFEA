@@ -98,7 +98,7 @@ class Tic:
             timesCategory = float(sum(v[0] for v in Tic.__History[category].values()))
             timesCategory, unite = Tic.Get_time_unity(timesCategory)
             resumeCategory = f"{category}: {timesCategory:.3f} {unite}"
-            if verbosity:
+            if verbosity and MPI_RANK == 0:
                 print(resumeCategory)
             resume += "\n" + resumeCategory
 

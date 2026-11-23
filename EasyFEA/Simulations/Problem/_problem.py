@@ -160,19 +160,26 @@ class Problem(_Problem):
             list_contribution, self.__Get_load(list_contribution), fields
         )
 
-        tic.Tac("Solver", f"b ({', '.join(self.problemTypes)})", simu._verbosity)
+        tic.Tac("Matrix", f"b ({', '.join(self.problemTypes)})", simu._verbosity)
 
         return b
+
+    def __Assemble_A(self, list_contribution, coefs) -> sparse.csr_matrix:
+        """`assembly.Get_A`, timed."""
+        tic = Tic()
+        A = self.assembly.Get_A(list_contribution, coefs)
+        tic.Tac("Matrix", "Assemble A", self.simu._verbosity)
+        return A
 
     def __Get_A(self) -> sparse.csr_matrix:
         """A for the time scheme at the committed state; linear, kept while the contributions and coefs hold."""
         if self.isNonLinear:
-            return self.assembly.Get_A(
+            return self.__Assemble_A(
                 self.Get_contributions(), self.simu.timeScheme.coefs
             )
         coefs = self.simu.timeScheme.coefs
         if self.__A is None or coefs != self.__ACoefs:
-            self.__A = self.assembly.Get_A(self.Get_contributions(), coefs)
+            self.__A = self.__Assemble_A(self.Get_contributions(), coefs)
             self.__ACoefs = coefs
         return self.__A
 
@@ -187,7 +194,7 @@ class Problem(_Problem):
                 else self.__Get_trial(x)
             )
             list_contribution = self.__Integrate_contributions(trial)
-            A = self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
+            A = self.__Assemble_A(list_contribution, self.simu.timeScheme.coefs)
             x = self.dofLayout.Concatenate(trial.__getitem__)
         else:
             if x is not None:
@@ -204,8 +211,6 @@ class Problem(_Problem):
 
     def Solve(self, backend: Backend) -> _types.FloatArray:
         """x of `A x = b`, one solve of a linear problem."""
-        simu = self.simu
-        tic = Tic()
         A, b = self.Get_A_b()
         x, _ = self.system.Solve(
             A,
@@ -213,12 +218,7 @@ class Problem(_Problem):
             np.zeros(self.dofLayout.Ndof),
             self.Constraints(),
             backend,
-            simu.mesh.comm,
-        )
-        tic.Tac(
-            "Solver",
-            f"Solve {', '.join(self.problemTypes)} ({backend})",
-            simu._verbosity,
+            self.simu.mesh.comm,
         )
         return x
 

@@ -7,7 +7,7 @@
 import numpy as np
 from scipy import sparse
 
-from ..Utilities import _types
+from ..Utilities import Tic, _types
 from ..Utilities._mpi import (
     Exchange,
     Owned,
@@ -107,6 +107,7 @@ class System:
         comm,
     ) -> tuple[_types.FloatArray, float]:
         """dx of `A dx = b` at x, `x + dx` meeting the constraints, A and b grown by one row per Lagrange constraint; b's residual norm over the owned dof rows. Collective on `comm`."""
+        tic = Tic()
         list_lagrangeConstraint = constraints.list_lagrangeConstraint
         size = x.size
         assert b.size == size
@@ -143,6 +144,7 @@ class System:
 
         dx += backend.Solve(A, residual, self, comm)
         self.Scatter_forward(dx, comm)
+        tic.Tac("Solver", f"Solve ({type(backend).__name__})", False)
         return dx[:size], rhsNorm
 
     def __Has_zero_diagonal(self, A: sparse.csr_matrix, comm) -> bool:
