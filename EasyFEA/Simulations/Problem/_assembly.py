@@ -70,31 +70,40 @@ class Assembly:
         rows = np.concatenate(list_rows)
         cols = np.concatenate(list_cols)
 
-        # scipy's row bucketing then per-row sort, carrying each entry's rank; consecutive equal columns of a row share a slot
+        # two stable counting sorts (by column, then by row) leave each row sorted by column, each entry carrying its rank; consecutive equal columns of a row share a slot
         size = rows.size
         dtype = np.int32 if size < np.iinfo(np.int32).max else np.int64
-        rank = np.arange(size, dtype=dtype)
+        rows = rows.astype(dtype)
+        cols = cols.astype(dtype)
+        ranksByCol = np.empty(size, dtype)
+        rowsByCol = np.empty(size, dtype)
         indptr = np.empty(Ndof + 1, dtype)
+        _sparsetools.coo_tocsr(
+            Ndof, Ndof, size, cols, rows, np.arange(size, dtype=dtype),
+            indptr, rowsByCol, ranksByCol,
+        )  # fmt: skip
+        colsByCol = np.repeat(np.arange(Ndof, dtype=dtype), np.diff(indptr))
         indices = np.empty(size, dtype)
         ranks = np.empty(size, dtype)
         _sparsetools.coo_tocsr(
-            Ndof, Ndof, size, rows.astype(dtype), cols.astype(dtype), rank,
+            Ndof, Ndof, size, rowsByCol, colsByCol, ranksByCol,
             indptr, indices, ranks,
         )  # fmt: skip
-        _sparsetools.csr_sort_indices(Ndof, indptr, indices, ranks)
         isNew = np.empty(size, bool)
         isNew[0] = True
         np.not_equal(indices[1:], indices[:-1], out=isNew[1:])
         isNew[indptr[1:-1][indptr[1:-1] < size]] = True
-        slots = np.zeros(size + 1, dtype)
-        np.cumsum(isNew, out=slots[1:])
+        starts = np.flatnonzero(isNew)
+        nnz = starts.size
         inv = np.empty(size, np.int32)
-        inv[ranks] = slots[1:] - 1
+        inv[ranks] = np.repeat(
+            np.arange(nnz, dtype=np.int32), np.diff(starts, append=size)
+        )
         return (
             inv,
-            indices[isNew].astype(np.int32),
-            slots[indptr].astype(np.int32),
-            int(slots[-1]),
+            indices[starts].astype(np.int32),
+            np.searchsorted(starts, indptr).astype(np.int32),
+            nnz,
         )
 
     def __Get_map(
