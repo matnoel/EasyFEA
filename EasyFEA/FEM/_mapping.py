@@ -332,9 +332,12 @@ class _Mapping:
         self, array_e: FeArray.FeArrayALike, matrixType: MatrixType
     ) -> FeArray.FeArrayALike:
         """A per-element (Ne, 1, ...) array viewed on the Gauss points of `matrixType`."""
-        nPg = self.__groupElem.Get_gauss(matrixType).nPg
-        shape = (array_e.shape[0], nPg, *array_e.shape[2:])
-        return FeArray.asfearray(np.broadcast_to(np.asarray(array_e), shape))
+        return FeArray.broadcast(
+            np.asarray(array_e)[:, 0],
+            array_e.shape[0],
+            self.__groupElem.Get_gauss(matrixType).nPg,
+            tensor_shape=array_e.shape[2:],
+        )
 
     @cache_computed_values
     def Get_J_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
