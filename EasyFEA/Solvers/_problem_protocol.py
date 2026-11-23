@@ -14,7 +14,7 @@ from ._system import System
 
 
 class _Problem(Protocol):
-    """What a nonlinear strategy reads: A and b at an iterate, its constraints, the system and `comm` (None = no reduction)."""
+    """A problem to solve: its system, `comm` (None = no reduction), A and b at `x`, and the constraints at `x`."""
 
     @property
     def system(self) -> System: ...
