@@ -197,8 +197,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             f"{problemType} is not a problem of this simulation {problems}."
         )
 
-    def __Get_problem(self, problemTypes: tuple[ProblemType, ...]) -> Problem:
-        """The `Problem` of exactly these problem types, kept until the mesh changes or they gain or lose a nonlinear strategy."""
+    def __Get_problem(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> Problem:
+        """The `Problem` of the monolithic problem holding `problemType` (default the simulation's), or of exactly the fields given as a tuple; kept until the mesh changes or it gains or loses a nonlinear strategy."""
+        problemTypes = (
+            problemType
+            if isinstance(problemType, tuple)
+            else self._Get_monolithic_problemTypes(problemType)
+        )
         isNonLinear = problemTypes in self.__dict_strategy
         problem = self.__dict_problem.get(problemTypes)
         if problem is None or problem.isNonLinear != isNonLinear:
@@ -207,12 +214,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem = Problem(self, problemTypes, isNonLinear)
             self.__dict_problem = {**self.__dict_problem, problemTypes: problem}
         return problem
-
-    def __Problem(
-        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
-    ) -> Problem:
-        """The `Problem` of the monolithic problem holding `problemType` (default the simulation's)."""
-        return self.__Get_problem(self._Get_monolithic_problemTypes(problemType))
 
     @abstractmethod
     def Get_unknowns(self, problemType: ProblemType | None = None) -> list[str]:
@@ -240,7 +241,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Energy `1/2 xᵀ X x`, X the `slot` summed from the contributions (`"K"` strain, `"M"` kinetic), over the owned `dofs`; collective on `mesh.comm`."""
         if slot not in ("K", "C", "M"):
             raise ValueError(f"slot must be 'K', 'C' or 'M', not {slot!r}.")
-        problem = self.__Problem(problemType)
+        problem = self.__Get_problem(problemType)
         if dofs is None:
             dofs = self.Get_dofs(problem.problemTypes)
         fields = tuple(x if s == slot else None for s in "KCM")
@@ -269,7 +270,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         slots: str | None = None,
     ) -> np.ndarray:
         """Internal force `K u + C v + M a` at `dofs` over the scheme's slots or the given `slots` (e.g. `"K"`), `F` not subtracted; under MPI the rank's rows."""
-        problem = self.__Problem(problemType)
+        problem = self.__Get_problem(problemType)
         reaction = self.__Get_reaction(problem, slots)
         if dofs is None:
             dofs = np.arange(reaction.size)
@@ -285,7 +286,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         slots: str | None = None,
     ) -> float:
         """Sum of :meth:`Calc_Reaction` over `dofs`, each dof once over the ranks; collective on `mesh.comm`."""
-        problem = self.__Problem(problemType)
+        problem = self.__Get_problem(problemType)
         reaction = self.__Get_reaction(problem, slots)
         isOwned = problem.dofLayout.Owned_mask()
         dofs = np.asarray(dofs, dtype=int)
@@ -1143,9 +1144,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, _types.FloatArray
     ]:
         r"""K, C, M (csr, one pattern) and F (1-D, the terms' load) of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, of one or several fields ``[u | p]``, no Lagrange rows; built on each call, never read by a solve."""
-        if problemType is None:
-            problemType = self._Get_monolithic_problemTypes()
-        problem = self.__Get_problem(_As_problemTypes(problemType))
+        problem = self.__Get_problem(
+            None if problemType is None else _As_problemTypes(problemType)
+        )
 
         assembly = problem.assembly
         list_contribution = problem.Get_contributions()
@@ -1502,7 +1503,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 "Under MPI, Solve needs a partitioned mesh: mesh under mpirun, or load one saved partitioned, and solve before `_Gather`."
             )
 
-        problem = self.__Problem(problemType)
+        problem = self.__Get_problem(problemType)
         problem.Check_monolithic()
 
         backend = self.__Get_backend(problem)
@@ -1583,7 +1584,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> _types.FloatArray:
         """External load of the monolithic problem holding `problemType`, Neumann + the terms' F, at the end of the step, of the problem's size."""
-        return self.__Problem(problemType).Get_load()
+        return self.__Get_problem(problemType).Get_load()
 
     def _Solver_Get_A_b(
         self,
@@ -1591,12 +1592,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         x: TrialSolution | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b before Dirichlet and Lagrange rows of the monolithic problem holding `problemType` or of the fields given: linear, the kept A (the object the solve uses, never write into it) and b, `x` refused; nonlinear, K_t and R with the problem's fields at the trial solution `x` (default committed), the others committed, never kept."""
-        problemTypes = (
-            problemType
-            if isinstance(problemType, tuple) and len(problemType) > 1
-            else self._Get_monolithic_problemTypes(problemType)
-        )
-        problem = self.__Get_problem(problemTypes)
+        problem = self.__Get_problem(problemType)
         return problem.Get_A_b(
             None if x is None else problem.dofLayout.Concatenate(x.__getitem__)
         )
@@ -1960,7 +1956,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns known and unknown dofs; of a monolithic problem, the fields end to end, a field left free up to a constant pinned at its first DOF; of a field inside one, its slice. Collective on `mesh.comm`."""
         tic = Tic()
 
-        problem = self.__Problem(problemType)
+        problem = self.__Get_problem(problemType)
         unknown = problem.Get_unknown_mask()
         if problemType in problem.problemTypes and len(problem.problemTypes) > 1:
             unknown = unknown[problem.dofLayout.slices[problemType]]
