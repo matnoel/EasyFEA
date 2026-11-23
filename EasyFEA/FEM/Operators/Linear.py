@@ -9,7 +9,7 @@ import numpy as np
 
 from .._fearray import FeArray
 from .._utils import MatrixType
-from ._utils import Restrict, Scatter
+from ._utils import einsum, Restrict, Scatter
 from ...Utilities import _types
 
 if TYPE_CHECKING:
@@ -37,7 +37,11 @@ def V(
     f, vec_e_pg = Restrict(elements, f, vec_e_pg)
     # sourcePart is (Ne, nPg, nPe·dof_n, dof_n): summing the trailing axis collapses the
     # block-diagonal shape functions, applying the scalar f to each dof.
-    values_e = (f * vec_e_pg).integrate().sum(axis=-1)
+    vec_e_pg = np.asarray(vec_e_pg)
+    if np.ndim(f) == 0:  # uniform f: no (Ne, nPg) array to contract with
+        values_e = f * einsum("epij->ei", vec_e_pg)
+    else:
+        values_e = einsum("ep,epij->ei", np.asarray(f), vec_e_pg)
     return Scatter(values_e, Ne, elements)
 
 
