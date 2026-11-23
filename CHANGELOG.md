@@ -70,6 +70,8 @@ This document describes the changes made to the project.
   `Solvers/_problem_protocol._Problem` replaces `Solvers.NonlinearProblem`, which is no
   longer exported. `Simulations.Term` and `Simulations.ProblemType` are unchanged.
 
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v7.3.0...v8.0.0
+
 ## 7.3.0 (November 13, 2026):
 
 ### MPI
