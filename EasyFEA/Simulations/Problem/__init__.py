@@ -4,6 +4,6 @@
 
 """Fields of a simulation solved as one system: problem types, terms, DOF layout, assembly."""
 
-from ._problem_type import ProblemType, TrialSolution
+from ._problem_type import ProblemType
 from ._terms import Term, Integrate_terms
 from ._problem import Problem

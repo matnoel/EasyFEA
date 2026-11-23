@@ -112,7 +112,7 @@ pressure:
 
 ```python
 from EasyFEA import MatrixType, Simulations
-from EasyFEA.Simulations import ProblemType, Term, TrialSolution
+from EasyFEA.Simulations import ProblemType, Term, UnknownValues
 from EasyFEA.FEM import Operators
 from EasyFEA.Utilities import _params
 
@@ -125,7 +125,7 @@ class Ventricle(Simulations.HyperElastic):
         self.pressure = 0.0   # a parameter has no default: reading it unset raises
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         # `dim=2` picks the surface groups, `tag` the subset within them;
         # `constant=True` builds the contribution once and reuses it while its arguments are unchanged
@@ -171,7 +171,7 @@ class RigidContact(Simulations.Elastic):
         self.penalty = penalty
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         u = self.Get_u_v_a(problemType, x)[0]
         return super().Get_terms(x, problemType) + [
@@ -207,7 +207,7 @@ defaults to the number of unknowns):
 
 ```python
 import numpy as np
-from EasyFEA.Simulations import _Simu, ProblemType, Term, TrialSolution
+from EasyFEA.Simulations import _Simu, ProblemType, Term, UnknownValues
 
 class MySimulation(_Simu):
 
@@ -225,7 +225,7 @@ class MySimulation(_Simu):
 
     # --- physics (see below for details) ---
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
         ...
 
     # --- post-processing ---
@@ -324,7 +324,7 @@ attribute is bound back to what it was. Rebind any state the subclass derives
 
 `Get_terms` is the only method where you provide physics-specific data: it returns the
 list of {py:class}`~EasyFEA.Simulations.Term` objects that make up the local matrix
-system, at the trial solution `x` ({py:data}`~EasyFEA.Simulations.TrialSolution`: each
+system, at the trial solution `x` ({py:data}`~EasyFEA.Simulations.UnknownValues`: each
 field's value, the iterate during a Newton solve, the committed state otherwise). From
 the element-level matrices they produce, `_Simu` automatically:
 

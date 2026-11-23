@@ -29,7 +29,7 @@ from EasyFEA import (
     TimeSchemes,
 )
 from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
-from EasyFEA.Simulations import ProblemType, Term, TrialSolution
+from EasyFEA.Simulations import ProblemType, Term, UnknownValues
 from EasyFEA.Utilities import _params
 from EasyFEA.Utilities._mpi import MPI_COMM, MPI_RANK, MPI_SIZE
 from EasyFEA.Utilities._types import FloatArray, IntArray
@@ -601,7 +601,7 @@ class _Ventricle(Simulations.HyperElastic):
         self.beta_top, self.beta_epi = beta_top, beta_epi
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         top = Term(
             "K",
@@ -627,7 +627,7 @@ class _Ventricle(Simulations.HyperElastic):
 
     def _Pressure(
         self,
-        x: TrialSolution,
+        x: UnknownValues,
         problemType: ProblemType | None,
         tag: str,
         pressure: float,
@@ -676,7 +676,7 @@ class MonoVentricle(_Ventricle):
         self.pressure = 0.0
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         return super().Get_terms(x, problemType) + [
             self._Pressure(x, problemType, "endo", self.pressure)
@@ -716,7 +716,7 @@ class BiVentricle(_Ventricle):
         self.pressure_rv = 0.0
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         return super().Get_terms(x, problemType) + [
             self._Pressure(x, problemType, "endo_lv", self.pressure_lv),

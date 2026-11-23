@@ -22,9 +22,9 @@ from ._utils import (
 )
 
 # simu
-from ._simu import _Simu, SolverType
+from ._simu import _Simu, SolverType, UnknownValues
 from .Problem._terms import Term
-from .Problem._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType
 
 
 class PhaseField(_Simu):
@@ -337,7 +337,7 @@ class PhaseField(_Simu):
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
         """One term per problem: the damaged stiffness for the elastic problem, the damage operator for the other. The two are solved in turn, never together."""
         if problemType == self.U:
             return [Term("K", self.__Damaged_stiffness)]

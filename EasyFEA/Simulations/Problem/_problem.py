@@ -18,12 +18,12 @@ from ...Utilities import Terminal, Tic, _types
 from ...Utilities._mpi import Reduce_max, Reduce_sum
 from ._assembly import Assembly, _Blocks
 from ._dof_layout import DofLayout
-from ._problem_type import ProblemType, TrialSolution
+from ._problem_type import ProblemType
 from ._terms import _Contribution
 from ..TimeSchemes import Elliptic
 
 if TYPE_CHECKING:
-    from .._simu import _Simu
+    from .._simu import _Simu, UnknownValues
 
 
 class Problem(_Problem):
@@ -96,9 +96,9 @@ class Problem(_Problem):
                 f"({names}) solved as one system does not support Lagrange boundary conditions."
             )
 
-    def __Get_trial(self, x: _types.FloatArray) -> TrialSolution:
+    def __Get_trial(self, x: _types.FloatArray) -> "UnknownValues":
         """The trial solution of the iterate `x`: the fields views into `x`, the others committed."""
-        trial = self.simu._Get_committed_unknown()
+        trial = self.simu._Get_committed_unknown_values()
         for problemType, dofs in self.dofLayout.slices.items():
             trial[problemType] = x[dofs]
         return trial
@@ -108,11 +108,11 @@ class Problem(_Problem):
     # ----------------------------------------------
 
     def __Integrate_contributions(
-        self, trial: TrialSolution | None = None
+        self, trial: "UnknownValues | None" = None
     ) -> list[_Contribution]:
         """The fields' contributions integrated at `trial` (default committed)."""
         if trial is None:
-            trial = self.simu._Get_committed_unknown()
+            trial = self.simu._Get_committed_unknown_values()
         self.needUpdate = False
         return self.simu._Get_list_contribution(self.problemTypes, trial)
 
@@ -182,7 +182,9 @@ class Problem(_Problem):
         """A and b of `A dx = b` at the iterate x (default committed); linear, at x = 0 and `x` refused."""
         if self.isNonLinear:
             trial = (
-                self.simu._Get_committed_unknown() if x is None else self.__Get_trial(x)
+                self.simu._Get_committed_unknown_values()
+                if x is None
+                else self.__Get_trial(x)
             )
             list_contribution = self.__Integrate_contributions(trial)
             A = self.assembly.Get_A(list_contribution, self.simu.timeScheme.coefs)
@@ -282,7 +284,7 @@ class Problem(_Problem):
         """Rows a K, C or M term fills on its groups, ghost elements included, and the Lagrange dofs; read from the committed terms, never integrated; a copy."""
         if self.__termRows is None:
             simu = self.simu
-            committed = simu._Get_committed_unknown()
+            committed = simu._Get_committed_unknown_values()
             rows = np.zeros(self.dofLayout.Ndof, dtype=bool)
             for problemType in self.problemTypes:
                 for term in simu.Get_terms(committed, problemType):
@@ -341,7 +343,7 @@ class Problem(_Problem):
     ) -> tuple[_types.IntArray, dict[ProblemType, _types.FloatArray]]:
         """DOF at global node 0 of each scalar field without a diagonal block whose constant the other fields' free equations are blind to, ``‖A_rc[free] · 1‖ ≤ ε ‖A_rc[free]‖``, and the field's zero-mean weights."""
         simu = self.simu
-        committed = simu._Get_committed_unknown()
+        committed = simu._Get_committed_unknown_values()
         terms = {
             problemType: simu.Get_terms(committed, problemType)
             for problemType in self.problemTypes

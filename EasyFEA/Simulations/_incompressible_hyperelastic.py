@@ -19,8 +19,8 @@ from ..FEM._kelvin_mandel import Tensor_to_Kelvin
 from ..Models.HyperElastic._laws import _HyperElastic
 from ..Utilities import _types
 from ..Solvers import Newton
-from .Problem._problem_type import ProblemType, TrialSolution
-from ._simu import _Simu
+from .Problem._problem_type import ProblemType
+from ._simu import _Simu, UnknownValues
 from .Problem._terms import Term
 from ._utils import (
     Result_strain_or_stress_field_e,
@@ -181,7 +181,7 @@ class IncompressibleHyperElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         u, p = self.U, self.P
         # the constraint's term carries p's equation too

@@ -22,9 +22,9 @@ from ._utils import (
 from ..Models.InElastic._behavior import _Behavior
 
 from ..Solvers import Newton
-from ._simu import _Simu
+from ._simu import _Simu, UnknownValues
 from .Problem._terms import Term
-from .Problem._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType
 
 
 class InElastic(_Simu):
@@ -174,7 +174,7 @@ class InElastic(_Simu):
         u = self.__Node_values(self.displacement)
         return {g: self.__Integrate(u, g)[2] for g in self.__Groups()}
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
         """One term: the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
         return [Term("KR", self.__Assemble, u=self.Get_u_v_a(self.U, x)[0])]
 

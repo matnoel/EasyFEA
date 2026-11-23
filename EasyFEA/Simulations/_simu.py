@@ -52,7 +52,7 @@ from ..FEM._mesh import _MeshPart
 from ..Models import _IModel
 
 # simu
-from .Problem._problem_type import ProblemType, TrialSolution, _As_problemTypes
+from .Problem._problem_type import ProblemType, _As_problemTypes
 from . import _iterations
 from .Problem._terms import Term, Integrate_terms, _Contribution
 from .Problem._assembly import _Blocks
@@ -66,6 +66,10 @@ from ..Solvers import (
     NonlinearStrategy,
 )
 from ..Solvers._backends import CAN_USE_PYPARDISO, Get_backend, _Get_PETSc
+
+
+UnknownValues = dict[ProblemType, _types.FloatArray]
+"""Each problem type's raw unknown (the time scheme's `u`, `v` or `a`): the solve's iterate for the solved fields, the committed value for the others."""
 
 
 @cache
@@ -111,7 +115,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     Solve:
     ------
 
-        - def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+        - def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
 
         These functions describe the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, which `_Simu` then assembles.
 
@@ -306,7 +310,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @abstractmethod
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         r"""Returns the operator terms building this simulation's local matrix system at the trial solution `x`.
 
@@ -1103,7 +1107,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # ----------------------------------------------
 
     def _Get_list_contribution(
-        self, problemTypes: tuple[ProblemType, ...], x: TrialSolution
+        self, problemTypes: tuple[ProblemType, ...], x: UnknownValues
     ) -> list[_Contribution]:
         """The contributions of every field's terms at `x`; raises on a block coupling to a field outside `problemTypes`, or on a field no term fills."""
         fields = ", ".join(problemTypes)
@@ -1325,14 +1329,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self._Solver_Set_TimeScheme(scheme(dt, **params))
 
     def Get_u_v_a(
-        self, problemType: ProblemType | None = None, x: TrialSolution | None = None
+        self, problemType: ProblemType | None = None, x: UnknownValues | None = None
     ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
         r"""Returns :math:`(\mathrm{u}_t, \vrm_t, \arm_t)` of the trial solution `x` (default the committed one), evaluated at the time scheme's own evaluation point, as node values (the layout `Kinematics` reads); None for a role the scheme does not integrate."""
 
         if problemType is None:
             problemType = self.problemType
         if x is None:
-            x = self._Get_committed_unknown()
+            x = self._Get_committed_unknown_values()
 
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
@@ -1346,7 +1350,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             None if a_t is None else space.Get_nodeValues(a_t, dof_n),
         )
 
-    def _Get_committed_unknown(self) -> TrialSolution:
+    def _Get_committed_unknown_values(self) -> UnknownValues:
         """Each field's committed value of the time scheme's unknown: `u_n`, `v_n` or `a_n`."""
         return {
             problemType: self.__Get_unknown_n(problemType)
@@ -1390,7 +1394,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             for problemTypes in self._Get_monolithic_problems()
         )
 
-    def Solve(self, x0: TrialSolution | None = None) -> _types.FloatArray:
+    def Solve(self, x0: UnknownValues | None = None) -> _types.FloatArray:
         """Solves each monolithic problem in turn for the current boundary conditions and returns the simulation's problem type's solution; a nonlinear one starts from `x0`'s fields, `u_n` for the others."""
 
         if x0 is not None:
@@ -1494,7 +1498,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Solve_problemType(
         self,
         problemType: ProblemType | tuple[ProblemType, ...],
-        x0: TrialSolution | None = None,
+        x0: UnknownValues | None = None,
     ) -> _types.FloatArray:
         """Solves the monolithic problem holding `problemType`, nonlinear from `x0` (checked by :meth:`Solve`); called by :meth:`Solve`."""
 
@@ -1532,7 +1536,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         problem: Problem,
         backend: Backend,
-        x0: TrialSolution | None,
+        x0: UnknownValues | None,
     ) -> _types.FloatArray:
         """The problem's strategy from `x0`'s fields, `u_n` for the others; its norms and time recorded for the next saved iteration."""
         strategy = self._Solver_Get_Nonlinear_Strategy(problem.problemTypes)
@@ -1589,7 +1593,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Get_A_b(
         self,
         problemType: ProblemType | tuple[ProblemType, ...] | None = None,
-        x: TrialSolution | None = None,
+        x: UnknownValues | None = None,
     ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """A and b before Dirichlet and Lagrange rows of the monolithic problem holding `problemType` or of the fields given: linear, the kept A (the object the solve uses, never write into it) and b, `x` refused; nonlinear, K_t and R with the problem's fields at the trial solution `x` (default committed), the others committed, never kept."""
         problem = self.__Get_problem(problemType)

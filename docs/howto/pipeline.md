@@ -134,7 +134,7 @@ giving the tangent **and** the residual at the new iterate, and a reader after t
 integrates again at the committed state. A linear problem keeps its contributions and
 $\Arm$ until a change marks them stale or the time-scheme coefficients change. The
 iterate reaches them as the trial solution,
-{py:data}`~EasyFEA.Simulations.TrialSolution`: a dict of each field's value, passed to
+{py:data}`~EasyFEA.Simulations.UnknownValues`: a dict of each field's value, passed to
 {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` — the solved fields at `x`, the others
 committed. {py:meth}`~EasyFEA.Simulations._Simu.Get_u_v_a` evaluates a field of it at
 the time scheme's point, as node values, the layout the operators read.

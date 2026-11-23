@@ -11,7 +11,7 @@ import pytest
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Circle, Domain
-from EasyFEA.Simulations import Integrate_terms, ProblemType, Term, TrialSolution
+from EasyFEA.Simulations import Integrate_terms, ProblemType, Term, UnknownValues
 
 from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible
 
@@ -478,7 +478,7 @@ class Heated(Simulations.Thermal):
         self.Need_Update()
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         return super().Get_terms(x, problemType) + [
             Term("F", Operators.Linear.V, f=self.source)
@@ -510,7 +510,7 @@ class Stiffened(Heated):
         self.Need_Update()
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         return super().Get_terms(x, problemType) + [
             Term("K", self.operator, coef=self.stiffness, constant=True)
@@ -527,7 +527,7 @@ class Sprung(Heated):
         super().__init__()
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         spring = Term("K", self.operator, constant=True)
         return super().Get_terms(x, problemType) + [
@@ -604,7 +604,7 @@ class MixedElastic(Simulations.Elastic):
         self.materials = materials
 
     def Get_terms(
-        self, x: TrialSolution, problemType: ProblemType | None = None
+        self, x: UnknownValues, problemType: ProblemType | None = None
     ) -> list[Term]:
         return [
             Term(

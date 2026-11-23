@@ -65,6 +65,7 @@ This document describes the changes made to the project.
   `examples/LinearizedElasticity/MeshOptim1.py`.
 - Fixes: a Dirichlet dof given twice under Newton; energies and loads after Newton or
   `Set_Iter` read the committed solution; WeakForms on mixed meshes no longer singular.
+- **Breaking:** `TrialSolution` is renamed `UnknownValues`.
 - Internal: `Problem`, `Term`, assembly and DOF layout live in `Simulations/Problem/`;
   `Solvers/_problem_protocol._Problem` replaces `Solvers.NonlinearProblem`, which is no
   longer exported. `Simulations.Term` and `Simulations.ProblemType` are unchanged.

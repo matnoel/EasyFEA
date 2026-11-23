@@ -9,7 +9,7 @@ import numpy as np
 from EasyFEA import Simulations
 from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem, FeArray
 from EasyFEA.Utilities import _params, _types
-from EasyFEA.Simulations import Term, TrialSolution
+from EasyFEA.Simulations import Term, UnknownValues
 from EasyFEA.Solvers import Newton
 
 
@@ -27,7 +27,7 @@ class RigidContact(Simulations.Elastic):
         self.penalty = penalty
         self._contactMesh: Mesh = None
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
         u = self.Get_u_v_a(problemType, x)[0]
         return super().Get_terms(x, problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1, u=u)

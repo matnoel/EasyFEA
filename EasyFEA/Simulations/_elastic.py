@@ -24,9 +24,9 @@ from ._utils import (
 from ..Models.Elastic._laws import _Elastic
 
 # simu
-from ._simu import _Simu
+from ._simu import _Simu, UnknownValues
 from .Problem._terms import Term
-from .Problem._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType
 from .TimeSchemes import Hyperbolic
 
 
@@ -126,7 +126,7 @@ class Elastic(_Simu):
         3D [axi, ayi, azi, ...]"""
         return self._Get_a_n(self.problemType)
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
 
         stiffness = Term(
             "K",

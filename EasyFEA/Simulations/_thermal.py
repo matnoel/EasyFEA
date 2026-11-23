@@ -17,9 +17,9 @@ from ..FEM import Operators
 from .. import Models
 
 # simu
-from ._simu import _Simu
+from ._simu import _Simu, UnknownValues
 from .Problem._terms import Term
-from .Problem._problem_type import ProblemType, TrialSolution
+from .Problem._problem_type import ProblemType
 
 
 class Thermal(_Simu):
@@ -113,7 +113,7 @@ class Thermal(_Simu):
         """The model thickness on a 2D mesh, 1 otherwise."""
         return self.thermalModel.thickness if self.mesh.dim == 2 else 1.0
 
-    def Get_terms(self, x: TrialSolution, problemType=None) -> list[Term]:
+    def Get_terms(self, x: UnknownValues, problemType=None) -> list[Term]:
         thermalModel = self.thermalModel
 
         return [
