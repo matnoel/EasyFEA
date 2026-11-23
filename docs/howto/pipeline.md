@@ -12,7 +12,8 @@ full source.
 
 ```{note}
 The internals described here live in `EasyFEA/Simulations/_simu.py`,
-`EasyFEA/Solvers/`, and `EasyFEA/FEM/_forms.py`. The
+`EasyFEA/Simulations/Problem/` (terms, assembly, dof layout, `Problem`),
+`EasyFEA/Solvers/`, and `EasyFEA/FEM/Operators/`. The
 single-underscore methods (e.g. `_Solver_Get_A_b`) are advanced API;
 the double-underscore ones are private and should never be called directly.
 ```
@@ -21,20 +22,27 @@ ______________________________________________________________________
 
 ## Overview
 
-Every call to {py:meth}`~EasyFEA.Simulations._Simu.Solve` performs the same three
-high-level operations:
+A simulation solves one or several **problems**: each is its fields solved together as
+one system $[\urm \mid p \mid \dots]$ (a single field by default, `[u | p]` for
+{py:class}`~EasyFEA.Simulations.IncompressibleHyperElastic`). For each of them
+{py:meth}`~EasyFEA.Simulations._Simu.Solve` runs four steps:
 
-1. **Build** — assemble the global sparse matrices ($\Krm, \Crm, \Mrm, \Frm$) from
-   element integrals (skipped if nothing changed since the last solve).
-2. **Apply BCs** — add Neumann contributions to the right-hand side, then enforce
-   Dirichlet constraints to constrain the system $\Arm \, \xrm = \brm$.
-3. **Solve** — pass $\Arm \, \xrm = \brm$ to the linear algebra backend (scipy, PETSc,
-   pypardiso) and store the solution.
+1. **Integrate** — the simulation's {py:class}`~EasyFEA.Simulations.Term` objects
+   (`Get_terms`) are integrated over the mesh groups into **contributions**: one element
+   array per term, group and slot, kept unsummed.
+2. **Assemble** — the contributions are summed straight into the system matrix
+   $\Arm = \alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$ and the right-hand
+   side $\brm$ of $\Arm \, \xrm = \brm$. No global $\Krm$, $\Crm$ or $\Mrm$ is built.
+3. **Constrain and solve** — {py:meth}`~EasyFEA.Solvers.System.Solve` applies the
+   Dirichlet and Lagrange conditions and passes the system to the linear algebra backend
+   (scipy, PETSc, pypardiso).
+4. **Store** — the solution is committed, ready for `Save_Iter`.
 
-For **non-linear** problems (a nonlinear strategy set with
-`simu.Solver_Set_Nonlinear_Strategy(Newton())`, then `simu.isNonLinear` is `True`), the
-strategy repeats steps 1–3 until the residual converges (Newton–Raphson for `Newton`) —
-see {ref}`howto-pipeline-newton`.
+A **linear** problem keeps its contributions and $\Arm$ until something marks them
+stale, so steps 1–2 are skipped on the next solve. A **non-linear** one (a strategy set
+with `simu.Solver_Set_Nonlinear_Strategy(Newton())`, then `simu.isNonLinear` is `True`)
+integrates again at each iterate: the strategy repeats steps 1–3 until the residual
+converges, see {ref}`howto-pipeline-newton`.
 
 ______________________________________________________________________
 
@@ -42,29 +50,57 @@ ______________________________________________________________________
 
 ## From element operators to the global system
 
-**Build** turns the mesh + model into four global sparse matrices. Each
-{py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, whose terms are
-integrated over the mesh element groups into, per group, the element tuple
-$(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws),
-damping, mass, and the force vector. $\Frm_e$ is the load alone; a term declaring an
-internal force $\Rrm_e$ is non-linear, as described
-{ref}`below <howto-pipeline-nonlinear-operators>`. Every other term is linear: the
-right-hand side takes $-\Krm_e \, \urm_t - \Crm_e \, \vrm_t - \Mrm_e \, \arm_t$ from it,
-the fields the time scheme evaluates at the unknown.
+### Terms and contributions
 
-These element matrices come from **operators** in {py:mod}`EasyFEA.FEM.Operators` —
-small functions that integrate a form over the Gauss points:
-{py:mod}`~EasyFEA.FEM.Operators.Bilinear` (e.g.
-$\int \Brm^\top \, \bf{C} \, \Brm \, \dO$), {py:mod}`~EasyFEA.FEM.Operators.Linear`, and
-{py:mod}`~EasyFEA.FEM.Operators.NonLinear`. The simulation assembles them into the
-global $\Krm, \Crm, \Mrm, \Frm$ and combines $\Krm, \Crm, \Mrm$ into the system matrix
-according to the time scheme:
+Each {py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, which returns a list
+of {py:class}`~EasyFEA.Simulations.Term`: an **operator**, the fields it couples and a
+scale. {py:func}`~EasyFEA.Simulations.Integrate_terms` evaluates each operator on every
+mesh group and returns one **contribution** per slot it fills:
+
+| Slot | Element array                                          | Reaches                             |
+| ---- | ------------------------------------------------------ | ----------------------------------- |
+| `K`  | $\Krm_e$, stiffness (the tangent, for non-linear laws) | $\Arm$, and $\brm$ through $\urm_t$ |
+| `C`  | $\Crm_e$, damping                                      | $\Arm$, and $\brm$ through $\vrm_t$ |
+| `M`  | $\Mrm_e$, mass                                         | $\Arm$, and $\brm$ through $\arm_t$ |
+| `F`  | $\Frm_e$, an external load (a source)                  | $\brm$, added                       |
+| `R`  | $\Rrm_e$, an internal force, non-linear terms only     | $\brm$, subtracted                  |
+
+The operators are small functions in {py:mod}`EasyFEA.FEM.Operators` that integrate a
+form over the Gauss points: {py:mod}`~EasyFEA.FEM.Operators.Bilinear` (e.g.
+$\int \Brm^\top \, \bf{C} \, \Brm \, \dO$), {py:mod}`~EasyFEA.FEM.Operators.Linear` and
+{py:mod}`~EasyFEA.FEM.Operators.NonLinear`. A contribution carries its slot, its block
+`(rows, cols)` of fields, its mesh group and the element array times the thickness and
+the term's scale.
+
+### Assembly
+
+The `Problem` of a monolithic group of fields numbers its dofs end to end (its **dof
+layout**) and sums the contributions on a sparse pattern it builds once per set of
+contributing blocks. For the time scheme's weights
+$(\alpha_\Krm, \alpha_\Crm, \alpha_\Mrm)$, its `coefs` (Newmark, HHT, midpoint, …; a
+static problem has $\alpha_\Crm = \alpha_\Mrm = 0$):
 
 $$\Arm = \alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$$
 
-where $(\alpha_\Krm, \alpha_\Crm, \alpha_\Mrm)$ are the scheme-dependent weights for the
-active time scheme's `coefs` (Newmark, HHT, midpoint, …); a static problem uses
-$\alpha_\Crm = \alpha_\Mrm = 0$.
+The right-hand side is the external load (the Neumann conditions plus the `F`
+contributions) minus every internal force at the iterate. Every `K`, `C` or `M`
+contribution is a linear term: it contributes $\Krm_e \, \urm_t + \Crm_e \, \vrm_t +
+\Mrm_e \, \arm_t$, the fields the time scheme evaluates at the unknown. An `R`
+contribution is a non-linear term's own internal force, as described
+{ref}`below <howto-pipeline-nonlinear-operators>`.
+
+The separate global matrices remain available for post-processing:
+{py:meth}`~EasyFEA.Simulations._Simu.Assembly` returns $\Krm, \Crm, \Mrm, \Frm$ of a
+problem, built on each call and never read by a solve.
+
+### Constraints
+
+Dirichlet conditions are not written into $\Arm$ and $\brm$.
+{py:meth}`~EasyFEA.Solvers.System.Solve` receives them as
+{py:class}`~EasyFEA.Solvers.Constraints`, the known dofs with their values plus the
+Lagrange constraints, and applies them to the system it solves: the known dofs leave the
+unknowns and their values are lifted into $\brm$ (`ResolType.r1`); a Lagrange constraint
+(`r2`) adds one row; the penalty (`r3`) puts 1 on the diagonal of the known rows.
 
 (howto-pipeline-nonlinear-operators)=
 
