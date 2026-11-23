@@ -70,9 +70,18 @@ class Assembly:
         rows = np.concatenate(list_rows)
         cols = np.concatenate(list_cols)
 
-        # two stable counting sorts (by column, then by row) leave each row sorted by column, each entry carrying its rank; consecutive equal columns of a row share a slot
+        # two stable counting sorts (column, then row) sort each row without a per-row sort
         size = rows.size
-        dtype = np.int32 if size < np.iinfo(np.int32).max else np.int64
+        if size == 0:
+            return (
+                np.empty(0, np.int32),
+                np.empty(0, np.int32),
+                np.zeros(Ndof + 1, np.int32),
+                0,
+            )
+        if size >= np.iinfo(np.int32).max:
+            raise OverflowError(f"{size} element entries exceed the int32 CSR map.")
+        dtype = np.int32
         rows = rows.astype(dtype)
         cols = cols.astype(dtype)
         ranksByCol = np.empty(size, dtype)
@@ -255,14 +264,14 @@ def _Sum(
         contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
         inv, indices, indptr, nnz = Get_map(contributing)
         assert size == inv.size, "A's map does not match its contributions."
-        # each contribution scatters on its own span of the map, scaled after the sum (nnz ≪ entries)
+        # each contribution scatters on its span of the map, scaled after the sum
         data = np.zeros(nnz)
         for contribution in active:
             weight = coefs["KCM".index(contribution.slot)] * contribution.coef
             start = spans[contribution.block, contribution.group]
             values = np.ascontiguousarray(contribution.array, dtype=float).ravel()
             piece = np.zeros(nnz)
-            # scipy's COO mat-vec on a 1-column x is a scatter-add on int32 slots (bincount would widen them to int64); the zero columns are untouched calloc pages
+            # coo_matvec as a scatter-add on int32 slots (bincount widens them)
             _sparsetools.coo_matvec(
                 values.size,
                 inv[start : start + values.size],

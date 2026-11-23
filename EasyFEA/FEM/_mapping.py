@@ -273,13 +273,16 @@ class _Mapping:
         return coord_e[:, :, : groupElem.dim]
 
     def __Is_simplex(self) -> bool:
-        """Whether the group is a linear simplex: ∂N/∂ξ and the Jacobian are constant."""
+        """Whether the group is a linear simplex (SEG2, TRI3, TETRA4): ∂N/∂ξ and the Jacobian are constant."""
         groupElem = self.__groupElem
-        return groupElem.nPe == groupElem.dim + 1
+        return (
+            groupElem.elemType.topology in ("SEG", "TRI", "TETRA")
+            and groupElem.nPe == groupElem.dim + 1
+        )
 
     @cache_computed_values
     def __Get_J_e(self) -> _types.FloatArray:
-        """Jacobian matrix of each linear simplex (Ne, dim, ncols), shared by every matrix type; a plain array, one GEMM over all elements."""
+        """Jacobian matrix of each linear simplex (Ne, dim, ncols), plain."""
         groupElem = self.__groupElem
         dN = groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
         if groupElem.dim == groupElem.inDim:
@@ -294,7 +297,7 @@ class _Mapping:
         return J.reshape(dN.shape[0], Ne, ncols).transpose(1, 0, 2)
 
     @cache_computed_values
-    def __Get_inv_J_e(self) -> _types.FloatArray:
+    def __Get_invJ_plain_e(self) -> _types.FloatArray:
         """J⁻¹ of each linear simplex (Ne, dim, dim), plain."""
         return Inv(self.__Get_J_e())
 
@@ -306,12 +309,12 @@ class _Mapping:
     @cache_computed_values
     def __Get_invJ_e(self) -> FeArray.FeArrayALike:
         """J⁻¹ of each linear simplex (Ne, 1, dim, dim)."""
-        return FeArray.asfearray(self.__Get_inv_J_e()[:, None])
+        return FeArray.asfearray(self.__Get_invJ_plain_e()[:, None])
 
     def Get_dN_e_pg_simplex(
         self, matrixType: MatrixType
     ) -> FeArray.FeArrayALike | None:
-        """∂N/∂x of a linear simplex on the Gauss points of `matrixType` (Ne, nPg, dim, nPe), one GEMM per element then a view; None off simplices."""
+        """∂N/∂x of a linear simplex on the Gauss points (Ne, nPg, dim, nPe); None off simplices."""
         if not self.__Is_simplex() or self.__groupElem.dim == 0:
             return None
         return self.__Broadcast_pg(self.__Get_dN_e(), matrixType)
@@ -320,7 +323,7 @@ class _Mapping:
     def __Get_dN_e(self) -> FeArray.FeArrayALike:
         """∂N/∂x of each linear simplex (Ne, 1, dim, nPe)."""
         dN = self.__groupElem.Get_dN_pg(MatrixType.rigi)[0]  # (dim, nPe)
-        invJ = self.__Get_inv_J_e()  # (Ne, dim, dim)
+        invJ = self.__Get_invJ_plain_e()  # (Ne, dim, dim)
         Ne, dim = invJ.shape[:2]
         dN_e = (invJ.reshape(Ne * dim, dim) @ dN).reshape(Ne, 1, dim, dN.shape[1])
         return FeArray.asfearray(dN_e)
@@ -328,7 +331,7 @@ class _Mapping:
     def __Broadcast_pg(
         self, array_e: FeArray.FeArrayALike, matrixType: MatrixType
     ) -> FeArray.FeArrayALike:
-        """A per-element (Ne, 1, ...) array repeated on the Gauss points of `matrixType`, a view."""
+        """A per-element (Ne, 1, ...) array viewed on the Gauss points of `matrixType`."""
         nPg = self.__groupElem.Get_gauss(matrixType).nPg
         shape = (array_e.shape[0], nPg, *array_e.shape[2:])
         return FeArray.asfearray(np.broadcast_to(np.asarray(array_e), shape))
