@@ -239,14 +239,6 @@ def _Sum(
     active = [c for c in list_contribution if coefs["KCM".index(c.slot)] != 0]
     if any(np.iscomplexobj(c.array) for c in active):
         raise TypeError("Complex systems are not supported.")
-    entries = np.zeros(size) if active else None
-    for contribution in active:
-        weight = coefs["KCM".index(contribution.slot)]
-        start = spans[contribution.block, contribution.group]
-        entries[start : start + contribution.array.size] += (
-            weight * contribution.coef
-        ) * contribution.array.ravel()
-
     # an MPI rank may own no element of any contributing group
     if size == 0:
         A = sparse.csr_matrix((Ndof, Ndof))
@@ -254,12 +246,17 @@ def _Sum(
         contributing = tuple((block, tuple(groups)) for block, groups in sizes.items())
         inv, indices, indptr, nnz = Get_map(contributing)
         assert size == inv.size, "A's map does not match its contributions."
-        # no active slot: the pattern alone, no scatter
-        data = (
-            np.bincount(inv, weights=entries, minlength=nnz)
-            if active
-            else np.zeros(nnz)
-        )
+        # each contribution scatters on its own span of the map, scaled after the sum (nnz ≪ entries)
+        data = np.zeros(nnz)
+        for contribution in active:
+            weight = coefs["KCM".index(contribution.slot)] * contribution.coef
+            start = spans[contribution.block, contribution.group]
+            piece = np.bincount(
+                inv[start : start + contribution.array.size],
+                weights=contribution.array.ravel(),
+                minlength=nnz,
+            )
+            data += piece if weight == 1.0 else weight * piece
         A = sparse.csr_matrix((data, indices, indptr), shape=(Ndof, Ndof))
     # canonical by construction: no sort before the backends
     A.has_canonical_format = True
