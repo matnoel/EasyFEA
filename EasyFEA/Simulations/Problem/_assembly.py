@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Callable, Iterator
 
 import numpy as np
 from scipy import sparse
+from scipy.sparse import _sparsetools
 
 from ...FEM._function_space import _FunctionSpace
 from ...Utilities import _types
@@ -69,20 +70,32 @@ class Assembly:
         rows = np.concatenate(list_rows)
         cols = np.concatenate(list_cols)
 
-        # scipy's own pattern, from a structure-only matrix
-        matrix = sparse.csr_matrix(
-            (np.ones(rows.size), (rows, cols)), shape=(Ndof, Ndof)
+        # scipy's row bucketing then per-row sort, carrying each entry's rank; consecutive equal columns of a row share a slot
+        size = rows.size
+        dtype = np.int32 if size < np.iinfo(np.int32).max else np.int64
+        rank = np.arange(size, dtype=dtype)
+        indptr = np.empty(Ndof + 1, dtype)
+        indices = np.empty(size, dtype)
+        ranks = np.empty(size, dtype)
+        _sparsetools.coo_tocsr(
+            Ndof, Ndof, size, rows.astype(dtype), cols.astype(dtype), rank,
+            indptr, indices, ranks,
+        )  # fmt: skip
+        _sparsetools.csr_sort_indices(Ndof, indptr, indices, ranks)
+        isNew = np.empty(size, bool)
+        isNew[0] = True
+        np.not_equal(indices[1:], indices[:-1], out=isNew[1:])
+        isNew[indptr[1:-1][indptr[1:-1] < size]] = True
+        slots = np.zeros(size + 1, dtype)
+        np.cumsum(isNew, out=slots[1:])
+        inv = np.empty(size, np.int32)
+        inv[ranks] = slots[1:] - 1
+        return (
+            inv,
+            indices[isNew].astype(np.int32),
+            slots[indptr].astype(np.int32),
+            int(slots[-1]),
         )
-        matrix.sort_indices()
-
-        # each element entry to the slot of its (row, col), by the sorted row-major index
-        canon = (
-            np.repeat(np.arange(Ndof), np.diff(matrix.indptr)) * Ndof + matrix.indices
-        )
-        inv = np.searchsorted(canon, rows.astype(np.int64) * Ndof + cols).astype(
-            np.int32
-        )
-        return inv, matrix.indices, matrix.indptr, matrix.nnz
 
     def __Get_map(
         self, contributing: tuple
