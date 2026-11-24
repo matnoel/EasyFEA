@@ -437,8 +437,8 @@ def Plot(
                 values,
                 levels,
                 cmap=cmap,
-                vmin=values.min(),
-                vmax=values.max(),
+                vmin=vmin,
+                vmax=vmax,
                 alpha=alpha,
                 **kwargs,
             )
