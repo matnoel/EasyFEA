@@ -490,15 +490,28 @@ class Mesh(Observable):
         Nn = 1 + max(int(part.nodes.max(initial=-1)) for part in parts)
         coordinates = Place_rows([(part.nodes, part.coord) for part in parts], Nn)
         dict_groupElem = {}
-        for elemType, first in parts[0].groups.items():
-            groups = [part.groups[elemType] for part in parts]
+        # a rank's partition may miss a group or a tag (e.g. a boundary it does not touch)
+        elemTypes = dict.fromkeys(e for part in parts for e in part.groups)
+        for elemType in elemTypes:
+            groups = [
+                part.groups[elemType] for part in parts if elemType in part.groups
+            ]
+            first = groups[0]
             rows = [(group.elements, group.connect) for group in groups]
             Ne = 1 + max(int(group.elements.max(initial=-1)) for group in groups)
             connect = Place_rows(rows, Ne)
             groupElem = first.groupClass(first.gmshId, connect, coordinates)
-            for tag in first.tags:
+            for tag in dict.fromkeys(t for group in groups for t in group.tags):
                 nodes, elements = (
-                    np.unique(np.concatenate([group.tags[tag][i] for group in groups]))
+                    np.unique(
+                        np.concatenate(
+                            [
+                                group.tags[tag][i]
+                                for group in groups
+                                if tag in group.tags
+                            ]
+                        )
+                    )
                     for i in (0, 1)
                 )
                 groupElem.Set_Tag(nodes, tag, elements)
