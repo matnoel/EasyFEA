@@ -2,6 +2,18 @@
 
 This document describes the changes made to the project.
 
+## 8.0.2 (November 25, 2026):
+
+### Fixes
+
+- `simu._Gather()` and `Load_Simu(..., gather=True)` no longer fail when a rank's
+  partition misses a tag or an element group (e.g. a boundary it does not touch):
+  `KeyError: 'top'` after an MPI run of `CardiacElastoDynamics/BiVentricular.py`. (#73)
+- `Matplotlib.Plot` with nodal values honours `clim`: the colour scale no longer resets
+  to each frame's min and max (fixed scale in `Movie_simu`).
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v8.0.1...v8.0.2
+
 ## 8.0.1 (November 23, 2026):
 
 ### Assembly speed-up
